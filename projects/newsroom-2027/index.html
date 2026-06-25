@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2027 新闻编辑室</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <header class="header">
+      <div class="header-left">
+        <span class="logo">◈ NEWSROOM 2027</span>
+        <span class="clock" id="sim-clock">DAY 1 · 08:00</span>
+      </div>
+      <div class="header-right">
+        <span class="status-pill" id="status-pill">LIVE</span>
+        <button class="btn-icon" id="btn-pause" title="暂停/继续">⏸</button>
+      </div>
+    </header>
+
+    <div class="layout">
+
+      <!-- ── 左：控制面板 ── -->
+      <aside class="panel panel-controls">
+        <div class="panel-section">
+          <div class="section-title">CONFIGURATION</div>
+
+          <div class="control-group">
+            <label>AI 记者比例 <span class="ctrl-val" id="ai-ratio-val">50%</span></label>
+            <input type="range" id="ai-ratio" min="0" max="100" value="50" step="5">
+          </div>
+
+          <div class="control-group">
+            <label>团队规模 <span class="ctrl-val" id="team-size-val">8</span></label>
+            <input type="range" id="team-size" min="3" max="16" value="8" step="1">
+          </div>
+
+          <div class="control-group">
+            <label>发布节奏 <span class="ctrl-val" id="pub-speed-val">NORMAL</span></label>
+            <input type="range" id="pub-speed" min="1" max="3" value="2" step="1">
+          </div>
+
+          <div class="control-group">
+            <label>内容深度 <span class="ctrl-val" id="depth-val">BALANCED</span></label>
+            <input type="range" id="depth" min="1" max="3" value="2" step="1">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="panel-section">
+          <div class="section-title">METRICS</div>
+          <div class="metrics-grid">
+            <div class="metric-block">
+              <span class="metric-val" id="m-published">0</span>
+              <span class="metric-lbl">PUBLISHED</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-val" id="m-audience">0K</span>
+              <span class="metric-lbl">READERS</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-val" id="m-quality">—</span>
+              <span class="metric-lbl">AVG QUALITY</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-val" id="m-ai-pct">0%</span>
+              <span class="metric-lbl">AI BYLINES</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="panel-section" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+          <div class="section-title">EVENTS</div>
+          <div class="event-log" id="event-log"></div>
+        </div>
+      </aside>
+
+      <!-- ── 中：管道 ── -->
+      <main class="panel panel-pipeline">
+        <div class="pipeline-stages">
+          <div class="stage-col">
+            <div class="stage-header">
+              <span class="stage-dot" style="background:#8b949e"></span>
+              PITCHING
+            </div>
+            <div class="stage-body" id="stage-pitching"></div>
+          </div>
+
+          <div class="stage-sep">›</div>
+
+          <div class="stage-col">
+            <div class="stage-header">
+              <span class="stage-dot" style="background:#ffa657"></span>
+              DRAFTING
+            </div>
+            <div class="stage-body" id="stage-drafting"></div>
+          </div>
+
+          <div class="stage-sep">›</div>
+
+          <div class="stage-col">
+            <div class="stage-header">
+              <span class="stage-dot" style="background:#58a6ff"></span>
+              EDITING
+            </div>
+            <div class="stage-body" id="stage-editing"></div>
+          </div>
+
+          <div class="stage-sep">›</div>
+
+          <div class="stage-col stage-col-published">
+            <div class="stage-header">
+              <span class="stage-dot" style="background:#56d364"></span>
+              PUBLISHED
+            </div>
+            <div class="stage-body" id="stage-published"></div>
+          </div>
+        </div>
+
+        <div class="workers-strip">
+          <div class="workers-strip-title">TEAM</div>
+          <div class="workers-row" id="workers-row"></div>
+        </div>
+      </main>
+
+      <!-- ── 右：图表 ── -->
+      <aside class="panel panel-charts">
+        <div class="panel-section">
+          <div class="section-title">OUTPUT / HOUR</div>
+          <canvas id="chart-output" width="164" height="56"></canvas>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">QUALITY SCORE</div>
+          <canvas id="chart-quality" width="164" height="56"></canvas>
+        </div>
+        <div class="panel-section">
+          <div class="section-title">AUDIENCE</div>
+          <canvas id="chart-audience" width="164" height="56"></canvas>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="panel-section">
+          <div class="section-title">CONTENT MIX</div>
+          <div id="content-mix" class="mix-bars"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="panel-section">
+          <div class="section-title">ABOUT</div>
+          <p class="about-text">
+            拨动滑块重组团队配置——看 AI 加速带来的质量 vs 速度权衡、疲劳累积如何拖慢人类记者、深度报道的成本为什么难以规模化。
+          </p>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <script src="js/sim.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
