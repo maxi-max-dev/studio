@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Polis · 智能体城邦</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Stats bar -->
+  <header id="header">
+    <h1>POLIS · 智能体城邦</h1>
+    <div class="stat-group">
+      <div class="stat">
+        <span class="stat-label">第几天</span>
+        <span class="stat-value" id="stat-day">1</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">总财富</span>
+        <span class="stat-value" id="stat-wealth">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">基尼系数</span>
+        <span class="stat-value" id="stat-gini">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">法令通过</span>
+        <span class="stat-value" id="stat-passed">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">法令否决</span>
+        <span class="stat-value" id="stat-failed">0</span>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="btn-pause">⏸ 暂停</button>
+      <select id="sel-speed">
+        <option value="1">1× 速度</option>
+        <option value="2">2× 速度</option>
+        <option value="4">4× 速度</option>
+      </select>
+    </div>
+  </header>
+
+  <div id="main">
+    <!-- Canvas -->
+    <div id="canvas-wrap">
+      <canvas id="polis" width="900" height="580"></canvas>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+
+      <!-- Current proposal -->
+      <div class="panel" id="proposal-box">
+        <div class="panel-title">当前提案</div>
+        <div id="proposal-content">
+          <span class="no-proposal">等待执政官提案…</span>
+        </div>
+      </div>
+
+      <!-- Active laws -->
+      <div class="panel" id="laws-box">
+        <div class="panel-title">生效法令</div>
+        <div id="laws-content"><span class="no-laws">暂无生效法令</span></div>
+      </div>
+
+      <!-- Agent inspector -->
+      <div class="panel" id="inspector-box">
+        <div class="panel-title">市民检视</div>
+        <div id="inspector-content">
+          <span class="insp-empty">点击任意市民查看详情</span>
+        </div>
+      </div>
+
+      <!-- Event log -->
+      <div id="events-box">
+        <div class="panel-title" style="padding: 10px 14px 6px; border-bottom: 1px solid var(--border)">事件记录</div>
+        <div id="events-list"></div>
+      </div>
+
+      <!-- Legend -->
+      <div id="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>农耕者</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>矿工</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#c084fc"></div>执政官</div>
+      </div>
+
+    </aside>
+  </div>
+</div>
+
+<script src="sim.js"></script>
+<script src="render.js"></script>
+<script>
+(function() {
+
+var canvas  = document.getElementById('polis')
+var elDay   = document.getElementById('stat-day')
+var elWealth= document.getElementById('stat-wealth')
+var elGini  = document.getElementById('stat-gini')
+var elPassed= document.getElementById('stat-passed')
+var elFailed= document.getElementById('stat-failed')
+var elProp  = document.getElementById('proposal-content')
+var elLaws  = document.getElementById('laws-content')
+var elInsp  = document.getElementById('inspector-content')
+var elEvts  = document.getElementById('events-list')
+var btnPause= document.getElementById('btn-pause')
+var selSpeed= document.getElementById('sel-speed')
+
+// Retina / HiDPI support
+var dpr = window.devicePixelRatio || 1
+if (dpr !== 1) {
+  canvas.width  = 900 * dpr
+  canvas.height = 580 * dpr
+  canvas.style.width  = '900px'
+  canvas.style.height = '580px'
+  canvas.getContext('2d').scale(dpr, dpr)
+}
+
+initSim()
+
+// ── Controls ──────────────────────────────────────────────────────────
+
+btnPause.addEventListener('click', function() {
+  sim.paused = !sim.paused
+  btnPause.textContent = sim.paused ? '▶ 继续' : '⏸ 暂停'
+  btnPause.classList.toggle('active', sim.paused)
+})
+
+selSpeed.addEventListener('change', function() {
+  sim.speed = Number(selSpeed.value)
+})
+
+// ── Agent selection ───────────────────────────────────────────────────
+
+canvas.addEventListener('click', function(e) {
+  var rect = canvas.getBoundingClientRect()
+  var mx = e.clientX - rect.left
+  var my = e.clientY - rect.top
+  var candidates = sim.agents
+    .map(function(a) { return { a: a, d: Math.hypot(a.x - mx, a.y - my) } })
+    .filter(function(o) { return o.d < 14 })
+    .sort(function(p, q) { return p.d - q.d })
+  sim.selectedId = candidates.length ? candidates[0].a.id : null
+})
+
+// ── UI update ─────────────────────────────────────────────────────────
+
+var LAW_LABELS = {
+  harvest:     '丰收令',
+  ore_boom:    '矿业扩张',
+  redistribute:'均富税',
+  market_boom: '市集繁荣',
+  mutual_aid:  '互助基金',
+}
+
+function fmtGold(v) {
+  if (v >= 1000) return (v / 1000).toFixed(1) + 'k'
+  return Math.round(v).toString()
+}
+
+function updateUI() {
+  var s = sim.stats
+
+  elDay.textContent    = Math.floor(sim.tick / 2400) + 1
+  elWealth.textContent = fmtGold(s.totalWealth)
+  elGini.textContent   = (s.gini || 0).toFixed(2)
+  elPassed.textContent = s.lawsPassed
+  elFailed.textContent = s.lawsFailed
+
+  // Proposal panel
+  var prop = sim.proposals[0]
+  if (prop) {
+    var total = prop.votesFor + prop.votesAgainst || 1
+    var forPct = Math.round((prop.votesFor / total) * 100)
+    var phaseLabel = prop.phase === 'voting'
+      ? '投票中 · ' + prop.voterCount + ' 人已投'
+      : prop.phase === 'passed'
+        ? '<span class="phase-passed">✅ 已通过</span>'
+        : '<span class="phase-failed">❌ 已否决</span>'
+
+    elProp.innerHTML =
+      '<div class="proposal-card">' +
+        '<div class="proposal-title">《' + prop.title + '》</div>' +
+        '<div class="proposal-desc">' + prop.desc + '</div>' +
+        '<div class="vote-bar-wrap">' +
+          '<div class="vote-bar-track">' +
+            '<div class="vote-bar-fill for" style="width:' + forPct + '%"></div>' +
+          '</div>' +
+          '<div class="vote-labels">' +
+            '<span class="for-val">赞 ' + Math.round(prop.votesFor) + '</span>' +
+            '<span class="against-val">反 ' + Math.round(prop.votesAgainst) + '</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="proposal-phase">' + phaseLabel + '</div>' +
+      '</div>'
+  } else {
+    var nextIn = Math.max(0, sim.nextProposalTick - sim.tick)
+    var secs = Math.round(nextIn / (60 * sim.speed))
+    elProp.innerHTML = '<span class="no-proposal">下次提案约 ' + secs + 's 后…</span>'
+  }
+
+  // Active laws
+  if (sim.laws.length === 0) {
+    elLaws.innerHTML = '<span class="no-laws">暂无生效法令</span>'
+  } else {
+    elLaws.innerHTML = sim.laws.map(function(l) {
+      var secs = Math.round(l.ticks / (60 * sim.speed))
+      return '<span class="law-tag">' + (LAW_LABELS[l.type] || l.type) +
+             '<span class="law-timer">' + secs + 's</span></span>'
+    }).join('')
+  }
+
+  // Inspector
+  var sel = sim.selectedId !== null ? sim.agents.filter(function(a) { return a.id === sim.selectedId })[0] : null
+  if (sel) {
+    var stateLabel = { idle:'闲置', seeking:'前往', working:'工作中', selling:'出售', voting:'投票中' }[sel.state] || sel.state
+    var voteStr = sel.voted
+      ? (sel.voteFor ? '<span style="color:var(--green)">赞成</span>' : '<span style="color:var(--red)">反对</span>')
+      : '未投'
+    elInsp.innerHTML =
+      '<div class="insp-row"><span class="insp-key">角色</span><span class="insp-val role-' + sel.role + '">' + ROLES[sel.role].label + '</span></div>' +
+      '<div class="insp-row"><span class="insp-key">状态</span><span class="insp-val state-' + sel.state + '">' + stateLabel + '</span></div>' +
+      '<div class="insp-row"><span class="insp-key">食物</span><span class="insp-val">' + sel.food.toFixed(1) + '</span></div>' +
+      '<div class="insp-row"><span class="insp-key">携带</span><span class="insp-val">' + sel.carrying.toFixed(1) + ' / ' + CFG.CARRY_CAP + '</span></div>' +
+      '<div class="insp-row"><span class="insp-key">金币</span><span class="insp-val" style="color:var(--gold)">' + sel.gold.toFixed(1) + '</span></div>' +
+      '<div class="insp-row"><span class="insp-key">本轮票</span><span class="insp-val">' + voteStr + '</span></div>'
+  } else {
+    elInsp.innerHTML = '<span class="insp-empty">点击任意市民查看详情</span>'
+  }
+
+  // Events
+  elEvts.innerHTML = sim.events.map(function(ev) {
+    return '<div class="event-item"><span class="event-day">D' + ev.day + '</span><span>' + ev.text + '</span></div>'
+  }).join('')
+}
+
+// ── Game loop ─────────────────────────────────────────────────────────
+
+var lastUIUpdate = 0
+
+function loop(now) {
+  tickSim()
+  draw(canvas, now)
+  if (now - lastUIUpdate > 120) {
+    updateUI()
+    lastUIUpdate = now
+  }
+  requestAnimationFrame(loop)
+}
+
+requestAnimationFrame(loop)
+
+})()
+</script>
+</body>
+</html>
