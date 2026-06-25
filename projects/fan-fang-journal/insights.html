@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>洞见 · 反方日记</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script src="nav.js"></script>
+  <main class="main" id="main"></main>
+
+  <script src="store.js"></script>
+  <script>
+    function esc(s) {
+      var d = document.createElement('div');
+      d.textContent = String(s || '');
+      return d.innerHTML;
+    }
+
+    var entries = Store.getAll();
+    var main = document.getElementById('main');
+
+    if (entries.length === 0) {
+      main.innerHTML = '<div class="empty-state">' +
+        '<div class="empty-icon">📊</div>' +
+        '<h1 class="empty-title">先写几条记录，这里才有意思</h1>' +
+        '<p class="empty-sub">洞见需要数据。接受质疑的次数越多，你就越清楚自己哪些观点真的经得起推敲。</p>' +
+        '<a href="write.html" class="btn btn-primary btn-lg" style="margin-top:16px">开始写</a>' +
+        '</div>';
+    } else {
+
+    /* ── Compute stats ── */
+    var total    = entries.length;
+    var survived = entries.filter(function (e) { return e.resilience === 'survived'; }).length;
+    var modified = entries.filter(function (e) { return e.resilience === 'modified'; }).length;
+    var abandoned = entries.filter(function (e) { return e.resilience === 'abandoned'; }).length;
+    var judged   = survived + modified + abandoned;
+    var pending  = total - judged;
+
+    var allC = entries.reduce(function (acc, e) { return acc.concat(e.challenges || []); }, []);
+    var typeCounts = {};
+    var typeLabels = {};
+    allC.forEach(function (c) {
+      typeCounts[c.type] = (typeCounts[c.type] || 0) + 1;
+      if (!typeLabels[c.type]) typeLabels[c.type] = c.label;
+    });
+    var sortedTypes = Object.keys(typeCounts).sort(function (a, b) {
+      return typeCounts[b] - typeCounts[a];
+    });
+    var maxCount = sortedTypes.length > 0 ? typeCounts[sortedTypes[0]] : 1;
+
+    /* ── Stats grid ── */
+    var pctHTML = judged > 0
+      ? '<div class="stat-card"><div class="stat-value">' +
+        Math.round(survived / judged * 100) + '%</div>' +
+        '<div class="stat-label">观点守住率</div></div>'
+      : '';
+
+    var statsHTML =
+      '<div class="stats-grid">' +
+      '<div class="stat-card"><div class="stat-value">' + total + '</div><div class="stat-label">总记录数</div></div>' +
+      '<div class="stat-card"><div class="stat-value" style="color:var(--green-t)">' + survived + '</div><div class="stat-label">守住了</div></div>' +
+      '<div class="stat-card"><div class="stat-value" style="color:var(--yellow-t)">' + modified + '</div><div class="stat-label">有所调整</div></div>' +
+      '<div class="stat-card"><div class="stat-value" style="color:var(--red-t)">' + abandoned + '</div><div class="stat-label">被推翻</div></div>' +
+      (pending > 0 ? '<div class="stat-card"><div class="stat-value" style="color:var(--text-dim)">' + pending + '</div><div class="stat-label">待质疑</div></div>' : '') +
+      pctHTML +
+      '</div>';
+
+    /* ── Challenge type bars ── */
+    var typeBarsHTML = '';
+    if (sortedTypes.length > 0) {
+      typeBarsHTML = '<div class="insights-section">' +
+        '<div class="insights-title">最常出现的质疑类型</div>' +
+        sortedTypes.map(function (t) {
+          var pct = Math.round(typeCounts[t] / maxCount * 100);
+          return '<div class="type-bar">' +
+            '<span class="type-name">' + esc(typeLabels[t] || t) + '</span>' +
+            '<div class="type-track"><div class="type-fill" style="width:' + pct + '%"></div></div>' +
+            '<span class="type-count">' + typeCounts[t] + '</span>' +
+            '</div>';
+        }).join('') +
+        '</div>';
+    }
+
+    /* ── Timeline ── */
+    var timelineHTML = '<div class="insights-section">' +
+      '<div class="insights-title">时间线</div>' +
+      entries.map(function (e) {
+        var dotCls = e.resilience ? 'dot-' + e.resilience : 'dot-null';
+        var dt = new Date(e.createdAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        var r = { survived: 'badge-green', modified: 'badge-yellow', abandoned: 'badge-red' }[e.resilience];
+        var badge = r
+          ? '<span class="badge ' + r + ' t-badge" style="font-size:9px">' +
+            { survived: '守住', modified: '调整', abandoned: '推翻' }[e.resilience] + '</span>'
+          : '';
+        return '<a href="review.html?id=' + encodeURIComponent(e.id) + '" class="timeline-row" style="text-decoration:none">' +
+          '<div class="t-dot ' + dotCls + '"></div>' +
+          '<span class="t-date">' + esc(dt) + '</span>' +
+          '<span class="t-title">' + esc(e.title) + '</span>' +
+          badge +
+          '</a>';
+      }).join('') +
+      '</div>';
+
+    main.innerHTML =
+      '<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">' +
+      '<div><h1 class="page-title">洞见</h1><p class="page-sub">你的观点有多少经得起质疑？</p></div>' +
+      '<button id="export-btn" class="btn btn-ghost" style="margin-top:4px;font-size:12px;flex-shrink:0">↓ 导出</button>' +
+      '</div>' +
+      statsHTML +
+      typeBarsHTML +
+      timelineHTML;
+
+    document.getElementById('export-btn').addEventListener('click', function () {
+      var lines = [];
+      entries.forEach(function (e, idx) {
+        var verdict = { survived: '观点守住了', modified: '有所调整', abandoned: '想法被推翻' }[e.resilience] || '待裁决';
+        var dt = new Date(e.createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+        lines.push('══════════════════════');
+        lines.push('【' + (idx + 1) + '】' + e.title);
+        lines.push(dt + ' · ' + verdict);
+        lines.push('');
+        lines.push(e.body);
+        (e.challenges || []).forEach(function (c) {
+          lines.push('');
+          lines.push(c.icon + ' ' + c.label);
+          lines.push('  Q: ' + c.question);
+          if (c.response) lines.push('  A: ' + c.response);
+        });
+        lines.push('');
+      });
+      var blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '反方日记.txt';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    /* Animate type bars: capture target widths, reset to 0, then transition in */
+    var fills = document.querySelectorAll('.type-fill');
+    var targets = [];
+    fills.forEach(function (el) { targets.push(el.style.width); el.style.width = '0'; el.style.transition = 'none'; });
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        fills.forEach(function (el, i) {
+          el.style.transition = 'width 0.6s ease';
+          el.style.width = targets[i];
+        });
+      });
+    });
+
+    } // end else
+  </script>
+</body>
+</html>

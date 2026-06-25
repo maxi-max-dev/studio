@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新记录 · 反方日记</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script src="nav.js"></script>
+
+  <div class="write-container">
+    <div style="margin-bottom:32px">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:4px">写下你认为是真的事情</p>
+      <p style="font-size:12px;color:var(--text-dim)">越具体，质疑越有力。</p>
+    </div>
+
+    <label class="write-label" for="title">标题（可选）</label>
+    <input type="text" id="title" class="write-title-input"
+           placeholder="留空则自动从内容生成" autocomplete="off" spellcheck="false">
+
+    <label class="write-label" for="body" style="margin-top:8px">内容</label>
+    <textarea id="body" class="write-body-input"
+      placeholder="你相信什么？你如何解读这件事？&#10;&#10;不需要完整论文——哪怕三句话，只要你认为它是真的。"></textarea>
+
+    <div class="write-footer">
+      <span class="write-hint" id="hint">Cmd + Enter 提交</span>
+      <button class="btn btn-primary" id="submit-btn" disabled>提交，接受质疑 →</button>
+    </div>
+  </div>
+
+  <script src="store.js"></script>
+  <script src="engine.js"></script>
+  <script>
+    var bodyEl   = document.getElementById('body');
+    var titleEl  = document.getElementById('title');
+    var btn      = document.getElementById('submit-btn');
+    var hint     = document.getElementById('hint');
+
+    function checkReady() {
+      btn.disabled = bodyEl.value.trim().length < 15;
+    }
+
+    bodyEl.addEventListener('input', function () {
+      checkReady();
+      bodyEl.style.height = 'auto';
+      bodyEl.style.height = bodyEl.scrollHeight + 'px';
+    });
+    bodyEl.style.height = '260px';
+
+    bodyEl.addEventListener('keydown', function (e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!btn.disabled) doSubmit();
+      }
+    });
+
+    btn.addEventListener('click', doSubmit);
+
+    function doSubmit() {
+      var body = bodyEl.value.trim();
+      if (body.length < 15) return;
+      btn.disabled = true;
+      btn.textContent = '分析中…';
+      hint.textContent = '正在生成质疑…';
+
+      setTimeout(function () {
+        var challenges = Engine.generate(body);
+        var entry = Store.create({
+          title: titleEl.value.trim(),
+          body: body,
+          challenges: challenges,
+        });
+        location.href = 'review.html?id=' + encodeURIComponent(entry.id);
+      }, 480);
+    }
+  </script>
+</body>
+</html>

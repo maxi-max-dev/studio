@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>反方日记</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script src="nav.js"></script>
+  <main class="main" id="main"></main>
+
+  <script src="store.js"></script>
+  <script>
+    function esc(s) {
+      var d = document.createElement('div');
+      d.textContent = String(s || '');
+      return d.innerHTML;
+    }
+
+    var RES = {
+      survived: { text: '守住了',   cls: 'badge-green'  },
+      modified: { text: '有所调整', cls: 'badge-yellow' },
+      abandoned: { text: '被推翻',  cls: 'badge-red'    },
+    };
+
+    var entries = Store.getAll();
+    var main = document.getElementById('main');
+
+    if (entries.length === 0) {
+      main.innerHTML = '<div class="empty-state">' +
+        '<div class="empty-icon">⚔️</div>' +
+        '<h1 class="empty-title">你上一次真的被说服，是什么时候？</h1>' +
+        '<p class="empty-sub">大多数日记记下你说了什么。这个问你：你有没有可能是错的。</p>' +
+        '<p class="empty-sub" style="color:var(--text-dim)">写下一个你认为是真的观点——然后看看它能不能扛过质疑。</p>' +
+        '<a href="write.html" class="btn btn-primary btn-lg" style="margin-top:12px">写下第一条记录</a>' +
+        '</div>';
+    } else {
+      var cards = entries.map(function (e) {
+        var r = RES[e.resilience];
+        var badge = r
+          ? '<span class="badge ' + r.cls + '">' + r.text + '</span>'
+          : '<span class="badge badge-dim">待质疑</span>';
+        var dt = new Date(e.createdAt).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' });
+        var body = (e.body || '');
+        var excerpt = esc(body.slice(0, 100) + (body.length > 100 ? '…' : ''));
+        var n = (e.challenges || []).length;
+        return '<a href="review.html?id=' + encodeURIComponent(e.id) + '" class="entry-card">' +
+          '<div class="entry-meta"><span class="entry-date">' + esc(dt) + '</span>' + badge + '</div>' +
+          '<h2 class="entry-title">' + esc(e.title) + '</h2>' +
+          '<p class="entry-excerpt">' + excerpt + '</p>' +
+          '<div class="entry-footer">' + n + ' 条质疑</div>' +
+          '</a>';
+      }).join('');
+
+      main.innerHTML =
+        '<div class="entries-header"><h1>记录</h1><span class="entries-count">' + entries.length + ' 条</span></div>' +
+        '<div class="entries-grid">' + cards + '</div>';
+    }
+  </script>
+</body>
+</html>

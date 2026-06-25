@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>质疑 · 反方日记</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <script src="nav.js"></script>
+  <main class="main-wide" id="main"></main>
+
+  <script src="store.js"></script>
+  <script>
+    function esc(s) {
+      var d = document.createElement('div');
+      d.textContent = String(s || '');
+      return d.innerHTML;
+    }
+
+    var id = new URLSearchParams(location.search).get('id');
+    if (!id) { location.href = 'index.html'; throw 0; }
+
+    var entry = Store.get(id);
+    var main  = document.getElementById('main');
+
+    if (!entry) {
+      main.innerHTML = '<div class="empty-state"><p style="color:var(--text-muted)">记录不存在</p>' +
+        '<a href="index.html" class="btn btn-ghost" style="margin-top:16px">← 返回列表</a></div>';
+    } else {
+      render(entry);
+    }
+
+    function render(e) {
+      var judged = !!e.resilience;
+      var dt = new Date(e.createdAt).toLocaleDateString('zh-CN',
+        { year: 'numeric', month: 'long', day: 'numeric' });
+
+      var challengeCards = (e.challenges || []).map(function (c, i) {
+        var resp = esc(c.response || '');
+        return '<div class="challenge-card" id="cc-' + i + '">' +
+          '<div class="challenge-header">' +
+          '<span class="challenge-icon">' + esc(c.icon || '') + '</span>' +
+          '<span class="challenge-label">' + esc(c.label) + '</span>' +
+          '</div>' +
+          '<p class="challenge-question">' + esc(c.question) + '</p>' +
+          '<textarea class="challenge-response" data-idx="' + i + '"' +
+          (judged ? ' disabled' : '') +
+          ' placeholder="你的回应（可留空）">' + resp + '</textarea>' +
+          '</div>';
+      }).join('');
+
+      var verdictHTML = judged ? verdictResult(e.resilience) : verdictButtons();
+      var deleteBtn = !judged
+        ? '<button id="del-btn" class="btn btn-ghost" ' +
+          'style="font-size:12px;padding:5px 11px;color:var(--text-dim)">删除</button>'
+        : '';
+
+      main.innerHTML =
+        '<div class="review-grid">' +
+
+        /* Left: entry */
+        '<div class="review-entry">' +
+        '<div class="section-label">你的记录 · ' + esc(dt) + '</div>' +
+        '<h1 class="review-entry-title">' + esc(e.title) + '</h1>' +
+        '<div class="review-entry-body">' + esc(e.body) + '</div>' +
+        '<div class="review-entry-meta">' + (e.challenges || []).length + ' 条质疑</div>' +
+        '<div class="review-actions">' +
+        '<a href="index.html" class="btn btn-ghost" style="font-size:12px;padding:5px 11px">← 返回</a>' +
+        deleteBtn +
+        '</div>' +
+        '</div>' +
+
+        /* Right: challenges */
+        '<div>' +
+        '<div class="section-label">反方的质疑</div>' +
+        '<div class="challenges-list" id="cl">' + challengeCards + '</div>' +
+        '<div class="verdict-section" id="vs">' + verdictHTML + '</div>' +
+        '</div>' +
+
+        '</div>';
+
+      /* Auto-resize textareas */
+      main.querySelectorAll('.challenge-response').forEach(function (ta) {
+        ta.style.height = ta.scrollHeight + 'px';
+      });
+
+      if (!judged) {
+        /* Save responses as user types */
+        main.querySelectorAll('.challenge-response').forEach(function (ta) {
+          ta.addEventListener('input', function () {
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 'px';
+            autoSave();
+          });
+        });
+
+        /* Verdict buttons */
+        main.querySelectorAll('.btn-verdict').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            saveVerdict(this.dataset.v);
+          });
+        });
+
+        /* Delete */
+        var delBtn = main.querySelector('#del-btn');
+        if (delBtn) {
+          delBtn.addEventListener('click', function () {
+            if (confirm('删除这条记录？')) {
+              Store.remove(e.id);
+              location.href = 'index.html';
+            }
+          });
+        }
+      }
+    }
+
+    function verdictButtons() {
+      return '<p class="verdict-prompt">回应完后，对自己诚实</p>' +
+        '<div class="verdict-buttons">' +
+        '<button class="btn btn-verdict btn-survived" data-v="survived">✓ 观点守住了</button>' +
+        '<button class="btn btn-verdict btn-modified" data-v="modified">↺ 有所调整</button>' +
+        '<button class="btn btn-verdict btn-abandoned" data-v="abandoned">✗ 想法被推翻</button>' +
+        '</div>';
+    }
+
+    function verdictResult(resilience) {
+      var map = {
+        survived: { label: '观点守住了', color: 'var(--green-t)' },
+        modified: { label: '有所调整',   color: 'var(--yellow-t)' },
+        abandoned: { label: '想法被推翻', color: 'var(--red-t)' },
+      };
+      var v = map[resilience] || map.survived;
+      return '<div class="verdict-result">' +
+        '<div class="verdict-result-label">你的裁决</div>' +
+        '<div class="verdict-result-value" style="color:' + v.color + '">' + esc(v.label) + '</div>' +
+        '</div>';
+    }
+
+    function collectResponses() {
+      return (entry.challenges || []).map(function (c, i) {
+        var ta = main.querySelector('[data-idx="' + i + '"]');
+        return Object.assign({}, c, { response: ta ? ta.value : c.response });
+      });
+    }
+
+    function autoSave() {
+      entry = Store.update(entry.id, { challenges: collectResponses() });
+    }
+
+    function saveVerdict(verdict) {
+      autoSave();
+      entry = Store.update(entry.id, { resilience: verdict });
+      location.reload();
+    }
+  </script>
+</body>
+</html>
