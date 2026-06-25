@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系统图谱 · System Map</title>
+<style>
+:root {
+  --bg: #09090f;
+  --surface: #111118;
+  --surface2: #1a1a26;
+  --border: #252535;
+  --text: #e2e2ee;
+  --text-dim: #5a5a72;
+  --accent: #f59e0b;
+  --accent-bg: rgba(245,158,11,0.12);
+  --accent-dim: #78350f;
+  --r-color: #10b981;
+  --r-bg: rgba(16,185,129,0.1);
+  --b-color: #818cf8;
+  --b-bg: rgba(129,140,248,0.1);
+  --danger: #ef4444;
+  --pos-link: #f59e0b;
+  --neg-link: #818cf8;
+  --node-r: 36px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'PingFang SC','Helvetica Neue',sans-serif;display:flex;flex-direction:column;}
+
+/* ── Toolbar ── */
+#toolbar{height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:6px;flex-shrink:0;z-index:20;}
+.app-name{font-size:15px;font-weight:700;letter-spacing:-0.4px;color:var(--accent);margin-right:12px;}
+.app-sub{font-size:11px;color:var(--text-dim);margin-right:16px;}
+.sep{width:1px;height:26px;background:var(--border);margin:0 2px;}
+.tbtn{height:32px;padding:0 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .12s;white-space:nowrap;font-family:inherit;}
+.tbtn:hover{background:var(--surface2);color:var(--text);}
+.tbtn.on{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);}
+.tbtn .k{font-size:9px;opacity:.45;border:1px solid currentColor;border-radius:3px;padding:0 3px;line-height:1.6;}
+.spacer{flex:1;}
+.tbtn-danger:hover{background:rgba(239,68,68,.1);border-color:var(--danger);color:var(--danger);}
+
+/* ── Layout ── */
+#main{flex:1;display:flex;overflow:hidden;}
+
+/* ── Sidebar ── */
+#sidebar{width:210px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.sb-head{padding:8px 12px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text-dim);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.sb-head button{background:none;border:none;color:var(--accent);cursor:pointer;font-size:17px;line-height:1;opacity:.8;padding:0;}
+.sb-head button:hover{opacity:1;}
+.sb-list{overflow-y:auto;flex:1;padding:0 8px 6px;}
+.diag-item{padding:6px 8px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--text-dim);display:flex;align-items:center;justify-content:space-between;gap:4px;transition:all .1s;border:1px solid transparent;}
+.diag-item:hover{background:var(--surface2);color:var(--text);}
+.diag-item.cur{background:var(--accent-bg);border-color:rgba(245,158,11,.25);color:var(--accent);}
+.diag-item .dname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.del-d{background:none;border:none;color:var(--danger);cursor:pointer;font-size:13px;padding:0 2px;opacity:0;flex-shrink:0;}
+.diag-item:hover .del-d{opacity:.7;}
+.del-d:hover{opacity:1!important;}
+
+/* loops section */
+#loops-sec{border-top:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;max-height:240px;}
+.loop-item{margin:0 8px 4px;padding:7px 8px;border-radius:5px;cursor:pointer;font-size:11px;border:1px solid var(--border);transition:all .12s;}
+.loop-item:hover{border-color:var(--text-dim);}
+.loop-item.hl-r{background:var(--r-bg);border-color:var(--r-color);}
+.loop-item.hl-b{background:var(--b-bg);border-color:var(--b-color);}
+.lbadge{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-right:5px;vertical-align:middle;}
+.rb{background:var(--r-color);color:#fff;}
+.bb{background:var(--b-color);color:#fff;}
+.lpath{color:var(--text-dim);font-size:10px;margin-top:3px;line-height:1.4;}
+.no-loops{color:var(--text-dim);font-size:11px;padding:10px 12px;font-style:italic;}
+
+/* props panel */
+#props{border-top:1px solid var(--border);padding:10px 12px;flex-shrink:0;min-height:60px;}
+#props .pt{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--text-dim);margin-bottom:5px;}
+#props .pl{font-size:13px;font-weight:500;color:var(--text);}
+#props .pd{font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:3px;}
+#props.empty{display:flex;align-items:center;justify-content:center;}
+#props.empty::after{content:'选中节点查看详情';font-size:11px;color:var(--text-dim);font-style:italic;}
+#props.empty .pt,#props.empty .pl,#props.empty .pd{display:none;}
+
+/* ── Canvas ── */
+#cvwrap{flex:1;position:relative;overflow:hidden;}
+#cv{display:block;width:100%;height:100%;}
+#cv.m-sel{cursor:default;}
+#cv.m-node{cursor:crosshair;}
+#cv.m-link{cursor:crosshair;}
+#cv.m-pan{cursor:grab;}
+#cv.panning{cursor:grabbing!important;}
+
+/* ── Zoom btns ── */
+#zoom-ctrls{position:absolute;bottom:16px;right:16px;display:flex;flex-direction:column;gap:4px;}
+.zbtn{width:30px;height:30px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.zbtn:hover{color:var(--text);border-color:var(--text-dim);}
+
+/* help */
+#help{position:absolute;bottom:16px;left:16px;font-size:10px;color:var(--text-dim);line-height:2;pointer-events:none;}
+#help kbd{background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:0 4px;font-family:inherit;font-size:9px;}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:100;}
+.overlay.h{display:none;}
+.mbox{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px;width:300px;box-shadow:0 24px 64px rgba(0,0,0,.5);}
+.mbox h3{font-size:15px;margin-bottom:14px;}
+.mlbl{font-size:11px;color:var(--text-dim);margin-bottom:4px;margin-top:10px;}
+.mlbl:first-of-type{margin-top:0;}
+.mbox input,.mbox textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;padding:7px 10px;outline:none;font-family:inherit;}
+.mbox input:focus,.mbox textarea:focus{border-color:var(--accent);}
+.mbox textarea{resize:vertical;min-height:64px;margin-top:0;}
+.macts{display:flex;gap:8px;margin-top:18px;justify-content:flex-end;}
+.mbtn{padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;border:none;}
+.mbtn-p{background:var(--accent);color:#000;font-weight:600;}
+.mbtn-g{background:transparent;color:var(--text-dim);border:1px solid var(--border)!important;}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 18px;font-size:12px;color:var(--text);transition:transform .22s ease;z-index:300;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ── Empty canvas hint ── */
+#empty-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:10px;}
+#empty-hint .eh-icon{font-size:48px;opacity:.15;}
+#empty-hint .eh-title{font-size:16px;color:var(--text-dim);opacity:.5;}
+#empty-hint .eh-sub{font-size:12px;color:var(--text-dim);opacity:.35;}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="app-name">系统图谱</span>
+  <span class="app-sub">因果回路编辑器</span>
+  <div class="sep"></div>
+  <button class="tbtn on" id="btn-sel" onclick="setMode('select')" title="选择 (S)">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2l5 12 2.5-4.5L14 7z"/></svg>
+    选择 <span class="k">S</span>
+  </button>
+  <button class="tbtn" id="btn-node" onclick="setMode('add-node')" title="添加节点 (N)">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="11"/><line x1="5" y1="8" x2="11" y2="8"/></svg>
+    节点 <span class="k">N</span>
+  </button>
+  <button class="tbtn" id="btn-link" onclick="setMode('add-link')" title="添加链路 (L)">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="3" y1="13" x2="13" y2="3"/><polyline points="9,3 13,3 13,7" fill="currentColor" stroke="currentColor"/></svg>
+    链路 <span class="k">L</span>
+  </button>
+  <button class="tbtn" id="btn-pan" onclick="setMode('pan')" title="平移 (P)">
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v4M8 11v4M1 8h4M11 8h4M4.2 4.2l2.8 2.8M9 9l2.8 2.8M4.2 11.8L7 9M9 7l2.8-2.8" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="8" cy="8" r="2"/></svg>
+    平移 <span class="k">P</span>
+  </button>
+  <div class="sep"></div>
+  <button class="tbtn" onclick="fitView()" title="适配视图 (F)">适配 <span class="k">F</span></button>
+  <button class="tbtn" onclick="exportPNG()">导出 PNG</button>
+  <div class="spacer"></div>
+  <button class="tbtn tbtn-danger" onclick="clearConfirm()" title="清空当前图">清空</button>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <div class="sb-head">
+      图表
+      <button onclick="newDiagram()" title="新建图表">＋</button>
+    </div>
+    <div class="sb-list" id="diag-list"></div>
+
+    <div id="loops-sec">
+      <div class="sb-head">反馈回路 <span id="loop-count" style="font-weight:400;text-transform:none;font-size:11px;"></span></div>
+      <div class="sb-list" id="loop-list"></div>
+    </div>
+
+    <div id="props" class="empty">
+      <div class="pt">选中对象</div>
+      <div class="pl" id="prop-label"></div>
+      <div class="pd" id="prop-desc"></div>
+    </div>
+  </div>
+
+  <div id="cvwrap">
+    <canvas id="cv" class="m-sel"></canvas>
+    <div id="empty-hint">
+      <div class="eh-icon">⬡</div>
+      <div class="eh-title">画布是空的</div>
+      <div class="eh-sub">按 N 添加节点 · 从节点拖出链路</div>
+    </div>
+    <div id="zoom-ctrls">
+      <button class="zbtn" onclick="zoom(1.25)">＋</button>
+      <button class="zbtn" onclick="zoom(0.8)">－</button>
+      <button class="zbtn" onclick="zoom(1)" title="重置缩放">◎</button>
+    </div>
+    <div id="help">
+      <kbd>S</kbd> 选择 &nbsp;<kbd>N</kbd> 节点 &nbsp;<kbd>L</kbd> 链路 &nbsp;<kbd>P</kbd> 平移<br>
+      <kbd>Del</kbd> 删除 &nbsp;<kbd>F</kbd> 适配 &nbsp;<kbd>⌘S</kbd> 保存 &nbsp;滚轮缩放
+    </div>
+  </div>
+</div>
+
+<!-- Node edit modal -->
+<div class="overlay h" id="node-modal">
+  <div class="mbox">
+    <h3 id="nm-title">添加节点</h3>
+    <div class="mlbl">变量名称</div>
+    <input id="nm-label" type="text" placeholder="例：技能深度" maxlength="24" autocomplete="off">
+    <div class="mlbl" style="margin-top:10px;">说明（可选）</div>
+    <textarea id="nm-desc" placeholder="描述这个变量的含义…" rows="3"></textarea>
+    <div class="macts">
+      <button class="mbtn mbtn-g" onclick="closeModal('node-modal')">取消</button>
+      <button class="mbtn mbtn-p" id="nm-ok" onclick="commitNode()">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- Diagram name modal -->
+<div class="overlay h" id="diag-modal">
+  <div class="mbox">
+    <h3>新建图表</h3>
+    <div class="mlbl">图表名称</div>
+    <input id="dm-name" type="text" placeholder="例：求职引擎" maxlength="32" autocomplete="off">
+    <div class="macts">
+      <button class="mbtn mbtn-g" onclick="closeModal('diag-modal')">取消</button>
+      <button class="mbtn mbtn-p" onclick="commitDiagram()">创建</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ─────────────── Constants ───────────────
+const NR = 36;        // node radius (world units)
+const LINK_HIT = 10;  // link click tolerance px
+const CURVE = 55;     // curvature offset for paired links
+const ARROW_SZ = 10;  // arrowhead size px
+const SELF_LOOP_R = 22; // self-loop radius world units
+
+// ─────────────── State ───────────────
+const S = {
+  mode: 'select',
+  diagrams: {},       // name -> {nodes, links}
+  curName: '',
+  diagram: { nodes: [], links: [] },
+  sel: { node: null, link: null },  // selected ids
+  hov: { node: null, link: null },  // hovered ids
+  hlLoop: -1,         // highlighted loop index
+  loops: [],          // computed [{nodes, links, type}]
+  cam: { x: 0, y: 0, sc: 1 },
+  drag: null,
+  linkDrag: null,     // {fromId, curX, curY}
+  pendingNode: null,  // {wx, wy} for modal
+  editingNodeId: null,
+};
+
+let canvas, ctx;
+
+// ─────────────── ID gen ───────────────
+let _id = 1;
+function uid() { return 'n' + (_id++); }
+
+// ─────────────── Camera ───────────────
+function w2s(wx, wy) {
+  return { x: wx * S.cam.sc + S.cam.x, y: wy * S.cam.sc + S.cam.y };
+}
+function s2w(sx, sy) {
+  return { x: (sx - S.cam.x) / S.cam.sc, y: (sy - S.cam.y) / S.cam.sc };
+}
+
+// ─────────────── Diagram helpers ───────────────
+function node(id) { return S.diagram.nodes.find(n => n.id === id); }
+function link(id) { return S.diagram.links.find(l => l.id === id); }
+
+function addNode(wx, wy, label, desc) {
+  const id = uid();
+  S.diagram.nodes.push({ id, x: wx, y: wy, label: label || '变量', desc: desc || '' });
+  return id;
+}
+
+function addLink(fromId, toId, polarity) {
+  const id = uid();
+  S.diagram.links.push({ id, from: fromId, to: toId, polarity: polarity || '+' });
+  return id;
+}
+
+function removeNode(id) {
+  S.diagram.nodes = S.diagram.nodes.filter(n => n.id !== id);
+  S.diagram.links = S.diagram.links.filter(l => l.from !== id && l.to !== id);
+}
+
+function removeLink(id) {
+  S.diagram.links = S.diagram.links.filter(l => l.id !== id);
+}
+
+// ─────────────── Loop detection ───────────────
+function detectLoops() {
+  const nodes = S.diagram.nodes;
+  const links = S.diagram.links;
+  if (!nodes.length) { S.loops = []; return; }
+
+  // Build adjacency: adj[fromId] = [{to, linkId, polarity}]
+  const adj = {};
+  nodes.forEach(n => { adj[n.id] = []; });
+  links.forEach(l => {
+    if (!adj[l.from]) adj[l.from] = [];
+    adj[l.from].push({ to: l.to, linkId: l.id, polarity: l.polarity });
+  });
+
+  const foundCycles = [];
+  const cycleKeys = new Set();
+
+  function dfs(startId, curId, path, pathLinks) {
+    const nbrs = adj[curId] || [];
+    for (const e of nbrs) {
+      if (e.to === startId && path.length >= 1) {
+        // Cycle found
+        const cycleNodes = [...path, startId];
+        const cycleLinks = [...pathLinks, e.linkId];
+        // Canonical key (rotate to smallest id)
+        const key = [...path].sort().join(',');
+        if (!cycleKeys.has(key)) {
+          cycleKeys.add(key);
+          // Count negatives
+          const negCount = cycleLinks.reduce((cnt, lid) => {
+            const lk = links.find(l => l.id === lid);
+            return cnt + (lk && lk.polarity === '-' ? 1 : 0);
+          }, 0);
+          foundCycles.push({
+            nodes: cycleNodes,
+            links: cycleLinks,
+            type: negCount % 2 === 0 ? 'R' : 'B', // odd negatives = balancing
+          });
+        }
+        continue;
+      }
+      if (!path.includes(e.to)) {
+        dfs(startId, e.to, [...path, e.to], [...pathLinks, e.linkId]);
+      }
+    }
+  }
+
+  nodes.forEach(n => dfs(n.id, n.id, [n.id], []));
+  // Deduplicate (same node set)
+  const deduped = [];
+  const seen = new Set();
+  for (const c of foundCycles) {
+    const key = [...c.nodes].sort().join(',');
+    if (!seen.has(key)) { seen.add(key); deduped.push(c); }
+  }
+  S.loops = deduped;
+}
+
+// ─────────────── Storage ───────────────
+const STORE_KEY = 'sysmap_v1';
+
+function saveAll() {
+  // Save current diagram back
+  S.diagrams[S.curName] = JSON.parse(JSON.stringify(S.diagram));
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      diagrams: S.diagrams,
+      curName: S.curName,
+    }));
+  } catch(e) { toast('存储已满，无法保存'); }
+}
+
+function loadAll() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    S.diagrams = data.diagrams || {};
+    S.curName = data.curName || '';
+    // Update _id from ALL diagrams to prevent ID collisions
+    Object.values(S.diagrams).forEach(d => {
+      [...(d.nodes || []), ...(d.links || [])].forEach(x => {
+        const n = parseInt((x.id || '').slice(1));
+        if (!isNaN(n) && n >= _id) _id = n + 1;
+      });
+    });
+    if (S.curName && S.diagrams[S.curName]) {
+      S.diagram = JSON.parse(JSON.stringify(S.diagrams[S.curName]));
+    }
+    return true;
+  } catch(e) { return false; }
+}
+
+function switchDiagram(name) {
+  saveAll();
+  S.curName = name;
+  S.diagram = JSON.parse(JSON.stringify(S.diagrams[name]));
+  S.sel = { node: null, link: null };
+  S.hlLoop = -1;
+  detectLoops();
+  fitView();
+  renderUI();
+}
+
+function newDiagram() {
+  openModal('diag-modal');
+  setTimeout(() => document.getElementById('dm-name').focus(), 50);
+}
+
+function commitDiagram() {
+  const name = document.getElementById('dm-name').value.trim();
+  if (!name) return;
+  if (S.diagrams[name]) { toast('该名称已存在'); return; }
+  S.diagrams[name] = { nodes: [], links: [] };
+  closeModal('diag-modal');
+  document.getElementById('dm-name').value = '';
+  switchDiagram(name);
+}
+
+function deleteDiagram(name) {
+  if (Object.keys(S.diagrams).length <= 1) { toast('至少保留一张图表'); return; }
+  if (!confirm(`删除「${name}」？`)) return;
+  delete S.diagrams[name];
+  saveAll();
+  const remaining = Object.keys(S.diagrams)[0];
+  switchDiagram(remaining);
+}
+
+// ─────────────── Hit testing ───────────────
+function hitNode(sx, sy) {
+  for (let i = S.diagram.nodes.length - 1; i >= 0; i--) {
+    const n = S.diagram.nodes[i];
+    const s = w2s(n.x, n.y);
+    const r = NR * S.cam.sc;
+    if ((sx - s.x) ** 2 + (sy - s.y) ** 2 <= r * r) return n.id;
+  }
+  return null;
+}
+
+function getLinkScreenPoints(lk) {
+  const f = node(lk.from);
+  const t = node(lk.to);
+  if (!f || !t) return null;
+
+  const fs = w2s(f.x, f.y);
+  const ts = w2s(t.x, t.y);
+
+  // Check if reverse link exists
+  const hasReverse = S.diagram.links.some(l => l.from === lk.to && l.to === lk.from);
+  const isSelf = lk.from === lk.to;
+
+  if (isSelf) {
+    // Self-loop: small arc above node
+    const r = NR * S.cam.sc;
+    return { type: 'self', cx: fs.x, cy: fs.y, r };
+  }
+
+  const curvature = hasReverse ? CURVE * S.cam.sc : 0;
+
+  // Mid point
+  const mx = (fs.x + ts.x) / 2;
+  const my = (fs.y + ts.y) / 2;
+
+  let cpx, cpy;
+  if (curvature === 0) {
+    cpx = mx; cpy = my;
+  } else {
+    const dx = ts.x - fs.x;
+    const dy = ts.y - fs.y;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    // Perpendicular (choose direction based on link order)
+    const sign = lk.from < lk.to ? 1 : -1;
+    cpx = mx + (-dy / len) * curvature * sign;
+    cpy = my + (dx / len) * curvature * sign;
+  }
+
+  // Edge points: from node boundary toward cp, to node boundary toward cp
+  const r = NR * S.cam.sc;
+
+  function edgePt(nx, ny, tx, ty) {
+    const dx = tx - nx; const dy = ty - ny;
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    return { x: nx + r * dx / len, y: ny + r * dy / len };
+  }
+
+  const start = edgePt(fs.x, fs.y, cpx, cpy);
+  const end   = edgePt(ts.x, ts.y, cpx, cpy);
+
+  return { type: 'bezier', x1: start.x, y1: start.y, cpx, cpy, x2: end.x, y2: end.y };
+}
+
+function hitLink(sx, sy) {
+  for (const lk of S.diagram.links) {
+    const pts = getLinkScreenPoints(lk);
+    if (!pts) continue;
+    if (pts.type === 'self') continue; // skip self-loop hit test for now
+
+    // Sample points along bezier
+    for (let t = 0; t <= 1; t += 0.05) {
+      const bx = (1-t)*(1-t)*pts.x1 + 2*t*(1-t)*pts.cpx + t*t*pts.x2;
+      const by = (1-t)*(1-t)*pts.y1 + 2*t*(1-t)*pts.cpy + t*t*pts.y2;
+      if ((sx - bx)**2 + (sy - by)**2 <= LINK_HIT**2) return lk.id;
+    }
+  }
+  return null;
+}
+
+// ─────────────── Rendering ───────────────
+function render() {
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#09090f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid dots (subtle)
+  drawGrid(W, H);
+
+  // Get highlighted loop sets
+  const hlNodeSet = new Set();
+  const hlLinkSet = new Set();
+  if (S.hlLoop >= 0 && S.loops[S.hlLoop]) {
+    S.loops[S.hlLoop].nodes.forEach(id => hlNodeSet.add(id));
+    S.loops[S.hlLoop].links.forEach(id => hlLinkSet.add(id));
+  }
+
+  // Draw links (behind nodes)
+  for (const lk of S.diagram.links) {
+    drawLink(lk, lk.id === S.sel.link, hlLinkSet.has(lk.id));
+  }
+
+  // Link drag preview
+  if (S.linkDrag) {
+    const fn = node(S.linkDrag.fromId);
+    if (fn) {
+      const fs = w2s(fn.x, fn.y);
+      const tx = S.linkDrag.curX;
+      const ty = S.linkDrag.curY;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(245,158,11,.5)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(fs.x, fs.y);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+
+  // Draw nodes
+  for (const n of S.diagram.nodes) {
+    drawNode(n, n.id === S.sel.node, hlNodeSet.has(n.id), n.id === S.hov.node);
+  }
+
+  // Empty hint
+  document.getElementById('empty-hint').style.display =
+    S.diagram.nodes.length === 0 ? 'flex' : 'none';
+}
+
+function drawGrid(W, H) {
+  const gridSize = 60 * S.cam.sc;
+  const ox = ((S.cam.x % gridSize) + gridSize) % gridSize;
+  const oy = ((S.cam.y % gridSize) + gridSize) % gridSize;
+  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  for (let x = ox; x < W; x += gridSize) {
+    for (let y = oy; y < H; y += gridSize) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawNode(n, selected, highlighted, hovered) {
+  const dpr = window.devicePixelRatio || 1;
+  const s = w2s(n.x, n.y);
+  const r = NR * S.cam.sc;
+
+  ctx.save();
+
+  // Glow for selected
+  if (selected) {
+    ctx.shadowBlur = 18 * dpr;
+    ctx.shadowColor = 'rgba(245,158,11,.6)';
+  } else if (highlighted) {
+    ctx.shadowBlur = 14 * dpr;
+    ctx.shadowColor = 'rgba(16,185,129,.5)';
+  }
+
+  // Fill
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = highlighted ? '#0e1f18' : '#14141e';
+  ctx.fill();
+
+  // Stroke
+  ctx.strokeStyle = selected ? '#f59e0b'
+    : highlighted ? '#10b981'
+    : hovered ? '#4a4a65'
+    : '#2a2a40';
+  ctx.lineWidth = selected ? 2.5 : hovered ? 2 : 1.5;
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // Label
+  const fontSize = Math.max(9, Math.min(13, 13 * S.cam.sc));
+  ctx.save();
+  ctx.font = `500 ${fontSize}px -apple-system,'PingFang SC',sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = selected ? '#f59e0b' : highlighted ? '#10b981' : '#c8c8dc';
+
+  const maxChars = Math.max(4, Math.floor(r / (fontSize * 0.52)));
+  let label = n.label;
+  if (label.length > maxChars) label = label.slice(0, maxChars - 1) + '…';
+  ctx.fillText(label, s.x, s.y);
+  ctx.restore();
+}
+
+function drawLink(lk, selected, highlighted) {
+  const pts = getLinkScreenPoints(lk);
+  if (!pts) return;
+
+  const isPos = lk.polarity === '+';
+  let color = selected ? '#f59e0b'
+    : highlighted ? (isPos ? '#10b981' : '#a78bfa')
+    : (isPos ? 'rgba(245,158,11,.7)' : 'rgba(129,140,248,.7)');
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = selected ? 2 : 1.5;
+
+  if (pts.type === 'self') {
+    drawSelfLoop(lk, pts, color, selected);
+    ctx.restore();
+    return;
+  }
+
+  // Bezier
+  ctx.beginPath();
+  ctx.moveTo(pts.x1, pts.y1);
+  ctx.quadraticCurveTo(pts.cpx, pts.cpy, pts.x2, pts.y2);
+  ctx.stroke();
+
+  // Arrowhead at pts.x2, pts.y2
+  const ax = pts.x2 - pts.cpx;
+  const ay = pts.y2 - pts.cpy;
+  const al = Math.sqrt(ax*ax + ay*ay) || 1;
+  const ux = ax / al; const uy = ay / al;
+  const as = ARROW_SZ;
+
+  ctx.beginPath();
+  ctx.moveTo(pts.x2, pts.y2);
+  ctx.lineTo(pts.x2 - as*ux + as*0.38*uy, pts.y2 - as*uy - as*0.38*ux);
+  ctx.lineTo(pts.x2 - as*ux - as*0.38*uy, pts.y2 - as*uy + as*0.38*ux);
+  ctx.closePath();
+  ctx.fill();
+
+  // Polarity label near midpoint
+  const t = 0.5;
+  const px = (1-t)*(1-t)*pts.x1 + 2*t*(1-t)*pts.cpx + t*t*pts.x2;
+  const py = (1-t)*(1-t)*pts.y1 + 2*t*(1-t)*pts.cpy + t*t*pts.y2;
+
+  // Perpendicular offset
+  const pdx = pts.cpx - px; const pdy = pts.cpy - py;
+  const plen = Math.sqrt(pdx*pdx + pdy*pdy) || 1;
+  const offx = px + (-pdy/plen)*14;
+  const offy = py + (pdx/plen)*14;
+
+  ctx.font = `bold ${Math.max(10, 11*S.cam.sc)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(isPos ? '+' : '−', offx, offy);
+
+  ctx.restore();
+}
+
+function drawSelfLoop(lk, pts, color) {
+  const cx = pts.cx;
+  const cy = pts.cy;
+  const nr = pts.r;
+  const loopR = (SELF_LOOP_R + 10) * S.cam.sc;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1.5;
+
+  // Draw arc above node
+  const ax = cx;
+  const ay = cy - nr - loopR * 0.6;
+
+  ctx.beginPath();
+  ctx.arc(ax, ay, loopR, Math.PI * 0.1, Math.PI * 0.9, false);
+  ctx.stroke();
+
+  // Arrow at arc end
+  ctx.beginPath();
+  const ex = ax + loopR * Math.cos(Math.PI * 0.9);
+  const ey = ay + loopR * Math.sin(Math.PI * 0.9);
+  const dx = -Math.sin(Math.PI * 0.9);
+  const dy = Math.cos(Math.PI * 0.9);
+  const as = ARROW_SZ * 0.8;
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - as*dx + as*0.38*dy, ey - as*dy - as*0.38*dx);
+  ctx.lineTo(ex - as*dx - as*0.38*dy, ey - as*dy + as*0.38*dx);
+  ctx.closePath();
+  ctx.fill();
+
+  // Polarity
+  ctx.font = `bold ${Math.max(10, 11*S.cam.sc)}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(lk.polarity === '+' ? '+' : '−', ax, ay - loopR - 8);
+
+  ctx.restore();
+}
+
+// ─────────────── Mode ───────────────
+function setMode(mode) {
+  S.mode = mode;
+  S.hov = { node: null, link: null };
+  canvas.style.cursor = '';
+  canvas.className = { select: 'm-sel', 'add-node': 'm-node', 'add-link': 'm-link', pan: 'm-pan' }[mode] || 'm-sel';
+  document.querySelectorAll('.tbtn[id^=btn-]').forEach(b => b.classList.remove('on'));
+  const btnId = { select: 'btn-sel', 'add-node': 'btn-node', 'add-link': 'btn-link', pan: 'btn-pan' }[mode];
+  if (btnId) document.getElementById(btnId)?.classList.add('on');
+}
+
+// ─────────────── Mouse events ───────────────
+let mouseDownPos = null;
+let wasDragging = false;
+
+canvas_onMousedown: {
+  // handled below after canvas assignment
+}
+
+function onMouseDown(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  mouseDownPos = { x: sx, y: sy };
+  wasDragging = false;
+
+  if (S.mode === 'pan') {
+    S.drag = { type: 'pan', lastX: sx, lastY: sy };
+    canvas.classList.add('panning');
+    return;
+  }
+
+  if (S.mode === 'add-link') {
+    const nid = hitNode(sx, sy);
+    if (nid) {
+      S.linkDrag = { fromId: nid, curX: sx, curY: sy };
+    }
+    return;
+  }
+
+  if (S.mode === 'select') {
+    const nid = hitNode(sx, sy);
+    if (nid) {
+      S.sel = { node: nid, link: null };
+      S.drag = { type: 'node', nodeId: nid, startX: sx, startY: sy,
+        origX: node(nid).x, origY: node(nid).y };
+      updateProps();
+      renderUI();
+      return;
+    }
+    const lid = hitLink(sx, sy);
+    if (lid) {
+      S.sel = { node: null, link: lid };
+      updateProps();
+      renderUI();
+      return;
+    }
+    // Click on empty: deselect
+    S.sel = { node: null, link: null };
+    S.drag = { type: 'pan', lastX: sx, lastY: sy }; // allow panning with select too
+    updateProps();
+    renderUI();
+  }
+}
+
+function onMouseMove(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+
+  if (mouseDownPos) {
+    const d = Math.sqrt((sx - mouseDownPos.x)**2 + (sy - mouseDownPos.y)**2);
+    if (d > 4) wasDragging = true;
+  }
+
+  if (S.linkDrag) {
+    S.linkDrag.curX = sx;
+    S.linkDrag.curY = sy;
+    // Show pointer if hovering over a valid target node
+    const hoverTarget = hitNode(sx, sy);
+    canvas.style.cursor = (hoverTarget && hoverTarget !== S.linkDrag.fromId) ? 'pointer' : 'crosshair';
+    render();
+    return;
+  }
+
+  // Cursor hint in add-link mode
+  if (S.mode === 'add-link' && !S.linkDrag) {
+    canvas.style.cursor = hitNode(sx, sy) ? 'pointer' : 'crosshair';
+  }
+
+  // Hover detection (select mode, not dragging)
+  if (S.mode === 'select' && !S.drag) {
+    const hn = hitNode(sx, sy);
+    const hl = hn ? null : hitLink(sx, sy);
+    const changed = hn !== S.hov.node || hl !== S.hov.link;
+    S.hov = { node: hn, link: hl };
+    canvas.style.cursor = (hn || hl) ? 'pointer' : '';
+    if (changed) render();
+    return;
+  }
+
+  if (!S.drag) return;
+
+  if (S.drag.type === 'pan') {
+    S.cam.x += sx - S.drag.lastX;
+    S.cam.y += sy - S.drag.lastY;
+    S.drag.lastX = sx;
+    S.drag.lastY = sy;
+    render();
+    return;
+  }
+
+  if (S.drag.type === 'node') {
+    const dx = sx - S.drag.startX;
+    const dy = sy - S.drag.startY;
+    const n = node(S.drag.nodeId);
+    if (n) {
+      n.x = S.drag.origX + dx / S.cam.sc;
+      n.y = S.drag.origY + dy / S.cam.sc;
+      render();
+    }
+  }
+}
+
+function onMouseUp(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+
+  canvas.classList.remove('panning');
+
+  // Link drag finish
+  if (S.linkDrag) {
+    const toId = hitNode(sx, sy);
+    if (toId && toId !== S.linkDrag.fromId) {
+      // Check not duplicate
+      const exists = S.diagram.links.some(l => l.from === S.linkDrag.fromId && l.to === toId);
+      if (!exists) {
+        addLink(S.linkDrag.fromId, toId, '+');
+        detectLoops();
+        saveAll();
+        renderUI();
+        toast('链路已添加，点击链路切换极性');
+      } else {
+        toast('该链路已存在');
+      }
+    }
+    S.linkDrag = null;
+    render();
+    return;
+  }
+
+  if (S.drag?.type === 'node') {
+    saveAll();
+  }
+  S.drag = null;
+
+  // Add node mode: click → show modal
+  if (S.mode === 'add-node' && !wasDragging) {
+    const w = s2w(sx, sy);
+    S.pendingNode = w;
+    S.editingNodeId = null;
+    document.getElementById('nm-title').textContent = '添加节点';
+    document.getElementById('nm-label').value = '';
+    document.getElementById('nm-desc').value = '';
+    openModal('node-modal');
+    setTimeout(() => document.getElementById('nm-label').focus(), 50);
+  }
+
+  mouseDownPos = null;
+}
+
+function onDblClick(e) {
+  if (S.mode !== 'select') return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  const nid = hitNode(sx, sy);
+  if (nid) {
+    const n = node(nid);
+    S.editingNodeId = nid;
+    document.getElementById('nm-title').textContent = '编辑节点';
+    document.getElementById('nm-label').value = n.label;
+    document.getElementById('nm-desc').value = n.desc || '';
+    openModal('node-modal');
+    setTimeout(() => document.getElementById('nm-label').focus(), 50);
+    return;
+  }
+  // Dbl-click link: toggle polarity
+  const lid = hitLink(sx, sy);
+  if (lid) {
+    const lk = link(lid);
+    if (lk) {
+      lk.polarity = lk.polarity === '+' ? '-' : '+';
+      detectLoops();
+      saveAll();
+      renderUI();
+      toast(`极性切换为 ${lk.polarity === '+' ? '正(+)' : '负(−)'}`);
+    }
+  }
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+
+  const factor = e.deltaY < 0 ? 1.1 : 0.91;
+  const newSc = Math.max(0.1, Math.min(5, S.cam.sc * factor));
+
+  // Zoom toward mouse
+  S.cam.x = sx - (sx - S.cam.x) * newSc / S.cam.sc;
+  S.cam.y = sy - (sy - S.cam.y) * newSc / S.cam.sc;
+  S.cam.sc = newSc;
+  render();
+}
+
+// ─────────────── Zoom button ───────────────
+function zoom(factor) {
+  const dpr = window.devicePixelRatio || 1;
+  const cx = canvas.width / dpr / 2;
+  const cy = canvas.height / dpr / 2;
+  if (factor === 1) {
+    S.cam.sc = 1;
+    fitView();
+    return;
+  }
+  const newSc = Math.max(0.1, Math.min(5, S.cam.sc * factor));
+  S.cam.x = cx - (cx - S.cam.x) * newSc / S.cam.sc;
+  S.cam.y = cy - (cy - S.cam.y) * newSc / S.cam.sc;
+  S.cam.sc = newSc;
+  render();
+}
+
+function fitView() {
+  if (!canvas || !S.diagram.nodes.length) {
+    S.cam = { x: canvas ? canvas.width / 2 : 400, y: canvas ? canvas.height / 2 : 300, sc: 1 };
+    render(); return;
+  }
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.width / dpr;
+  const H = canvas.height / dpr;
+  const pad = 80;
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  S.diagram.nodes.forEach(n => {
+    minX = Math.min(minX, n.x - NR); maxX = Math.max(maxX, n.x + NR);
+    minY = Math.min(minY, n.y - NR); maxY = Math.max(maxY, n.y + NR);
+  });
+
+  const bw = maxX - minX || 1;
+  const bh = maxY - minY || 1;
+  const sc = Math.min((W - pad*2) / bw, (H - pad*2) / bh, 2);
+  S.cam.sc = sc;
+  S.cam.x = (W - (minX + maxX) * sc) / 2;
+  S.cam.y = (H - (minY + maxY) * sc) / 2;
+  render();
+}
+
+// ─────────────── Export PNG ───────────────
+function exportPNG() {
+  // Temporarily hide selection
+  const prevSel = { ...S.sel };
+  S.sel = { node: null, link: null };
+  render();
+
+  const dataURL = canvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = dataURL;
+  a.download = (S.curName || 'sysmap') + '.png';
+  a.click();
+
+  S.sel = prevSel;
+  render();
+  toast('PNG 已导出');
+}
+
+// ─────────────── Modal ───────────────
+function openModal(id) { document.getElementById(id).classList.remove('h'); }
+function closeModal(id) { document.getElementById(id).classList.add('h'); }
+
+function commitNode() {
+  const label = document.getElementById('nm-label').value.trim();
+  if (!label) return;
+  const desc = document.getElementById('nm-desc').value.trim();
+
+  if (S.editingNodeId) {
+    const n = node(S.editingNodeId);
+    if (n) { n.label = label; n.desc = desc; }
+  } else if (S.pendingNode) {
+    const id = addNode(S.pendingNode.x, S.pendingNode.y, label, desc);
+    S.sel = { node: id, link: null };
+  }
+
+  S.editingNodeId = null;
+  S.pendingNode = null;
+  closeModal('node-modal');
+  detectLoops();
+  saveAll();
+  renderUI();
+  updateProps();
+}
+
+// ─────────────── Keyboard ───────────────
+function onKeyDown(e) {
+  if (e.target !== document.body) return; // ignore if in input
+
+  const key = e.key.toLowerCase();
+  if (key === 's' && !e.metaKey && !e.ctrlKey) { setMode('select'); return; }
+  if (key === 'n' && !e.metaKey) { setMode('add-node'); return; }
+  if (key === 'l' && !e.metaKey) { setMode('add-link'); return; }
+  if (key === 'p' && !e.metaKey) { setMode('pan'); return; }
+  if (key === 'f') { fitView(); return; }
+
+  if ((e.metaKey || e.ctrlKey) && key === 's') {
+    e.preventDefault();
+    saveAll();
+    toast('已保存');
+    return;
+  }
+
+  if (key === 'delete' || key === 'backspace') {
+    if (S.sel.node) {
+      removeNode(S.sel.node);
+      S.sel = { node: null, link: null };
+      detectLoops();
+      saveAll();
+      renderUI();
+      updateProps();
+    } else if (S.sel.link) {
+      removeLink(S.sel.link);
+      S.sel = { node: null, link: null };
+      detectLoops();
+      saveAll();
+      renderUI();
+    }
+    return;
+  }
+
+  // Tab: toggle polarity of selected link
+  if (key === 'tab' && S.sel.link) {
+    e.preventDefault();
+    const lk = link(S.sel.link);
+    if (lk) { lk.polarity = lk.polarity === '+' ? '-' : '+'; detectLoops(); saveAll(); renderUI(); }
+  }
+}
+
+// Enter to commit in modals
+function onModalKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    const nm = document.getElementById('node-modal');
+    const dm = document.getElementById('diag-modal');
+    if (!nm.classList.contains('h')) commitNode();
+    else if (!dm.classList.contains('h')) commitDiagram();
+  }
+  if (e.key === 'Escape') {
+    closeModal('node-modal');
+    closeModal('diag-modal');
+  }
+}
+
+// ─────────────── Props panel ───────────────
+function updateProps() {
+  const panel = document.getElementById('props');
+  const lbl = document.getElementById('prop-label');
+  const desc = document.getElementById('prop-desc');
+
+  if (S.sel.node) {
+    const n = node(S.sel.node);
+    if (n) {
+      panel.classList.remove('empty');
+      document.getElementById('props').querySelector('.pt').textContent = '节点';
+      lbl.textContent = n.label;
+      desc.textContent = n.desc || '（无说明）';
+      return;
+    }
+  }
+  if (S.sel.link) {
+    const lk = link(S.sel.link);
+    if (lk) {
+      const fn = node(lk.from);
+      const tn = node(lk.to);
+      panel.classList.remove('empty');
+      document.getElementById('props').querySelector('.pt').textContent = '链路';
+      lbl.textContent = `${fn?.label || '?'} → ${tn?.label || '?'}`;
+      desc.textContent = `极性：${lk.polarity === '+' ? '正(+) 双击切换' : '负(−) 双击切换'}`;
+      return;
+    }
+  }
+  panel.classList.add('empty');
+}
+
+// ─────────────── Clear ───────────────
+function clearConfirm() {
+  if (!S.diagram.nodes.length || confirm('清空当前图表的所有节点和链路？')) {
+    S.diagram = { nodes: [], links: [] };
+    S.sel = { node: null, link: null };
+    S.loops = [];
+    saveAll();
+    renderUI();
+    updateProps();
+    toast('已清空');
+  }
+}
+
+// ─────────────── UI update ───────────────
+function renderUI() {
+  renderDiagList();
+  renderLoops();
+  render();
+}
+
+function renderDiagList() {
+  const el = document.getElementById('diag-list');
+  el.innerHTML = '';
+  Object.keys(S.diagrams).sort().forEach(name => {
+    const div = document.createElement('div');
+    div.className = 'diag-item' + (name === S.curName ? ' cur' : '');
+    div.innerHTML = `<span class="dname">${esc(name)}</span>
+      <button class="del-d" onclick="event.stopPropagation();deleteDiagram('${esc(name)}')">✕</button>`;
+    div.onclick = () => { if (name !== S.curName) switchDiagram(name); };
+    el.appendChild(div);
+  });
+}
+
+function renderLoops() {
+  const el = document.getElementById('loop-list');
+  const count = document.getElementById('loop-count');
+  el.innerHTML = '';
+
+  if (!S.loops.length) {
+    el.innerHTML = '<div class="no-loops">暂无回路</div>';
+    count.textContent = '';
+    return;
+  }
+
+  count.textContent = `(${S.loops.length})`;
+
+  S.loops.forEach((lp, i) => {
+    const div = document.createElement('div');
+    const hlClass = i === S.hlLoop ? (lp.type === 'R' ? ' hl-r' : ' hl-b') : '';
+    div.className = 'loop-item' + hlClass;
+    const badge = lp.type === 'R' ? '<span class="lbadge rb">R</span>' : '<span class="lbadge bb">B</span>';
+    const typeLabel = lp.type === 'R' ? '增强回路' : '调节回路';
+    const path = lp.nodes.map(id => node(id)?.label || '?').join(' → ');
+    div.innerHTML = `${badge}<strong>${typeLabel}</strong><div class="lpath">${esc(path)}</div>`;
+    div.onclick = () => {
+      S.hlLoop = (S.hlLoop === i) ? -1 : i;
+      renderLoops();
+      render();
+    };
+    el.appendChild(div);
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────── Toast ───────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ─────────────── Example diagrams ───────────────
+function buildExampleDiagrams() {
+  // ── 技能复利 ──
+  const skill = { nodes: [], links: [] };
+  const sIds = {};
+  function sn(label, x, y, desc) {
+    const id = uid();
+    sIds[label] = id;
+    skill.nodes.push({ id, x, y, label, desc: desc || '' });
+    return id;
+  }
+  function sl(a, b, pol) {
+    skill.links.push({ id: uid(), from: sIds[a], to: sIds[b], polarity: pol });
+  }
+
+  sn('技能深度', 0, 0, '在某一领域积累的专业深度');
+  sn('项目质量', 200, -120, '交付产出物的质量水平');
+  sn('影响力', 400, 0, '在社区/团队中的认可度');
+  sn('优质机会', 200, 120, '接触到高质量合作/工作机会');
+  sn('输出量', -180, -100, '公开分享/写作/演讲的频率');
+  sn('自信心', -180, 100, '自我效能感与行动力');
+
+  sl('技能深度', '项目质量', '+');
+  sl('项目质量', '影响力', '+');
+  sl('影响力', '优质机会', '+');
+  sl('优质机会', '技能深度', '+');  // R1: 技能复利主环
+  sl('技能深度', '自信心', '+');
+  sl('自信心', '输出量', '+');
+  sl('输出量', '影响力', '+');       // R2: 影响力副环
+
+  // ── 求职引擎 ──
+  const job = { nodes: [], links: [] };
+  const jIds = {};
+  function jn(label, x, y, desc) {
+    const id = uid();
+    jIds[label] = id;
+    job.nodes.push({ id, x, y, label, desc: desc || '' });
+    return id;
+  }
+  function jl(a, b, pol) {
+    job.links.push({ id: uid(), from: jIds[a], to: jIds[b], polarity: pol });
+  }
+
+  jn('申请量', 0, 0, '每周主动投递简历的数量');
+  jn('面试邀约', 180, -130, '收到面试邀请的频率');
+  jn('经验积累', 370, 0, '面试实战经验的厚度');
+  jn('面试表现', 180, 130, '在面试中的实际发挥水平');
+  jn('自信心', -160, -100, '对自己求职成功的信念');
+  jn('疲惫感', -160, 100, '长期求职的心理消耗');
+
+  jl('申请量', '面试邀约', '+');
+  jl('面试邀约', '经验积累', '+');
+  jl('经验积累', '面试表现', '+');
+  jl('面试表现', '自信心', '+');
+  jl('自信心', '申请量', '+');       // R1: 增强回路
+  jl('面试邀约', '疲惫感', '+');
+  jl('疲惫感', '自信心', '-');       // B1: 调节回路
+
+  return { '技能复利': skill, '求职引擎': job };
+}
+
+// ─────────────── Canvas resize ───────────────
+function resizeCanvas() {
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth;
+  const h = canvas.parentElement.clientHeight;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.scale(dpr, dpr);
+  render();
+}
+
+// ─────────────── Init ───────────────
+function init() {
+  canvas = document.getElementById('cv');
+  ctx = canvas.getContext('2d');
+
+  // Attempt load; if nothing, seed examples
+  const loaded = loadAll();
+  if (!loaded || !Object.keys(S.diagrams).length) {
+    const examples = buildExampleDiagrams();
+    S.diagrams = examples;
+    S.curName = '技能复利';
+    S.diagram = JSON.parse(JSON.stringify(examples['技能复利']));
+    saveAll();
+  }
+
+  detectLoops();
+
+  // Events
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('dblclick', onDblClick);
+  canvas.addEventListener('wheel', onWheel, { passive: false });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('mouseleave', () => {
+    S.hov = { node: null, link: null };
+    S.linkDrag && (S.linkDrag = null);
+    canvas.style.cursor = '';
+    render();
+  });
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keydown', onModalKeydown);
+
+  // Resize
+  const ro = new ResizeObserver(resizeCanvas);
+  ro.observe(document.getElementById('cvwrap'));
+  resizeCanvas();
+
+  fitView();
+  renderUI();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
