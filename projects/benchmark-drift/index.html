@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Benchmark Drift — AI Model Regression Explorer</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="data.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-brand">Benchmark<span>Drift</span></div>
+    <div class="nav-tabs" role="tablist">
+      <button class="nav-tab active" role="tab" aria-selected="true"  data-view="overview">Overview</button>
+      <button class="nav-tab"        role="tab" aria-selected="false" data-view="timeline">Timeline</button>
+      <button class="nav-tab"        role="tab" aria-selected="false" data-view="regressions">Regressions</button>
+      <button class="nav-tab"        role="tab" aria-selected="false" data-view="compare">Compare</button>
+      <button class="nav-tab"        role="tab" aria-selected="false" data-view="leaderboard">Leaderboard</button>
+    </div>
+  </nav>
+
+  <main id="app"></main>
+  <div id="tooltip" role="tooltip"></div>
+</body>
+</html>
