@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kill Switch — PMF Diagnostic</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .hero {
+      max-width: 700px;
+      text-align: left;
+    }
+
+    .hero h1 {
+      margin-bottom: 0;
+    }
+
+    .cta-row {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-top: 3rem;
+      flex-wrap: wrap;
+    }
+
+    .divider {
+      width: 40px;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .warning-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 36ch;
+    }
+
+    /* Animated cursor blink on headline */
+    .cursor {
+      display: inline-block;
+      width: 4px;
+      height: 0.85em;
+      background: var(--accent);
+      vertical-align: middle;
+      margin-left: 4px;
+      animation: blink 1.1s step-start infinite;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* Subtle grid lines bg */
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+
+    .bottom-meta {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 2rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .bottom-meta span { display: flex; align-items: center; gap: 0.4rem; }
+    .dot-sm {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="screen">
+    <div class="grid-bg"></div>
+    <div class="glow"></div>
+
+    <div class="hero fade-in">
+      <p class="eyebrow">PMF Diagnostic · 5 Stations</p>
+      <h1>Kill<br><span class="accent">Switch</span><span class="cursor"></span></h1>
+      <p class="tagline">Every product has a kill switch. Most founders never find it — until it's too late. This is the honest conversation your investors won't have with you.</p>
+
+      <div class="cta-row">
+        <a href="diagnose.html" class="btn btn-primary">Begin Diagnosis →</a>
+        <div class="divider"></div>
+        <p class="warning-note">5 questions. No data saved. No bullshit. Takes 3 minutes.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-meta">
+    <span><span class="dot-sm"></span> Anonymous</span>
+    <span><span class="dot-sm"></span> Offline</span>
+    <span><span class="dot-sm"></span> No tracking</span>
+  </div>
+</body>
+</html>

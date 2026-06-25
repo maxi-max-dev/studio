@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kill Switch — Verdict</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .verdict-screen {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+
+    @media (max-width: 768px) {
+      .verdict-screen { grid-template-columns: 1fr; }
+      .radar-panel { order: -1; min-height: 340px; }
+    }
+
+    .verdict-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 4rem 3rem 4rem 4rem;
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .radar-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      background: var(--surface);
+      position: relative;
+    }
+
+    .radar-title {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    .score-list {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      width: 100%;
+      max-width: 300px;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .score-row-label {
+      width: 110px;
+      flex-shrink: 0;
+      color: var(--muted);
+      font-size: 0.72rem;
+    }
+
+    .score-bar-wrap {
+      flex: 1;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.8s ease;
+    }
+
+    .score-num {
+      font-size: 0.72rem;
+      color: var(--muted);
+      width: 28px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .verdict-eyebrow {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .verdict-tagline {
+      font-size: 1rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 1.5rem;
+    }
+
+    .verdict-explanation {
+      font-size: 0.95rem;
+      color: rgba(232,232,232,0.65);
+      line-height: 1.8;
+      max-width: 50ch;
+      margin-bottom: 2.5rem;
+    }
+
+    .next-steps { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+    .next-steps h3 {
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .next-steps ul { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+    .next-steps li {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: rgba(232,232,232,0.7);
+    }
+    .next-steps li::before { content: '→'; color: var(--accent); flex-shrink: 0; font-weight: 700; }
+
+    .restart-row {
+      margin-top: 2rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    /* Verdict color overrides */
+    .verdict-label { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -0.03em; margin: 0.25rem 0 0.75rem; }
+    .verdict-kill   { color: var(--accent); }
+    .verdict-pivot  { color: var(--yellow); }
+    .verdict-keep   { color: var(--green); }
+    .verdict-double { color: var(--text); }
+
+    /* Animated entry for verdict */
+    .verdict-anim {
+      animation: verdictReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @keyframes verdictReveal {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .verdict-panel .glow { opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <div class="verdict-screen">
+    <!-- Left: Verdict text -->
+    <div class="verdict-panel fade-in">
+      <div class="glow"></div>
+      <p class="verdict-eyebrow" id="ve-eyebrow">Verdict</p>
+      <div class="verdict-label" id="ve-label"></div>
+      <p class="verdict-tagline" id="ve-tagline"></p>
+      <p class="verdict-explanation" id="ve-explanation"></p>
+
+      <div class="next-steps">
+        <h3>What to do now</h3>
+        <ul id="ve-steps"></ul>
+      </div>
+
+      <div class="restart-row">
+        <a href="index.html" class="btn btn-ghost">← Start over</a>
+        <button class="btn btn-ghost" onclick="window.print()">Save as PDF</button>
+      </div>
+    </div>
+
+    <!-- Right: Radar + scores -->
+    <div class="radar-panel">
+      <p class="radar-title">Your Signal Map</p>
+      <canvas id="radarCanvas"></canvas>
+      <div class="score-list" id="scoreList"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="radar.js"></script>
+  <script>
+    const scores = KS.loadScores();
+    const verdict = KS.getVerdict(scores);
+    const copy = KS.VerdictCopy[verdict];
+
+    // Fill verdict text
+    const labelEl = document.getElementById('ve-label');
+    labelEl.textContent = copy.label;
+    labelEl.className = 'verdict-label verdict-' + verdict + ' verdict-anim';
+
+    document.getElementById('ve-tagline').textContent = copy.tagline;
+    document.getElementById('ve-explanation').textContent = copy.explanation;
+
+    const stepsEl = document.getElementById('ve-steps');
+    copy.steps.forEach(s => {
+      const li = document.createElement('li');
+      li.textContent = s;
+      stepsEl.appendChild(li);
+    });
+
+    // Score bars
+    const scoreList = document.getElementById('scoreList');
+    KS.Labels.forEach((label, i) => {
+      const row = document.createElement('div');
+      row.className = 'score-row';
+      row.innerHTML = `
+        <span class="score-row-label">${label}</span>
+        <div class="score-bar-wrap"><div class="score-bar-fill" style="width:0%" data-target="${scores[i]}"></div></div>
+        <span class="score-num">${scores[i]}</span>
+      `;
+      scoreList.appendChild(row);
+    });
+
+    // Animate bars
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.score-bar-fill').forEach(el => {
+        el.style.width = el.dataset.target + '%';
+      });
+    });
+
+    // Draw radar after layout
+    requestAnimationFrame(() => {
+      drawRadar('radarCanvas', scores, KS.Labels);
+    });
+
+    // Tint glow by verdict
+    const glowColors = {
+      kill: 'rgba(230,57,70,0.08)',
+      pivot: 'rgba(244,162,97,0.08)',
+      keep: 'rgba(46,196,182,0.08)',
+      double: 'rgba(232,232,232,0.05)',
+    };
+    document.querySelector('.verdict-panel .glow').style.background =
+      `radial-gradient(circle, ${glowColors[verdict]} 0%, transparent 70%)`;
+  </script>
+</body>
+</html>
