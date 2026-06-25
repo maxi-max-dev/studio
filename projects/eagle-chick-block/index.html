@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>老鹰抓小鸡·方块版</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#06060f;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;user-select:none}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 900, H = 560;
+canvas.width = W; canvas.height = H;
+
+// ── Palette ───────────────────────────────────────────────────
+const C = {
+  bg0:'#06060f', bg1:'#0c0c22',
+  ground:'#111128', groundEdge:'#1a1a38',
+  eagle:'#ff6b2b', eagleWind:'#ff9e3c', eagleStun:'#44455a', eagleCarry:'#ff4411',
+  hen:'#3dd4ed', henShield:'rgba(61,212,237,0.13)',
+  chick:'#ffe742', chickGrab:'#ffaa00', chickOut:'#7a6a1a',
+  chain:'#a89030',
+  obs:'#14143a', obsEdge:'#22226a',
+  text:'#eef0ff', dim:'#445',
+  barBg:'#0a0a1a', barFg:'#3dd4ed',
+  winEagle:'#ff6b2b', winHen:'#3dd4ed',
+};
+
+// ── Input ─────────────────────────────────────────────────────
+const keys = {}, jp = {};
+addEventListener('keydown', e => {
+  if (!keys[e.code]) jp[e.code] = true;
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  ensureAudio();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+function clearJP() { for (const k in jp) delete jp[k]; }
+
+// ── Audio ─────────────────────────────────────────────────────
+let audioCtx = null;
+function ensureAudio() {
+  if (audioCtx) { if (audioCtx.state==='suspended') audioCtx.resume(); return; }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function tone(freq, dur, type, vol, startFreq) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.type = type || 'sine';
+  osc.frequency.value = startFreq || freq;
+  if (startFreq) osc.frequency.exponentialRampToValueAtTime(Math.max(freq,1), t+dur*0.9);
+  g.gain.setValueAtTime(vol||0.1, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t+dur);
+  osc.start(t); osc.stop(t+dur+0.01);
+}
+function sfxWind()    { tone(900, 0.28, 'sine',     0.06, 180); }
+function sfxDive()    { tone(80,  0.22, 'sawtooth', 0.09, 550); }
+function sfxGrab()    { tone(300, 0.3,  'square',   0.11); tone(520, 0.14, 'sine', 0.07); }
+function sfxStun()    { tone(90,  0.4,  'sawtooth', 0.1,  320); }
+function sfxShield()  { tone(680, 0.32, 'sine',     0.14, 180); }
+function sfxCapture() { tone(200, 0.38, 'square',   0.12); tone(130, 0.55, 'sawtooth', 0.07); }
+function sfxRescue() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  [[523,0],[659,0.1],[784,0.2]].forEach(([f,d]) => {
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value=f;
+    g.gain.setValueAtTime(0.1, t+d);
+    g.gain.exponentialRampToValueAtTime(0.001, t+d+0.14);
+    o.start(t+d); o.stop(t+d+0.15);
+  });
+}
+function sfxWin(isEagle) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  (isEagle ? [[220,0],[180,0.18],[130,0.36]] : [[440,0],[554,0.12],[659,0.24],[880,0.4]])
+    .forEach(([f,d]) => {
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.frequency.value=f;
+      g.gain.setValueAtTime(0.12, t+d);
+      g.gain.exponentialRampToValueAtTime(0.001, t+d+0.28);
+      o.start(t+d); o.stop(t+d+0.29);
+    });
+}
+
+// ── Particles ─────────────────────────────────────────────────
+let particles = [];
+function spawnPfx(x, y, n, col, spd, life) {
+  for (let i=0; i<n; i++) {
+    const a = Math.random()*Math.PI*2;
+    const s = spd*(0.4+Math.random()*0.8);
+    particles.push({x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s-spd*0.15,
+                    life, maxLife:life, col, sz:2+Math.random()*4});
+  }
+}
+function updatePfx(dt) {
+  particles = particles.filter(p => {
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    p.vy+=55*dt; p.vx*=Math.pow(0.18,dt); p.vy*=Math.pow(0.55,dt);
+    return (p.life-=dt) > 0;
+  });
+}
+function renderPfx() {
+  particles.forEach(p => {
+    const a = p.life/p.maxLife;
+    ctx.save(); ctx.globalAlpha=a*0.9; ctx.fillStyle=p.col;
+    const s=p.sz*(0.4+0.6*a);
+    ctx.fillRect(p.x-s/2, p.y-s/2, s, s);
+    ctx.restore();
+  });
+}
+
+// ── Game state ────────────────────────────────────────────────
+const GS = {MENU:0, PLAY:1, OVER:2};
+let gs=GS.MENU, menuSel=0;
+let eagle, hen, chicks, obstacles;
+let winner=null, shakeT=0, slowT=0, gameTimer=60;
+let eagleTrail=[], winSfxPlayed=false, prevTs=0;
+const GAME_DURATION=60, WIN_STUNS=5;
+
+// ── Entity factories ──────────────────────────────────────────
+function makeEagle(isAI) {
+  return {
+    x:W/2, y:72, vx:0, vy:0, w:38, h:26, angle:0,
+    mode:'ROAM',
+    windT:0, WIND_DUR:0.30,
+    stunT:0, STUN_DUR:1.6,
+    diveVx:0, diveVy:0,
+    carryIdx:-1, carryScore:0, stunCount:0,
+    aiDecideT:1.5, aiWaypoint:null, aiWpT:0, difficultyT:0,
+    stunRotV:0, isAI,
+  };
+}
+function makeHen() {
+  return {
+    x:W/2, y:H-118, vx:0, vy:0, w:32, h:38,
+    shieldOn:false, shieldT:0, shieldCoolT:0,
+    SHIELD_DUR:0.65, SHIELD_COOL:4.5, SHIELD_R:55,
+  };
+}
+function makeChick(i) {
+  return {
+    x:W/2+(i-1.5)*18, y:H-88+i*14, vx:0, vy:0, w:20, h:23,
+    captured:false, grabT:0, GRAB_DUR:5.0,
+    wobT:Math.random()*Math.PI*2, escPulse:0,
+  };
+}
+function makeObstacle(safe) {
+  for (let t=0; t<40; t++) {
+    const w=55+Math.random()*100, h=16+Math.random()*28;
+    const x=70+Math.random()*(W-140-w), y=110+Math.random()*(H-250-h);
+    const ob={x,y,w,h};
+    if (!safe||!aabbHit({x:safe.x-90,y:safe.y-90,w:180,h:180},ob)) return ob;
+  }
+  return {x:110,y:200,w:90,h:20};
+}
+function resetGame() {
+  eagle=makeEagle(menuSel===0); hen=makeHen();
+  chicks=Array.from({length:4},(_,i)=>makeChick(i));
+  obstacles=Array.from({length:2+Math.floor(Math.random()*2)},()=>makeObstacle(hen));
+  winner=null; shakeT=0; slowT=0; gameTimer=GAME_DURATION;
+  particles=[]; eagleTrail=[]; winSfxPlayed=false;
+}
+
+// ── Math / physics ────────────────────────────────────────────
+const lerp = (a,b,t) => a+(b-a)*t;
+const clamp = (v,lo,hi) => v<lo?lo:v>hi?hi:v;
+function aabbHit(a,b) {
+  return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+function resolveObs(e, ob) {
+  const ex=e.x-e.w/2, ey=e.y-e.h/2;
+  if (!aabbHit({x:ex,y:ey,w:e.w,h:e.h}, ob)) return false;
+  const oL=ex+e.w-ob.x, oR=ob.x+ob.w-ex, oT=ey+e.h-ob.y, oB=ob.y+ob.h-ey;
+  const mn=Math.min(oL,oR,oT,oB);
+  if      (mn===oL){e.x-=oL; e.vx=Math.min(e.vx,0);}
+  else if (mn===oR){e.x+=oR; e.vx=Math.max(e.vx,0);}
+  else if (mn===oT){e.y-=oT; e.vy=Math.min(e.vy,0);}
+  else             {e.y+=oB; e.vy=Math.max(e.vy,0);}
+  return true;
+}
+function springForce(ax,ay,avx,avy,bx,by,bvx,bvy,rest,k,damp) {
+  const dx=bx-ax, dy=by-ay, d=Math.hypot(dx,dy)||0.001;
+  const nx=dx/d, ny=dy/d, f=k*(d-rest)+damp*((bvx-avx)*nx+(bvy-avy)*ny);
+  return [nx*f, ny*f];
+}
+
+// ── Update ────────────────────────────────────────────────────
+function update(dt) {
+  if (gs===GS.MENU) { updateMenu();  return; }
+  if (gs===GS.OVER) { updateOver();  return; }
+  const realDt=dt;
+  if (slowT>0) { dt*=0.22; slowT-=realDt; }
+  gameTimer-=realDt;
+  updateHen(dt);
+  updateEagle(dt);
+  updateChicks(dt);
+  checkRescue();
+  updatePfx(realDt);
+  checkWin();
+  if (shakeT>0) shakeT=Math.max(0, shakeT-realDt*5);
+}
+
+function updateMenu() {
+  if (jp['ArrowLeft']||jp['ArrowRight']||jp['KeyA']||jp['KeyD']) menuSel^=1;
+  if (jp['Space']||jp['Enter']) { resetGame(); gs=GS.PLAY; }
+}
+function updateOver() {
+  if (jp['Space']||jp['Enter']||jp['KeyR']) gs=GS.MENU;
+}
+
+// ── Hen ───────────────────────────────────────────────────────
+function updateHen(dt) {
+  const h=hen;
+  const ax=(keys['KeyD']?1:0)-(keys['KeyA']?1:0);
+  const ay=(keys['KeyS']?1:0)-(keys['KeyW']?1:0);
+  const k=1-Math.exp(-14*dt);
+  h.vx=lerp(h.vx, ax*215, k); h.vy=lerp(h.vy, ay*215, k);
+  h.x+=h.vx*dt; h.y+=h.vy*dt;
+  h.x=clamp(h.x,h.w/2,W-h.w/2); h.y=clamp(h.y,h.h/2,H-30-h.h/2);
+  obstacles.forEach(ob=>resolveObs(h,ob));
+  if (h.shieldCoolT>0) h.shieldCoolT-=dt;
+  if (h.shieldT>0) {
+    h.shieldT-=dt; h.shieldOn=true;
+    if (h.shieldT<=0) { h.shieldOn=false; h.shieldCoolT=h.SHIELD_COOL; }
+  } else { h.shieldOn=false; }
+  if ((jp['KeyQ']||jp['Space']) && h.shieldCoolT<=0 && h.shieldT<=0)
+    h.shieldT=h.SHIELD_DUR;
+}
+
+// ── Eagle ─────────────────────────────────────────────────────
+function updateEagle(dt) {
+  const e=eagle;
+
+  // Trail sampling
+  if (e.mode==='DIVE'||e.mode==='STUN') {
+    eagleTrail.push({x:e.x,y:e.y,angle:e.angle,mode:e.mode});
+    if (eagleTrail.length>10) eagleTrail.shift();
+  } else if (eagleTrail.length) { eagleTrail=[]; }
+
+  if (e.mode==='STUN') {
+    e.stunT-=dt;
+    e.angle+=e.stunRotV*dt;
+    e.stunRotV=lerp(e.stunRotV, 0, 1-Math.exp(-4*dt));
+    e.vx*=Math.pow(0.08,dt); e.vy*=Math.pow(0.08,dt);
+    e.x+=e.vx*dt; e.y+=e.vy*dt;
+    e.x=clamp(e.x,e.w/2,W-e.w/2); e.y=clamp(e.y,e.h/2,H-30-e.h/2);
+    if (e.stunT<=0) { e.mode='ROAM'; e.angle=0; }
+    return;
+  }
+
+  if (e.mode==='CARRY') {
+    if (e.isAI) {
+      // Flee from hen
+      const dx=e.x-hen.x, dy=e.y-hen.y, d=Math.hypot(dx,dy)||1;
+      e.vx=lerp(e.vx,(dx/d)*115, 1-Math.exp(-2*dt));
+      e.vy=lerp(e.vy,(dy/d)*115, 1-Math.exp(-2*dt));
+    } else {
+      const ax=(keys['ArrowRight']?1:0)-(keys['ArrowLeft']?1:0);
+      const ay=(keys['ArrowDown']?1:0)-(keys['ArrowUp']?1:0);
+      e.vx=lerp(e.vx,ax*190, 1-Math.exp(-10*dt));
+      e.vy=lerp(e.vy,ay*190, 1-Math.exp(-10*dt));
+    }
+    e.x+=e.vx*dt; e.y+=e.vy*dt;
+    e.angle=Math.atan2(e.vy,e.vx)*0.4;
+    e.x=clamp(e.x,e.w/2,W-e.w/2); e.y=clamp(e.y,e.h/2,H-30-e.h/2);
+    obstacles.forEach(ob=>resolveObs(e,ob));
+    if (e.carryIdx>=0 && chicks[e.carryIdx]) {
+      chicks[e.carryIdx].x=e.x+5;
+      chicks[e.carryIdx].y=e.y+e.h/2+10;
+      chicks[e.carryIdx].vx=e.vx; chicks[e.carryIdx].vy=e.vy;
+    }
+    return;
+  }
+
+  if (e.mode==='DIVE') {
+    const dlen=Math.hypot(e.diveVx,e.diveVy)||1;
+    e.vx=(e.diveVx/dlen)*520; e.vy=(e.diveVy/dlen)*520;
+    e.x+=e.vx*dt; e.y+=e.vy*dt;
+    e.angle=Math.atan2(e.diveVy,e.diveVx);
+
+    let grabbed=false;
+    chicks.forEach((ch,i) => {
+      if (ch.captured||ch.grabT>0) return;
+      if (Math.hypot(e.x-ch.x,e.y-ch.y) < (e.w+ch.w)/2+4) {
+        ch.grabT=ch.GRAB_DUR; e.carryIdx=i; e.mode='CARRY';
+        grabbed=true; shakeT=0.4; slowT=0.6;
+        spawnPfx(ch.x,ch.y, 8, C.eagleWind, 95, 0.5);
+        sfxGrab();
+      }
+    });
+
+    if (!grabbed && hen.shieldOn) {
+      const d=Math.hypot(e.x-hen.x,e.y-hen.y);
+      if (d < hen.SHIELD_R+18) {
+        const nx=(e.x-hen.x)/(d||1), ny=(e.y-hen.y)/(d||1);
+        e.vx=nx*460; e.vy=ny*460;
+        e.mode='STUN'; e.stunT=e.STUN_DUR*0.8;
+        e.stunRotV=(Math.random()-0.5)*15; e.stunCount++;
+        shakeT=0.5;
+        spawnPfx(e.x,e.y, 14, C.eagleStun, 115, 0.65);
+        sfxShield();
+      }
+    }
+
+    if (!grabbed && (e.x<e.w/2||e.x>W-e.w/2||e.y<e.h/2||e.y>H-30-e.h/2)) {
+      e.mode='STUN'; e.stunT=e.STUN_DUR;
+      e.stunRotV=(Math.random()-0.5)*18; e.stunCount++;
+      shakeT=0.35;
+      spawnPfx(e.x,e.y, 10, C.eagleStun, 80, 0.55);
+      sfxStun();
+    }
+
+    if (!grabbed && e.mode==='DIVE') {
+      obstacles.forEach(ob => {
+        if (e.mode==='DIVE' && resolveObs(e,ob)) {
+          e.mode='STUN'; e.stunT=e.STUN_DUR*1.2;
+          e.stunRotV=(Math.random()-0.5)*20; e.stunCount++;
+          shakeT=0.6;
+          spawnPfx(e.x,e.y, 14, C.eagleStun, 125, 0.7);
+          sfxStun();
+        }
+      });
+    }
+
+    if (e.mode==='DIVE') {
+      chicks.forEach(ch => {
+        if (ch.captured||ch.grabT>0) return;
+        if (Math.hypot(e.x-ch.x,e.y-ch.y)<60) slowT=Math.max(slowT,0.45);
+      });
+    }
+    return;
+  }
+
+  if (e.mode==='WIND') {
+    e.windT-=dt;
+    if (e.windT<=0) {
+      const tgt=getEagleTarget();
+      e.mode='DIVE';
+      if (tgt) {
+        const dx=tgt.x-e.x, dy=tgt.y-e.y, d=Math.hypot(dx,dy)||1;
+        const miss=e.isAI?(Math.random()-0.5)*55:0;
+        e.diveVx=dx+miss; e.diveVy=dy+miss*0.4;
+      } else { e.diveVx=0; e.diveVy=1; }
+      sfxDive();
+    }
+    e.vx*=Math.pow(0.02,dt); e.vy*=Math.pow(0.02,dt);
+    return;
+  }
+
+  // ROAM
+  if (e.isAI) updateEagleAI(dt,e);
+  else        updateEaglePlayer(dt,e);
+}
+
+function getEagleTarget() {
+  const alive=chicks.filter(c=>!c.captured&&c.grabT<=0);
+  if (!alive.length) return null;
+  let best=null, bestD=Infinity;
+  alive.forEach(ch => { const d=Math.hypot(eagle.x-ch.x,eagle.y-ch.y); if(d<bestD){bestD=d;best=ch;} });
+  return best;
+}
+
+function pickWaypoint(tgt) {
+  const a=Math.random()*Math.PI*2, r=90+Math.random()*130;
+  return {x:clamp(tgt.x+Math.cos(a)*r,60,W-60), y:clamp(tgt.y+Math.sin(a)*r,60,H-220)};
+}
+
+function updateEagleAI(dt, e) {
+  e.difficultyT+=dt;
+  const diff=Math.min(e.difficultyT/50, 1);
+  const tgt=getEagleTarget();
+  if (!tgt) return;
+
+  if (!e.aiWaypoint||e.aiWpT<=0) { e.aiWaypoint=pickWaypoint(tgt); e.aiWpT=1.2+Math.random()*1.8; }
+  e.aiWpT-=dt;
+
+  const dx=e.aiWaypoint.x-e.x, dy=e.aiWaypoint.y-e.y, d=Math.hypot(dx,dy)||1;
+  const spd=80+diff*45;
+  e.vx=lerp(e.vx,(dx/d)*spd, 1-Math.exp(-3*dt));
+  e.vy=lerp(e.vy,(dy/d)*spd, 1-Math.exp(-3*dt));
+  e.x+=e.vx*dt; e.y+=e.vy*dt;
+  e.angle=Math.atan2(e.vy,e.vx)*0.4;
+  e.x=clamp(e.x,e.w/2,W-e.w/2); e.y=clamp(e.y,e.h/2,H-30-e.h/2);
+  obstacles.forEach(ob=>resolveObs(e,ob));
+  if (d<30) e.aiWpT=0;
+
+  const distToTgt=Math.hypot(e.x-tgt.x,e.y-tgt.y);
+  const shieldDanger=hen.shieldOn||(hen.shieldCoolT<=0&&Math.hypot(e.x-hen.x,e.y-hen.y)<130);
+  e.aiDecideT-=dt;
+  if (e.aiDecideT<=0 && distToTgt<150+diff*50 && !shieldDanger) {
+    e.mode='WIND'; e.windT=e.WIND_DUR;
+    e.aiDecideT=(1.6-diff*0.5)+Math.random()*1.2;
+    sfxWind();
+  }
+}
+
+function updateEaglePlayer(dt, e) {
+  const ax=(keys['ArrowRight']?1:0)-(keys['ArrowLeft']?1:0);
+  const ay=(keys['ArrowDown']?1:0)-(keys['ArrowUp']?1:0);
+  const k=1-Math.exp(-12*dt);
+  e.vx=lerp(e.vx,ax*220,k); e.vy=lerp(e.vy,ay*220,k);
+  e.x+=e.vx*dt; e.y+=e.vy*dt;
+  if (e.vx||e.vy) e.angle=Math.atan2(e.vy,e.vx)*0.35;
+  e.x=clamp(e.x,e.w/2,W-e.w/2); e.y=clamp(e.y,e.h/2,H-30-e.h/2);
+  obstacles.forEach(ob=>resolveObs(e,ob));
+  if (jp['Enter']||jp['KeyJ']) { e.mode='WIND'; e.windT=e.WIND_DUR; sfxWind(); }
+}
+
+// ── Chicks ────────────────────────────────────────────────────
+function updateChicks(dt) {
+  chicks.forEach((ch,i) => {
+    if (ch.captured) return;
+    if (ch.grabT>0) {
+      ch.grabT-=dt;
+      ch.escPulse=(ch.escPulse+dt*7)%(Math.PI*2);
+      if (ch.grabT<=0) {
+        ch.captured=true; eagle.carryIdx=-1; eagle.carryScore++; eagle.mode='ROAM';
+        shakeT=0.55;
+        spawnPfx(ch.x,ch.y, 18, C.chickGrab, 110, 0.9);
+        sfxCapture();
+      }
+      return;
+    }
+    const anchor=(i===0||chicks[i-1].captured)?hen:chicks[i-1];
+    const [fx,fy]=springForce(ch.x,ch.y,ch.vx,ch.vy,
+      anchor.x,anchor.y,anchor.vx||0,anchor.vy||0, 36+i*2, 120, 10);
+    ch.vx+=fx*dt; ch.vy+=fy*dt;
+    const damp=Math.pow(0.06,dt);
+    ch.vx*=damp; ch.vy*=damp;
+    ch.x+=ch.vx*dt; ch.y+=ch.vy*dt;
+    ch.x=clamp(ch.x,ch.w/2,W-ch.w/2); ch.y=clamp(ch.y,ch.h/2,H-30-ch.h/2);
+    obstacles.forEach(ob=>resolveObs(ch,ob));
+    ch.wobT+=dt*(2.2+i*0.4);
+  });
+}
+
+// ── Rescue ────────────────────────────────────────────────────
+function checkRescue() {
+  if (eagle.mode!=='CARRY') return;
+  if (Math.hypot(hen.x-eagle.x,hen.y-eagle.y) < (hen.w+eagle.w)/2+8) {
+    const idx=eagle.carryIdx;
+    if (idx>=0&&chicks[idx]) { chicks[idx].grabT=0; chicks[idx].escPulse=0; }
+    eagle.carryIdx=-1; eagle.mode='STUN';
+    eagle.stunT=eagle.STUN_DUR*0.85; eagle.stunCount++;
+    eagle.stunRotV=(Math.random()-0.5)*16;
+    shakeT=0.55; slowT=Math.max(slowT,0.5);
+    spawnPfx(eagle.x,eagle.y, 18, C.hen, 125, 0.75);
+    sfxRescue();
+  }
+}
+
+// ── Win check ─────────────────────────────────────────────────
+function checkWin() {
+  if (winner) return;
+  if (chicks.every(c=>c.captured))      { winner='eagle'; gs=GS.OVER; }
+  else if (eagle.stunCount>=WIN_STUNS)  { winner='hen';   gs=GS.OVER; }
+  else if (gameTimer<=0)                { winner='hen';   gs=GS.OVER; }
+  if (gs===GS.OVER && !winSfxPlayed) { sfxWin(winner==='eagle'); winSfxPlayed=true; }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════════
+function render() {
+  ctx.save();
+  if (shakeT>0) {
+    const s=shakeT*11;
+    ctx.translate((Math.random()-0.5)*s,(Math.random()-0.5)*s);
+  }
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,C.bg0); grad.addColorStop(1,C.bg1);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=C.ground;    ctx.fillRect(0,H-28,W,28);
+  ctx.fillStyle=C.groundEdge; ctx.fillRect(0,H-30,W,3);
+  if (gs===GS.MENU) { renderMenu(); ctx.restore(); return; }
+  renderGame();
+  if (gs===GS.OVER) renderOver();
+  ctx.restore();
+}
+
+function renderMenu() {
+  const t=performance.now()/1000;
+  ctx.textAlign='center';
+
+  // Animated eagle
+  ctx.save(); ctx.translate(W/2-85,130); ctx.rotate(Math.sin(t*0.8)*0.12);
+  ctx.fillStyle=C.eagle; ctx.fillRect(-19,-13,38,26);
+  ctx.fillStyle='#ff9e3c'; ctx.fillRect(17,-2,9,5);
+  ctx.fillStyle='#000'; ctx.fillRect(7,-5,7,7);
+  ctx.restore();
+
+  // Animated hen + chick chain
+  ctx.save(); ctx.translate(W/2+85,128); ctx.rotate(Math.sin(t*1.1+1)*0.08);
+  ctx.fillStyle=C.hen; ctx.fillRect(-16,-19,32,38);
+  ctx.fillStyle='#011518'; ctx.fillRect(-10,-6,7,7); ctx.fillRect(3,-6,7,7);
+  ctx.restore();
+  for (let i=0;i<3;i++) {
+    ctx.save(); ctx.translate(W/2+85,150+i*24); ctx.rotate(Math.sin(t*2+i)*0.2);
+    ctx.globalAlpha=0.7-i*0.15; ctx.fillStyle=C.chick;
+    ctx.fillRect(-10,-11.5,20,23); ctx.restore();
+  }
+  ctx.globalAlpha=1;
+
+  ctx.font='bold 50px monospace'; ctx.fillStyle=C.text;
+  ctx.fillText('老鹰抓小鸡', W/2, 218);
+  ctx.font='24px monospace'; ctx.fillStyle=C.eagle;
+  ctx.fillText('方  块  版', W/2, 256);
+
+  ['单人对战  (AI 老鹰)','双人对战  (本机键盘)'].forEach((m,i) => {
+    const sel=menuSel===i;
+    ctx.font=sel?'bold 19px monospace':'17px monospace';
+    ctx.fillStyle=sel?C.text:C.dim;
+    ctx.fillText((sel?'▶  ':'   ')+m, W/2, 322+i*48);
+  });
+
+  ctx.font='13px monospace'; ctx.fillStyle=C.dim;
+  ctx.fillText('← →  切换模式     Space  开始', W/2, 428);
+  ctx.fillText('母鸡: WASD  移动   Q / Space  张翅护盾', W/2, 450);
+  ctx.fillText('老鹰: ↑↓←→ 移动   Enter / J  俯冲', W/2, 472);
+  ctx.fillText(`守住 ${GAME_DURATION}s  或  弹飞老鹰 ${WIN_STUNS} 次  →  母鸡胜`, W/2, 500);
+  ctx.textAlign='left';
+}
+
+function renderGame() {
+  obstacles.forEach(ob => {
+    ctx.fillStyle=C.obs;    ctx.fillRect(ob.x,ob.y,ob.w,ob.h);
+    ctx.fillStyle=C.obsEdge; ctx.fillRect(ob.x,ob.y,ob.w,3);
+  });
+  chicks.forEach((ch,i) => {
+    if (ch.captured) return;
+    const prev=(i===0||chicks[i-1].captured)?hen:chicks[i-1];
+    ctx.beginPath(); ctx.moveTo(prev.x,prev.y); ctx.lineTo(ch.x,ch.y);
+    ctx.strokeStyle=C.chain; ctx.lineWidth=2;
+    ctx.setLineDash([5,5]); ctx.stroke(); ctx.setLineDash([]);
+  });
+  renderPfx();
+  renderHen();
+  chicks.forEach((ch,i)=>renderChick(ch,i));
+  renderEagleTrail();
+  renderEagle();
+  renderHUD();
+}
+
+function renderEagleTrail() {
+  eagleTrail.forEach((tr,i) => {
+    ctx.save(); ctx.globalAlpha=(i/eagleTrail.length)*0.28;
+    ctx.translate(tr.x,tr.y); ctx.rotate(tr.angle);
+    ctx.fillStyle=tr.mode==='STUN'?C.eagleStun:C.eagle;
+    ctx.fillRect(-eagle.w/2,-eagle.h/2,eagle.w,eagle.h);
+    ctx.restore();
+  });
+}
+
+function renderHen() {
+  const h=hen;
+  if (h.shieldOn) {
+    ctx.beginPath(); ctx.arc(h.x,h.y,h.SHIELD_R,0,Math.PI*2);
+    ctx.fillStyle=C.henShield; ctx.fill();
+    ctx.strokeStyle=C.hen; ctx.lineWidth=2.5; ctx.stroke();
+    const p=1+0.15*Math.sin(performance.now()/60);
+    ctx.beginPath(); ctx.arc(h.x,h.y,h.SHIELD_R*p,0,Math.PI*2);
+    ctx.strokeStyle='rgba(61,212,237,0.22)'; ctx.lineWidth=1.2; ctx.stroke();
+  }
+  ctx.fillStyle=C.hen; ctx.fillRect(h.x-h.w/2,h.y-h.h/2,h.w,h.h);
+  ctx.fillStyle='#011518';
+  ctx.fillRect(h.x-10,h.y-6,7,7); ctx.fillRect(h.x+3,h.y-6,7,7);
+}
+
+function renderChick(ch, i) {
+  ctx.save(); ctx.translate(ch.x,ch.y);
+  if (ch.captured) {
+    ctx.globalAlpha=0.35; ctx.fillStyle=C.chickOut;
+    ctx.fillRect(-ch.w/2,-ch.h/2,ch.w,ch.h);
+  } else {
+    ctx.rotate(Math.sin(ch.wobT)*0.14);
+    ctx.fillStyle=ch.grabT>0?(Math.sin(ch.escPulse)>0?C.chickGrab:C.chick):C.chick;
+    ctx.fillRect(-ch.w/2,-ch.h/2,ch.w,ch.h);
+    ctx.fillStyle='#2a1800'; ctx.fillRect(ch.w/2-8,-3,4,4);
+  }
+  ctx.restore();
+}
+
+function renderEagle() {
+  const e=eagle;
+  ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(e.angle);
+  ctx.fillStyle=e.mode==='STUN'?C.eagleStun:e.mode==='WIND'?C.eagleWind:e.mode==='CARRY'?C.eagleCarry:C.eagle;
+  ctx.fillRect(-e.w/2,-e.h/2,e.w,e.h);
+  const ws=(e.mode==='DIVE'||e.mode==='CARRY')?5:22;
+  ctx.fillRect(-e.w/2-ws,-8,ws,13); ctx.fillRect(e.w/2,-8,ws,13);
+  ctx.fillStyle='#ff9e3c'; ctx.fillRect(e.w/2-2,-2,9,5);
+  ctx.fillStyle='#000';    ctx.fillRect(e.w/2-12,-5,7,7);
+  ctx.restore();
+
+  if (e.mode==='WIND') {
+    const frac=1-e.windT/e.WIND_DUR;
+    ctx.beginPath(); ctx.arc(e.x,e.y,46*frac,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,158,60,${0.9*frac})`; ctx.lineWidth=3; ctx.stroke();
+    chicks.forEach(ch => {
+      if (ch.captured) return;
+      const d=Math.hypot(e.x-ch.x,e.y-ch.y);
+      if (d<220) {
+        ctx.beginPath(); ctx.moveTo(e.x,e.y); ctx.lineTo(ch.x,ch.y);
+        ctx.strokeStyle=`rgba(255,100,43,${0.18*frac})`; ctx.lineWidth=1; ctx.stroke();
+      }
+    });
+  }
+}
+
+function renderHUD() {
+  const alive=chicks.filter(c=>!c.captured).length;
+
+  // Left panel
+  ctx.fillStyle='rgba(4,4,16,0.82)'; ctx.fillRect(8,6,190,90);
+  ctx.fillStyle=C.chick; ctx.font='bold 17px monospace';
+  ctx.fillText(`小鸡  ${alive} / 4`, 18, 28);
+
+  const sf=hen.shieldCoolT>0?1-hen.shieldCoolT/hen.SHIELD_COOL:1;
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(18,36,154,10);
+  ctx.fillStyle=sf>=1?C.barFg:'#1c5060'; ctx.fillRect(18,36,154*sf,10);
+  ctx.fillStyle=C.dim; ctx.font='12px monospace';
+  ctx.fillText(sf>=1?'护盾 就绪':`护盾冷却 ${hen.shieldCoolT.toFixed(1)}s`, 18, 60);
+
+  const stunFrac=Math.min(eagle.stunCount/WIN_STUNS,1);
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(18,66,154,8);
+  ctx.fillStyle='#3d6ded'; ctx.fillRect(18,66,154*stunFrac,8);
+  ctx.fillStyle=C.dim; ctx.font='11px monospace';
+  ctx.fillText(`弹飞 ${eagle.stunCount}/${WIN_STUNS}`, 18, 84);
+
+  // Timer center
+  const tLeft=Math.max(0,gameTimer);
+  ctx.fillStyle='rgba(4,4,16,0.82)'; ctx.fillRect(W/2-40,6,80,32);
+  ctx.textAlign='center'; ctx.font='bold 20px monospace';
+  ctx.fillStyle=tLeft<10?C.chickGrab:tLeft<20?C.eagleWind:C.text;
+  ctx.fillText(`${Math.ceil(tLeft)}s`, W/2, 27); ctx.textAlign='left';
+
+  // Right panel
+  ctx.fillStyle='rgba(4,4,16,0.82)'; ctx.fillRect(W-185,6,177,36);
+  ctx.fillStyle=eagle.mode==='CARRY'?C.eagleCarry:C.eagle; ctx.font='15px monospace';
+  ctx.textAlign='right';
+  ctx.fillText(eagle.mode==='CARRY'?`老鹰  携带中！(${eagle.carryScore})`:`老鹰  捕获 ${eagle.carryScore}`, W-14, 28);
+  ctx.textAlign='left';
+
+  // Escape arc + rescue hint
+  chicks.forEach(ch => {
+    if (ch.grabT<=0||ch.captured) return;
+    const frac=ch.grabT/ch.GRAB_DUR;
+    ctx.beginPath();
+    ctx.arc(ch.x,ch.y-ch.h/2-16,10,-Math.PI/2,-Math.PI/2+Math.PI*2*frac);
+    ctx.strokeStyle=C.chickGrab; ctx.lineWidth=3; ctx.stroke();
+    ctx.fillStyle=C.text; ctx.font='11px monospace'; ctx.textAlign='center';
+    ctx.fillText(Math.ceil(ch.grabT), ch.x, ch.y-ch.h/2-28);
+    ctx.fillStyle='rgba(61,212,237,0.75)'; ctx.font='10px monospace';
+    ctx.fillText('冲过去救！', ch.x, ch.y+ch.h/2+15);
+    ctx.textAlign='left';
+  });
+}
+
+function renderOver() {
+  ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 38px monospace';
+  ctx.fillStyle=winner==='eagle'?C.winEagle:C.winHen;
+  ctx.fillText(winner==='eagle'?'老鹰胜！全队覆没':'母鸡守护成功！', W/2, H/2-38);
+  ctx.font='17px monospace'; ctx.fillStyle=C.dim;
+  const elapsed=(GAME_DURATION-Math.max(0,gameTimer)).toFixed(0);
+  if (winner==='eagle')                ctx.fillText(`母鸡坚守了 ${elapsed}s`, W/2, H/2+4);
+  else if (eagle.stunCount>=WIN_STUNS) ctx.fillText(`弹飞老鹰 ${eagle.stunCount} 次，威武！`, W/2, H/2+4);
+  else                                 ctx.fillText(`守住了整整 ${GAME_DURATION}s！`, W/2, H/2+4);
+  ctx.font='16px monospace'; ctx.fillStyle=C.dim;
+  ctx.fillText('Space / R  返回菜单', W/2, H/2+46);
+  ctx.textAlign='left';
+}
+
+// ── Main loop ─────────────────────────────────────────────────
+function loop(ts) {
+  const dt=Math.min((ts-prevTs)/1000, 0.05);
+  prevTs=ts;
+  update(dt);
+  render();
+  clearJP();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
