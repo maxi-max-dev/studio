@@ -803,6 +803,7 @@ const SK = 'decision-ledger-v1';
 
 let S = {
   decisions: [],
+  isDemo: false,
   view: 'timeline',
   cat: null,
   trait: null,
@@ -814,11 +815,91 @@ let S = {
 let tlS = { off: 0, sc: 1, drag: false, dx: 0, doff: 0 };
 let calS = { current: null, phase: 'guess', userGuess: 0, history: [] };
 
+// 首屏示例：localStorage 为空时载入，让各视图有内容可看；不写入存储，
+// 用户记录自己第一条决策（或导入备份）时自动清空。
+const DEMO_DECISIONS = [
+  { id:'demo-1', date:'2021-08-20', category:'education', title:'出国读研，还是直接工作',
+    context:'本科毕业，手上有一个还不错的工作机会，也有出国读研的录取。',
+    options:'直接入职那份工作\n出国读两年研究生\n再 gap 一年想清楚',
+    choice:'出国读研',
+    reasoning:'觉得这两年换来的视野和时间窗口，比早两年的工资更难得。',
+    difficulty:4, outcome_score:4, outcome_note:'适应得比想象中好，认识了一批后来很重要的人。',
+    learnings:'重大决策里，「不可逆的时间窗口」比「眼前的钱」权重该更高。', wonder:'如果当时留下，现在会不会也挺好？', regret:1 },
+  { id:'demo-2', date:'2023-03-12', category:'career', title:'拒掉一个高薪但不成长的 offer',
+    context:'一家公司给的钱很多，但岗位基本是重复劳动，看不到学到东西的可能。',
+    options:'接下来，先把钱拿到手\n拒掉，继续找更对的',
+    choice:'拒掉',
+    reasoning:'钱能再赚，但在最该积累的阶段把时间花在不成长的事上，代价更大。',
+    difficulty:4, outcome_score:4, outcome_note:'两个月后拿到一个钱少一点但成长快很多的岗位。',
+    learnings:'我愿意为「成长斜率」付溢价，这点越来越确定。', wonder:'', regret:2 },
+  { id:'demo-3', date:'2022-06-01', category:'lifestyle', title:'搬到一座一个朋友都没有的城市',
+    context:'机会在另一座城市，但那里我谁都不认识。',
+    options:'留在熟悉的城市\n搬过去，从零开始',
+    choice:'搬过去',
+    reasoning:'怕的是孤独，但更怕的是十年后还待在原地。',
+    difficulty:3, outcome_score:3, outcome_note:'头三个月很难熬，半年后才慢慢有了根。',
+    learnings:'孤独是有保质期的，挺过最初那段就会过去。', wonder:'', regret:2 },
+  { id:'demo-4', date:'2023-01-05', category:'creative', title:'开始每天写一点东西',
+    context:'一直想表达，却总觉得「等准备好了再开始」。',
+    options:'等想清楚定位再写\n先每天写 200 字，写了再说',
+    choice:'先每天写',
+    reasoning:'与其规划完美的开始，不如先让飞轮转起来。',
+    difficulty:2, outcome_score:4, outcome_note:'坚持了一年多，意外地成了我最稳定的一件事。',
+    learnings:'「开始」的门槛要压到低得不可能失败。', wonder:'', regret:1 },
+  { id:'demo-5', date:'2022-09-15', category:'money', title:'把大部分积蓄定投进指数基金',
+    context:'攒了一笔钱，纠结要不要择时、要不要买个股。',
+    options:'放着等更好的时点\n买几只看好的个股\n无脑定投宽基指数',
+    choice:'定投宽基指数',
+    reasoning:'承认自己择时和选股都赢不了市场，不如把精力还给本职。',
+    difficulty:3, outcome_score:3, outcome_note:'中间跌过一阵，没动，两年后回正还略有盈余。',
+    learnings:'对自己能力边界的诚实，本身就是一种 alpha。', wonder:'', regret:1 },
+  { id:'demo-6', date:'2023-07-08', category:'relationships', title:'结束一段相互消耗的关系',
+    context:'在一起久了，但越来越多的是内耗而不是滋养。',
+    options:'再忍忍，也许会变好\n好好谈一次，结束它',
+    choice:'结束它',
+    reasoning:'对彼此诚实，比维持一个体面的壳更重要。',
+    difficulty:5, outcome_score:4, outcome_note:'痛了一阵，但之后整个人都松了下来。',
+    learnings:'及时止损不是失败，是对双方的尊重。', wonder:'当时能不能更早一点、更温柔一点？', regret:2 },
+  { id:'demo-7', date:'2024-02-01', category:'health', title:'开始规律跑步',
+    context:'体检指标开始往不好的方向走，身体在提醒我。',
+    options:'办张健身卡逼自己\n从每周三次、每次三公里开始',
+    choice:'从小目标开始',
+    reasoning:'可持续比强度重要，先建立习惯再谈强度。',
+    difficulty:2, outcome_score:4, outcome_note:'半年下来成了不用动用意志力的事。', learnings:'习惯一旦自动化，就不再消耗意志力。', wonder:'', regret:1 },
+];
+
 function loadData() {
   try {
     const r = localStorage.getItem(SK);
-    if (r) S.decisions = JSON.parse(r);
+    if (r) { S.decisions = JSON.parse(r); return; }
   } catch(e) {}
+  // 没有任何存档 → 进入「示例」模式（仅内存，不落盘）
+  S.decisions = JSON.parse(JSON.stringify(DEMO_DECISIONS));
+  S.isDemo = true;
+}
+
+// 用户首次真正动手（记录/导入）时，先清掉示例数据
+function exitDemo() {
+  if (!S.isDemo) return;
+  S.isDemo = false;
+  S.decisions = [];
+  const b = document.getElementById('demo-banner');
+  if (b) b.remove();
+  render();
+}
+
+function showDemoBanner() {
+  if (!S.isDemo || document.getElementById('demo-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'demo-banner';
+  b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:9999;'
+    + 'background:#101028;border:1px solid #22224a;color:#b8b8d8;'
+    + 'font:12px/1.5 -apple-system,"PingFang SC",system-ui,sans-serif;'
+    + 'padding:8px 16px;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.45);'
+    + 'display:flex;align-items:center;gap:12px;max-width:92vw';
+  b.innerHTML = '<span>👀 这是几条示例决策，记录你自己的第一条后会自动清空</span>'
+    + '<button onclick="exitDemo()" style="all:unset;cursor:pointer;color:#6f8cff">清空示例</button>';
+  document.body.appendChild(b);
 }
 
 function saveData() {
@@ -1787,6 +1868,8 @@ function submitModal() {
   const category = gv('fi-cat');
   if (!title || !date || !category) { alert('请填写标题、日期和分类'); return; }
 
+  if (S.isDemo) { exitDemo(); S.editId = null; }  // 第一条真实记录前先清空示例
+
   const now = new Date().toISOString();
   const patch = {
     title, date, category,
@@ -1927,6 +2010,7 @@ function importJSON() {
     try {
       const data = JSON.parse(ev.target.result);
       if (!Array.isArray(data)) throw new Error('not array');
+      if (S.isDemo) exitDemo();  // 导入真实备份前先清空示例
       const existing = new Set(S.decisions.map(d => d.id));
       const fresh = data.filter(d => d && typeof d.id === 'string' && typeof d.title === 'string' && !existing.has(d.id));
       if (!fresh.length) {
@@ -1998,6 +2082,7 @@ document.addEventListener('keydown', ev => {
 ============================================================ */
 loadData();
 render();
+showDemoBanner();
 </script>
 <input type="file" id="import-input" accept=".json" style="display:none" onchange="importJSON()">
 </body>
