@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>节点共和国 — Republic of Nodes</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .node-cards { grid-template-columns: repeat(2, 1fr); max-width: 480px; }
+    @media (min-width: 720px) {
+      .node-cards { grid-template-columns: repeat(4, 1fr); max-width: 780px; }
+    }
+    .footer-line {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body class="index-page">
+
+  <canvas id="bg-canvas"></canvas>
+
+  <main class="hero">
+    <div class="hero-badge">AI Agent Economy Simulation · 纯离线 · 零依赖</div>
+
+    <h1 class="hero-title">节点共和国</h1>
+    <p class="hero-subtitle">Republic of Nodes</p>
+
+    <p class="hero-desc">
+      四类算力节点在资源约束的世界里竞争、合作、涌现。<br>
+      观察基尼系数攀升，见证联盟的形成与崩解，<br>
+      拨动参数，亲眼看见市场冲击如何改变权力格局。
+    </p>
+
+    <div class="hero-actions">
+      <a class="btn-enter" href="simulation.html">进入模拟 →</a>
+      <a class="btn-secondary-link" href="analytics.html">经济分析</a>
+    </div>
+
+    <div class="node-cards">
+      <div class="node-card">
+        <div class="node-dot builder-dot"></div>
+        <div class="node-card-title">建造者</div>
+        <div class="node-card-desc">投资基础设施，慢热但复利。资源节点等级越高，全体受益。</div>
+      </div>
+      <div class="node-card">
+        <div class="node-dot scout-dot"></div>
+        <div class="node-card-title">探索者</div>
+        <div class="node-card-desc">快速穿越未知区域，发现隐藏算力池，信息即财富。</div>
+      </div>
+      <div class="node-card">
+        <div class="node-dot trader-dot"></div>
+        <div class="node-card-title">交易者</div>
+        <div class="node-card-desc">在资源富集节点间套利，短期获益高，但过多会耗竭资源。</div>
+      </div>
+      <div class="node-card">
+        <div class="node-dot researcher-dot"></div>
+        <div class="node-card-title">研究者</div>
+        <div class="node-card-desc">驻守集群，缓慢提升周边产出。典型公共品困境。</div>
+      </div>
+    </div>
+  </main>
+
+  <div class="footer-line">双击 simulation.html 离线运行 · 无外部网络请求</div>
+
+  <script>
+    // Animated background: floating network nodes
+    const bgCanvas = document.getElementById('bg-canvas');
+    const bgCtx    = bgCanvas.getContext('2d');
+    let W, H;
+
+    function resize() {
+      W = bgCanvas.width  = window.innerWidth;
+      H = bgCanvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const COLORS = ['#1d3a6e','#064e35','#3b1f7a','#7c4f0a'];
+    const nodes  = Array.from({ length: 28 }, (_, i) => ({
+      x:  Math.random() * window.innerWidth,
+      y:  Math.random() * window.innerHeight,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: (Math.random() - 0.5) * 0.35,
+      r:  2 + Math.random() * 3,
+      col: COLORS[i % COLORS.length],
+      phase: Math.random() * Math.PI * 2,
+    }));
+
+    let bgFrame = 0;
+    function bgLoop() {
+      bgFrame++;
+      bgCtx.clearRect(0, 0, W, H);
+
+      // Move nodes
+      nodes.forEach(n => {
+        n.x += n.vx;
+        n.y += n.vy;
+        if (n.x < -20)  n.x = W + 20;
+        if (n.x > W+20) n.x = -20;
+        if (n.y < -20)  n.y = H + 20;
+        if (n.y > H+20) n.y = -20;
+      });
+
+      // Connections
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          const d  = Math.hypot(dx, dy);
+          if (d < 160) {
+            bgCtx.save();
+            bgCtx.globalAlpha = (1 - d / 160) * 0.08;
+            bgCtx.strokeStyle = '#334c78';
+            bgCtx.lineWidth   = 0.8;
+            bgCtx.beginPath();
+            bgCtx.moveTo(nodes[i].x, nodes[i].y);
+            bgCtx.lineTo(nodes[j].x, nodes[j].y);
+            bgCtx.stroke();
+            bgCtx.restore();
+          }
+        }
+      }
+
+      // Nodes
+      nodes.forEach(n => {
+        const pulse = 0.5 + 0.5 * Math.sin(bgFrame * 0.02 + n.phase);
+        bgCtx.save();
+        bgCtx.globalAlpha = 0.25 + 0.2 * pulse;
+        bgCtx.beginPath();
+        bgCtx.arc(n.x, n.y, n.r * (0.85 + 0.15 * pulse), 0, Math.PI * 2);
+        bgCtx.fillStyle = n.col;
+        bgCtx.fill();
+        bgCtx.restore();
+      });
+
+      requestAnimationFrame(bgLoop);
+    }
+
+    bgLoop();
+  </script>
+</body>
+</html>

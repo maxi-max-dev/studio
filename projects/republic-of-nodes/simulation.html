@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>模拟 — 节点共和国</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* override body to no-scroll */
+    body { overflow: hidden; }
+
+    /* Gini chart canvas sizing fix */
+    #gini-chart { height: 80px; }
+  </style>
+</head>
+<body class="sim-page">
+  <div class="sim-layout">
+
+    <!-- Canvas area -->
+    <div class="canvas-wrapper">
+      <canvas id="world" width="700" height="500"></canvas>
+      <div class="event-log" id="event-log"></div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+
+      <div class="sidebar-header">
+        <a class="back-link" href="index.html">← 节点共和国</a>
+        <span class="tick-badge" id="tick-display">t=0</span>
+      </div>
+
+      <!-- Controls -->
+      <section class="panel">
+        <h3 class="panel-title">控制台</h3>
+        <div class="controls">
+          <button class="btn-primary" id="btn-pause">⏸ 暂停</button>
+          <button class="btn-secondary" id="btn-restart">↺ 重置</button>
+        </div>
+        <div class="speed-control">
+          <label>速度 <span id="speed-val">2×</span></label>
+          <input type="range" id="speed" min="1" max="8" value="2" step="1">
+        </div>
+      </section>
+
+      <!-- Live metrics -->
+      <section class="panel">
+        <h3 class="panel-title">实时指标</h3>
+        <div class="metrics-grid">
+          <div class="metric">
+            <div class="metric-value" id="m-gini">—</div>
+            <div class="metric-label">基尼系数</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-tokens">—</div>
+            <div class="metric-label">总算力</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-agents">—</div>
+            <div class="metric-label">节点数</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-coalitions">—</div>
+            <div class="metric-label">联盟数</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-discovery">—</div>
+            <div class="metric-label">探索率</div>
+          </div>
+          <div class="metric">
+            <div class="metric-value" id="m-knowledge">—</div>
+            <div class="metric-label">知识积累</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Agent distribution -->
+      <section class="panel">
+        <h3 class="panel-title">节点分布</h3>
+        <div class="agent-bars">
+          <div class="agent-bar">
+            <span class="agent-dot builder-dot"></span>
+            <span class="agent-label">建造者</span>
+            <div class="bar-track"><div class="bar-fill builder-fill" id="bar-builder" style="width:0%"></div></div>
+            <span class="agent-count" id="cnt-builder">0</span>
+          </div>
+          <div class="agent-bar">
+            <span class="agent-dot scout-dot"></span>
+            <span class="agent-label">探索者</span>
+            <div class="bar-track"><div class="bar-fill scout-fill" id="bar-scout" style="width:0%"></div></div>
+            <span class="agent-count" id="cnt-scout">0</span>
+          </div>
+          <div class="agent-bar">
+            <span class="agent-dot trader-dot"></span>
+            <span class="agent-label">交易者</span>
+            <div class="bar-track"><div class="bar-fill trader-fill" id="bar-trader" style="width:0%"></div></div>
+            <span class="agent-count" id="cnt-trader">0</span>
+          </div>
+          <div class="agent-bar">
+            <span class="agent-dot researcher-dot"></span>
+            <span class="agent-label">研究者</span>
+            <div class="bar-track"><div class="bar-fill researcher-fill" id="bar-researcher" style="width:0%"></div></div>
+            <span class="agent-count" id="cnt-researcher">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Gini mini chart -->
+      <section class="panel">
+        <h3 class="panel-title">
+          基尼历史
+          <a class="panel-link" href="analytics.html">深度分析 →</a>
+        </h3>
+        <canvas id="gini-chart" width="248" height="80"></canvas>
+      </section>
+
+      <!-- Legend -->
+      <section class="panel legend-panel">
+        <div class="legend-items">
+          <div class="legend-item"><span class="agent-dot builder-dot"></span>建造者 — 投资基础设施，复利回报</div>
+          <div class="legend-item"><span class="agent-dot scout-dot"></span>探索者 — 发现隐藏资源，获发现奖励</div>
+          <div class="legend-item"><span class="agent-dot trader-dot"></span>交易者 — 提取资源算力，短期收益</div>
+          <div class="legend-item"><span class="agent-dot researcher-dot"></span>研究者 — 提升集体产出，公共品</div>
+          <div class="legend-item"><span class="legend-hex"></span>资源节点 — 算力池，可建造升级</div>
+        </div>
+      </section>
+
+    </aside>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="render.js"></script>
+  <script>
+    const canvas   = document.getElementById('world');
+    const world    = new World(canvas.width, canvas.height);
+    world.init();
+
+    const renderer = new Renderer(canvas, world);
+
+    let running   = true;
+    let speedIdx  = 2; // 1-indexed to match slider value
+    const STEPS   = [1, 2, 3, 5, 8, 12, 18, 26]; // steps per frame for each speed level
+
+    const giniHistory = [];
+    let uiFrame = 0;
+
+    // Event log
+    const eventLog = document.getElementById('event-log');
+    world.on('event', e => {
+      const div = document.createElement('div');
+      div.className = `event-item event-${e.type}`;
+      div.textContent = e.message;
+      eventLog.insertBefore(div, eventLog.firstChild);
+      while (eventLog.children.length > 4) eventLog.lastChild.remove();
+      setTimeout(() => div.classList.add('fading'), 3500);
+      setTimeout(() => { if (div.parentNode) div.remove(); }, 4500);
+    });
+
+    function updateUI() {
+      const m = world.metrics;
+      if (!m || !m.agentCount) return;
+
+      document.getElementById('m-gini').textContent      = m.gini !== undefined ? m.gini.toFixed(3) : '—';
+      document.getElementById('m-tokens').textContent    = m.totalTokens ? m.totalTokens.toLocaleString() : '—';
+      document.getElementById('m-agents').textContent    = m.agentCount;
+      document.getElementById('m-coalitions').textContent = m.coalitionCount;
+      document.getElementById('m-discovery').textContent  = m.discoveryRate + '%';
+      document.getElementById('m-knowledge').textContent  = m.globalKnowledge || 0;
+      document.getElementById('tick-display').textContent = 't=' + world.tick;
+
+      const total = m.agentCount || 1;
+      const byType = m.byType || {};
+      ['builder','scout','trader','researcher'].forEach(type => {
+        const n = byType[type] || 0;
+        document.getElementById(`bar-${type}`).style.width = (n / total * 100).toFixed(1) + '%';
+        document.getElementById(`cnt-${type}`).textContent  = n;
+      });
+
+      // Update Gini chart
+      if (m.gini !== undefined) {
+        giniHistory.push(m.gini);
+        if (giniHistory.length > 80) giniHistory.shift();
+        drawMiniChart('gini-chart', giniHistory, '#8b5cf6', 0, 1, 'Gini');
+      }
+
+      // Save metric history to sessionStorage for analytics page
+      try {
+        sessionStorage.setItem('nrMetrics', JSON.stringify({
+          history: world.metricHistory.slice(-200),
+          agents:  world.agents.filter(a => a.alive).map(a => ({ type: a.type, tokens: a.tokens, age: a.age, trades: a.trades })),
+          resources: world.resources.map(r => ({ level: r.level, current: r.current, capacity: r.capacity, discovered: r.discovered })),
+        }));
+      } catch(e) { /* storage full or unavailable */ }
+    }
+
+    function drawMiniChart(id, data, color, min, max, label) {
+      const c   = document.getElementById(id);
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const W   = c.width, H = c.height;
+      ctx.clearRect(0, 0, W, H);
+      if (data.length < 2) return;
+
+      // Grid lines
+      ctx.strokeStyle = '#111d33';
+      ctx.lineWidth   = 1;
+      [0.25, 0.5, 0.75].forEach(v => {
+        const y = H - v * H;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      });
+
+      // Y labels
+      ctx.fillStyle = '#2d4a6a';
+      ctx.font      = '8px monospace';
+      ctx.textAlign = 'left';
+      [0.25, 0.5, 0.75].forEach(v => {
+        ctx.fillText((v).toFixed(2), 2, H - v * H - 2);
+      });
+
+      const range = max - min || 1;
+      const toY   = v => H - ((v - min) / range) * (H - 4) - 2;
+
+      // Filled area
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, color + 'cc');
+      grad.addColorStop(1, color + '08');
+      ctx.beginPath();
+      data.forEach((v, i) => {
+        const x = (i / (data.length - 1)) * W;
+        i === 0 ? ctx.moveTo(x, toY(v)) : ctx.lineTo(x, toY(v));
+      });
+      ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Line
+      ctx.beginPath();
+      data.forEach((v, i) => {
+        const x = (i / (data.length - 1)) * W;
+        i === 0 ? ctx.moveTo(x, toY(v)) : ctx.lineTo(x, toY(v));
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+
+      // Current value
+      const last = data[data.length - 1];
+      ctx.fillStyle  = color;
+      ctx.font       = '9px monospace';
+      ctx.textAlign  = 'right';
+      ctx.fillText(last.toFixed(3), W - 3, 12);
+    }
+
+    // Main loop
+    function loop() {
+      if (running) {
+        const steps = STEPS[speedIdx - 1] || 2;
+        for (let i = 0; i < steps; i++) world.step();
+      }
+      renderer.render();
+      uiFrame++;
+      if (uiFrame % 6 === 0) updateUI();
+      requestAnimationFrame(loop);
+    }
+
+    // Controls
+    const btnPause = document.getElementById('btn-pause');
+    btnPause.addEventListener('click', () => {
+      running = !running;
+      btnPause.textContent = running ? '⏸ 暂停' : '▶ 继续';
+    });
+
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      world.reset();
+      world.on('event', e => {
+        const div = document.createElement('div');
+        div.className = `event-item event-${e.type}`;
+        div.textContent = e.message;
+        eventLog.insertBefore(div, eventLog.firstChild);
+        while (eventLog.children.length > 4) eventLog.lastChild.remove();
+        setTimeout(() => div.classList.add('fading'), 3500);
+        setTimeout(() => { if (div.parentNode) div.remove(); }, 4500);
+      });
+      giniHistory.length = 0;
+      running = true;
+      btnPause.textContent = '⏸ 暂停';
+      while (eventLog.firstChild) eventLog.removeChild(eventLog.firstChild);
+    });
+
+    const speedSlider = document.getElementById('speed');
+    speedSlider.addEventListener('input', function() {
+      speedIdx = parseInt(this.value);
+      document.getElementById('speed-val').textContent = speedIdx + '×';
+    });
+
+    loop();
+  </script>
+</body>
+</html>

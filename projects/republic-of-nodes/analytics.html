@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>经济分析 — 节点共和国</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { overflow-y: auto; }
+
+    .analytics-page { min-height: 100vh; }
+
+    .analytics-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .analytics-nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .analytics-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .analytics-subtitle {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .header-actions a { font-size: 12px; color: var(--text-dim); }
+    .header-actions a:hover { color: var(--accent); }
+
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stat-cell {
+      background: var(--bg);
+      padding: 16px 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .chart-cell {
+      background: var(--bg);
+      padding: 24px 28px 20px;
+    }
+
+    .chart-cell.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .chart-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .chart-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .chart-cell canvas {
+      display: block;
+      width: 100%;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 80px 32px;
+      color: var(--text-muted);
+    }
+
+    .empty-state h2 {
+      font-size: 16px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .empty-state p { font-size: 13px; line-height: 1.6; }
+    .empty-state a { color: var(--accent); }
+
+    .type-legend {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .legend-entry {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .insight-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .insight-box strong { color: var(--text); }
+  </style>
+</head>
+<body class="analytics-page">
+
+  <header class="analytics-header">
+    <div class="analytics-nav">
+      <a href="index.html" style="font-size:12px;color:var(--text-dim)">← 节点共和国</a>
+      <div>
+        <div class="analytics-title">经济分析</div>
+        <div class="analytics-subtitle">基于当前模拟快照 · 返回模拟后数据自动更新</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a href="simulation.html">↗ 返回模拟</a>
+    </div>
+  </header>
+
+  <div id="app">
+    <!-- filled by JS -->
+  </div>
+
+  <script>
+    const TYPE_COLORS = {
+      builder:    '#3b82f6',
+      scout:      '#f59e0b',
+      trader:     '#10b981',
+      researcher: '#8b5cf6',
+    };
+    const TYPE_NAMES = { builder:'建造者', scout:'探索者', trader:'交易者', researcher:'研究者' };
+
+    function loadData() {
+      try {
+        const raw = sessionStorage.getItem('nrMetrics');
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch(e) { return null; }
+    }
+
+    function render(data) {
+      const app = document.getElementById('app');
+      if (!data || !data.history || data.history.length < 3) {
+        app.innerHTML = `
+          <div class="empty-state">
+            <h2>暂无数据</h2>
+            <p>请先 <a href="simulation.html">运行模拟</a> 至少 3 分钟，<br>再返回此页面查看经济分析。</p>
+          </div>`;
+        return;
+      }
+
+      const history  = data.history;
+      const agents   = data.agents   || [];
+      const resources = data.resources || [];
+
+      // Stats strip
+      const lastM    = history[history.length - 1];
+      const firstM   = history[0];
+      const maxGini  = Math.max(...history.map(h => h.gini || 0));
+      const avgGini  = (history.reduce((s, h) => s + (h.gini || 0), 0) / history.length).toFixed(3);
+      const discovered = resources.filter(r => r.discovered).length;
+      const totalBuilderLvl = resources.reduce((s, r) => s + (r.level || 0), 0).toFixed(1);
+
+      app.innerHTML = `
+        <div class="stats-strip">
+          <div class="stat-cell">
+            <div class="stat-value">${(lastM.gini || 0).toFixed(3)}</div>
+            <div class="stat-label">当前基尼</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-value">${maxGini.toFixed(3)}</div>
+            <div class="stat-label">峰值基尼</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-value">${lastM.agentCount || 0}</div>
+            <div class="stat-label">存活节点</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-value">${discovered}/${resources.length}</div>
+            <div class="stat-label">已探索节点</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-value">${totalBuilderLvl}</div>
+            <div class="stat-label">总基础设施等级</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-cell full-width">
+            <div class="chart-title">基尼系数演变</div>
+            <div class="chart-desc">财富不平等程度随时间变化 · 0 = 完全平等 · 1 = 完全垄断</div>
+            <canvas id="chart-gini" height="120"></canvas>
+            <div class="insight-box" id="insight-gini"></div>
+          </div>
+          <div class="chart-cell">
+            <div class="chart-title">节点种群演变</div>
+            <div class="chart-desc">四类节点数量随时间变化</div>
+            <div class="type-legend">
+              ${Object.keys(TYPE_COLORS).map(t => `
+                <div class="legend-entry">
+                  <span class="legend-swatch" style="background:${TYPE_COLORS[t]}"></span>
+                  ${TYPE_NAMES[t]}
+                </div>`).join('')}
+            </div>
+            <canvas id="chart-pop" height="140"></canvas>
+          </div>
+          <div class="chart-cell">
+            <div class="chart-title">当前算力分布</div>
+            <div class="chart-desc">存活节点的算力余额区间分布</div>
+            <canvas id="chart-hist" height="140"></canvas>
+          </div>
+          <div class="chart-cell">
+            <div class="chart-title">总算力 & 平均算力</div>
+            <div class="chart-desc">网络整体算力池随时间变化</div>
+            <canvas id="chart-tokens" height="140"></canvas>
+          </div>
+          <div class="chart-cell">
+            <div class="chart-title">资源节点状态</div>
+            <div class="chart-desc">各节点当前存量 vs 有效容量</div>
+            <canvas id="chart-resources" height="140"></canvas>
+          </div>
+        </div>`;
+
+      // Draw all charts after DOM is ready
+      requestAnimationFrame(() => {
+        drawGiniChart(history);
+        drawPopChart(history);
+        drawHistogram(agents);
+        drawTokenChart(history);
+        drawResourceChart(resources);
+        setGiniInsight(history, agents);
+      });
+    }
+
+    function drawLine(ctx, W, H, data, color, min, max, filled) {
+      if (data.length < 2) return;
+      const range = (max - min) || 1;
+      const toX = i => (i / (data.length - 1)) * W;
+      const toY = v => H - 6 - ((v - min) / range) * (H - 12);
+
+      if (filled) {
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, color + 'aa');
+        grad.addColorStop(1, color + '05');
+        ctx.beginPath();
+        data.forEach((v, i) => i === 0 ? ctx.moveTo(toX(i), toY(v)) : ctx.lineTo(toX(i), toY(v)));
+        ctx.lineTo(toX(data.length - 1), H);
+        ctx.lineTo(0, H);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      ctx.beginPath();
+      data.forEach((v, i) => i === 0 ? ctx.moveTo(toX(i), toY(v)) : ctx.lineTo(toX(i), toY(v)));
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    function gridLines(ctx, W, H, steps, color) {
+      ctx.strokeStyle = color || '#111d33';
+      ctx.lineWidth = 1;
+      for (let i = 1; i < steps; i++) {
+        const y = H - (i / steps) * H;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      }
+    }
+
+    function drawGiniChart(history) {
+      const c = document.getElementById('chart-gini');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const W = c.width = c.offsetWidth || 800;
+      const H = c.height = 120;
+      ctx.clearRect(0, 0, W, H);
+      gridLines(ctx, W, H, 4);
+
+      // Reference lines
+      [0.3, 0.5].forEach(v => {
+        const y = H - 6 - (v / 1) * (H - 12);
+        ctx.save();
+        ctx.strokeStyle = '#1a2d4a';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 5]);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#2d4a6a';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(v.toFixed(1), 4, y - 3);
+        ctx.restore();
+      });
+
+      drawLine(ctx, W, H, history.map(h => h.gini || 0), '#8b5cf6', 0, 1, true);
+    }
+
+    function drawPopChart(history) {
+      const c = document.getElementById('chart-pop');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const W = c.width = c.offsetWidth || 400;
+      const H = c.height = 140;
+      ctx.clearRect(0, 0, W, H);
+
+      const maxPop = Math.max(...history.map(h => h.agentCount || 0), 10);
+      gridLines(ctx, W, H, 4);
+
+      ['builder','scout','trader','researcher'].forEach(type => {
+        const data = history.map(h => (h.byType && h.byType[type]) || 0);
+        drawLine(ctx, W, H, data, TYPE_COLORS[type], 0, maxPop, false);
+      });
+
+      // Y axis label
+      ctx.fillStyle = '#2d4a6a';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(maxPop, 3, 12);
+      ctx.fillText('0', 3, H - 4);
+    }
+
+    function drawHistogram(agents) {
+      const c = document.getElementById('chart-hist');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const W = c.width = c.offsetWidth || 400;
+      const H = c.height = 140;
+      ctx.clearRect(0, 0, W, H);
+
+      if (!agents.length) return;
+
+      const buckets = 12;
+      const maxT    = Math.max(...agents.map(a => a.tokens), 1);
+      const counts  = new Array(buckets).fill(0);
+      const byType  = {};
+      Object.keys(TYPE_COLORS).forEach(t => byType[t] = new Array(buckets).fill(0));
+
+      agents.forEach(a => {
+        const bi = Math.min(buckets - 1, Math.floor((a.tokens / maxT) * buckets));
+        counts[bi]++;
+        if (byType[a.type]) byType[a.type][bi]++;
+      });
+
+      const maxCount = Math.max(...counts, 1);
+      const bw = W / buckets;
+      const pad = 2;
+
+      for (let i = 0; i < buckets; i++) {
+        let yOffset = H;
+        Object.keys(TYPE_COLORS).forEach(type => {
+          const count = byType[type][i];
+          if (!count) return;
+          const bh = (count / maxCount) * (H - 20);
+          ctx.fillStyle = TYPE_COLORS[type] + 'cc';
+          ctx.fillRect(i * bw + pad, yOffset - bh, bw - pad * 2, bh);
+          yOffset -= bh;
+        });
+      }
+
+      // X axis labels
+      ctx.fillStyle = '#2d4a6a';
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      [0, 0.5, 1].forEach(v => {
+        ctx.fillText(Math.round(v * maxT), v * W * 0.97 + 4, H - 2);
+      });
+    }
+
+    function drawTokenChart(history) {
+      const c = document.getElementById('chart-tokens');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const W = c.width = c.offsetWidth || 400;
+      const H = c.height = 140;
+      ctx.clearRect(0, 0, W, H);
+
+      const maxT = Math.max(...history.map(h => h.totalTokens || 0), 1);
+      const maxA = Math.max(...history.map(h => h.avgTokens || 0), 1);
+      gridLines(ctx, W, H, 4);
+
+      drawLine(ctx, W, H, history.map(h => h.totalTokens || 0), '#38bdf8', 0, maxT, true);
+      drawLine(ctx, W, H, history.map(h => (h.avgTokens || 0) * (maxT / maxA)), '#f59e0b', 0, maxT, false);
+
+      // Legend
+      ctx.font = '9px monospace';
+      ctx.fillStyle = '#38bdf8'; ctx.textAlign = 'left'; ctx.fillText('总算力', 6, 14);
+      ctx.fillStyle = '#f59e0b'; ctx.fillText('均值(scaled)', 6, 26);
+    }
+
+    function drawResourceChart(resources) {
+      const c = document.getElementById('chart-resources');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      const W = c.width = c.offsetWidth || 400;
+      const H = c.height = 140;
+      ctx.clearRect(0, 0, W, H);
+
+      if (!resources.length) return;
+
+      const disc = resources.filter(r => r.discovered);
+      const bw   = W / resources.length;
+      const pad  = 2;
+      const maxC = Math.max(...resources.map(r => r.capacity * (1 + (r.level || 0) * 0.4)), 1);
+
+      resources.forEach((r, i) => {
+        const effCap = r.capacity * (1 + (r.level || 0) * 0.4);
+        const capH   = (effCap / maxC) * (H - 20);
+        const curH   = (r.current / maxC) * (H - 20);
+
+        if (!r.discovered) {
+          ctx.fillStyle = '#111d33';
+          ctx.fillRect(i * bw + pad, H - capH, bw - pad * 2, capH);
+          return;
+        }
+
+        // Capacity bar (background)
+        ctx.fillStyle = '#1a2d4a';
+        ctx.fillRect(i * bw + pad, H - capH, bw - pad * 2, capH);
+
+        // Current fill
+        const fillRatio = r.current / effCap;
+        const col = fillRatio > 0.6 ? '#1e40af' : fillRatio > 0.3 ? '#f59e0b' : '#ef4444';
+        ctx.fillStyle = col + 'cc';
+        ctx.fillRect(i * bw + pad, H - curH, bw - pad * 2, curH);
+
+        // Level indicator
+        if (r.level > 0.1) {
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = '7px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('L' + r.level.toFixed(0), i * bw + bw / 2, H - capH - 2);
+        }
+      });
+
+      ctx.fillStyle = '#2d4a6a';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${disc.length}/${resources.length} 已探索`, 4, 12);
+    }
+
+    function setGiniInsight(history, agents) {
+      const box    = document.getElementById('insight-gini');
+      if (!box || history.length < 5) return;
+      const last   = history[history.length - 1];
+      const gini   = last.gini || 0;
+      const trend  = (history[history.length-1].gini || 0) - (history[Math.max(0,history.length-10)].gini || 0);
+      const rising = trend > 0.02;
+
+      let text = '';
+      if (gini < 0.3) {
+        text = `<strong>相对均衡</strong> — 当前基尼 ${gini.toFixed(3)}，算力分配较为平均。研究者节点可能占主导，公共品效应抑制了垄断化。`;
+      } else if (gini < 0.5) {
+        text = `<strong>适度分化</strong> — 基尼 ${gini.toFixed(3)}，出现了领先节点但尚未垄断。交易者可能在富集资源节点积累优势。`;
+      } else {
+        text = `<strong>高度集中</strong> — 基尼 ${gini.toFixed(3)}，少数节点掌握大部分算力。这通常在交易者主导、资源枯竭或经历过 Token Shock 事件后出现。`;
+      }
+      if (rising) text += ` 趋势：不平等正在加剧（近期 Δ+${trend.toFixed(3)}）。`;
+      else if (trend < -0.02) text += ` 趋势：不平等正在收窄（近期 Δ${trend.toFixed(3)}），可能受到税收事件或研究者扩张影响。`;
+
+      box.innerHTML = text;
+    }
+
+    // Initial render
+    render(loadData());
+
+    // Auto-refresh every 5s when the page is visible
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) render(loadData());
+    });
+
+    let refreshTimer = setInterval(() => {
+      if (!document.hidden) render(loadData());
+    }, 5000);
+  </script>
+</body>
+</html>
