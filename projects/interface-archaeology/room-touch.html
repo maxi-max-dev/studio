@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>展厅3：触摸时代 · 界面考古馆</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: #1a1014;
+    }
+
+    .room-layout {
+      min-height: 100vh;
+      padding: 52px 0 60px;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Phone showcase */
+    .phone-showcase {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .phone-outer {
+      width: 280px;
+      height: 520px;
+      background: linear-gradient(160deg, #2a2020 0%, #1a1010 100%);
+      border-radius: 38px;
+      padding: 14px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.08),
+        0 30px 80px rgba(0,0,0,0.7),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      position: relative;
+    }
+
+    /* Notch */
+    .phone-notch {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 18px;
+      background: #1a1010;
+      border-radius: 0 0 12px 12px;
+      z-index: 5;
+    }
+
+    /* Home button */
+    .phone-home-btn {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #2a2020 0%, #1a1010 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+    }
+
+    .phone-home-btn:active {
+      background: linear-gradient(180deg, #1a1010 0%, #2a2020 100%);
+    }
+
+    .phone-home-inner {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 1.5px solid rgba(255,255,255,0.2);
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 26px;
+      overflow: hidden;
+      background: #000;
+      position: relative;
+    }
+
+    /* Status bar */
+    .status-bar {
+      background: rgba(0,0,0,0.5);
+      padding: 6px 14px 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      font-weight: 600;
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 10;
+    }
+
+    .status-bar .time { letter-spacing: 0.02em; }
+    .status-bar .icons { display: flex; gap: 4px; align-items: center; }
+
+    /* Screen views */
+    .screen-view {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+    }
+
+    .screen-view.active { display: flex; }
+
+    /* Wallpaper / home */
+    #view-home {
+      background: linear-gradient(160deg, #1c3a5e 0%, #0a1a3a 50%, #1a0a2e 100%);
+    }
+
+    .home-time-display {
+      text-align: center;
+      padding: 28px 0 16px;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    }
+
+    .home-time-big {
+      font-size: 48px;
+      font-weight: 200;
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+
+    .home-time-date {
+      font-size: 13px;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+
+    .app-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      padding: 12px 16px;
+      flex: 1;
+    }
+
+    .app-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .app-icon:active .app-icon-bg { transform: scale(0.9); opacity: 0.8; }
+
+    .app-icon-bg {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      transition: transform 0.1s, opacity 0.1s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .app-icon-label {
+      font-size: 9px;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+      text-align: center;
+      line-height: 1.2;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    }
+
+    /* App screens */
+    #view-calc {
+      background: #1c1c1e;
+    }
+
+    .calc-nav {
+      background: rgba(0,0,0,0.3);
+      padding: 26px 14px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .calc-back {
+      font-size: 13px;
+      color: #ff9f0a;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .calc-title {
+      font-size: 13px;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-weight: 600;
+    }
+
+    .calc-display {
+      text-align: right;
+      padding: 8px 20px 12px;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    }
+
+    .calc-expr {
+      font-size: 16px;
+      color: rgba(255,255,255,0.5);
+      min-height: 20px;
+      margin-bottom: 4px;
+    }
+
+    .calc-result {
+      font-size: 52px;
+      font-weight: 200;
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+
+    .calc-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding: 0 14px 10px;
+      flex: 1;
+    }
+
+    .calc-btn {
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      cursor: pointer;
+      user-select: none;
+      aspect-ratio: 1;
+      transition: filter 0.1s;
+      border: none;
+      outline: none;
+    }
+
+    .calc-btn:active { filter: brightness(1.3); }
+
+    .calc-btn.fn  { background: #a5a5a5; color: #000; font-size: 16px; }
+    .calc-btn.op  { background: #ff9f0a; color: #fff; }
+    .calc-btn.num { background: #333; color: #fff; }
+    .calc-btn.zero { grid-column: span 2; border-radius: 28px; padding-left: 28px; justify-content: flex-start; }
+    .calc-btn.eq  { background: #ff9f0a; color: #fff; }
+
+    /* Clock app */
+    #view-clock {
+      background: #000;
+    }
+
+    .clock-nav {
+      background: rgba(0,0,0,0.3);
+      padding: 26px 14px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .clock-back {
+      font-size: 13px;
+      color: #ff9f0a;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    .clock-display-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .analog-clock {
+      position: relative;
+      width: 150px;
+      height: 150px;
+      margin-bottom: 20px;
+    }
+
+    .clock-face {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #2a2a2a 0%, #1a1a1a 100%);
+      border: 3px solid #444;
+      position: relative;
+      box-shadow: 0 0 30px rgba(255,159,10,0.15);
+    }
+
+    .clock-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #ff9f0a;
+      z-index: 10;
+    }
+
+    .hand {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: bottom center;
+      transform: translateX(-50%);
+      border-radius: 4px;
+    }
+
+    .hand-hour {
+      width: 4px;
+      height: 45px;
+      background: white;
+      margin-left: -2px;
+    }
+
+    .hand-min {
+      width: 3px;
+      height: 58px;
+      background: white;
+      margin-left: -1.5px;
+    }
+
+    .hand-sec {
+      width: 2px;
+      height: 64px;
+      background: #ff9f0a;
+      margin-left: -1px;
+    }
+
+    .clock-digital {
+      font-size: 40px;
+      font-weight: 200;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      letter-spacing: -1px;
+    }
+
+    .clock-date-text {
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 6px;
+      font-family: -apple-system, sans-serif;
+    }
+
+    /* Notes app */
+    #view-notes {
+      background: #f2e9d4;
+    }
+
+    .notes-nav {
+      background: rgba(242,233,212,0.9);
+      padding: 26px 14px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .notes-back {
+      font-size: 13px;
+      color: #c47c16;
+      cursor: pointer;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .notes-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #3a2a0a;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .notes-content {
+      flex: 1;
+      padding: 12px 14px;
+      font-family: 'Georgia', serif;
+      font-size: 13px;
+      color: #2a1a00;
+      line-height: 1.8;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      width: 100%;
+    }
+
+    /* Slide animation */
+    @keyframes slideIn {
+      from { transform: translateX(100%); }
+      to   { transform: translateX(0); }
+    }
+
+    @keyframes slideOut {
+      from { transform: translateX(0); }
+      to   { transform: translateX(100%); }
+    }
+
+    .screen-view.entering { animation: slideIn 0.25s ease forwards; }
+    .screen-view.leaving  { animation: slideOut 0.25s ease forwards; }
+
+    /* Sidebar */
+    .sidebar-section {
+      width: 300px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 1.5rem 3rem 1.5rem 1.5rem;
+      border-left: 1px solid var(--border);
+    }
+
+    .era-badge-touch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent-touch);
+      padding: 0.28rem 0.75rem;
+      border: 1px solid rgba(232, 128, 96, 0.35);
+      border-radius: 20px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hint-box {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      background: rgba(232, 128, 96, 0.05);
+      border: 1px solid rgba(232, 128, 96, 0.15);
+      border-radius: var(--radius);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    .hint-box strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <nav class="museum-nav">
+    <a href="index.html" class="museum-logo">INTERFACE<span>界面考古馆</span></a>
+    <div class="museum-nav-right">
+      <span class="nav-era-tag">展厅 3 / 5 · 触摸时代</span>
+      <a href="index.html" class="nav-home-link">← 大厅</a>
+    </div>
+  </nav>
+
+  <main class="room-layout">
+    <section class="phone-showcase">
+      <div class="phone-outer">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="status-bar">
+            <span class="time" id="statusTime">9:41</span>
+            <div class="icons">
+              <span>▲</span><span>WiFi</span><span>■</span>
+            </div>
+          </div>
+
+          <!-- Home Screen -->
+          <div class="screen-view active" id="view-home">
+            <div class="home-time-display">
+              <div class="home-time-big" id="homeTime">9:41</div>
+              <div class="home-time-date" id="homeDate">Thursday, June 26</div>
+            </div>
+            <div class="app-grid">
+              <div class="app-icon" onclick="openApp('calc')">
+                <div class="app-icon-bg" style="background: #e8e8e0;">
+                  <span>🧮</span>
+                </div>
+                <div class="app-icon-label">计算器</div>
+              </div>
+              <div class="app-icon" onclick="openApp('clock')">
+                <div class="app-icon-bg" style="background: #1c1c1e;">
+                  <span>⏰</span>
+                </div>
+                <div class="app-icon-label">时钟</div>
+              </div>
+              <div class="app-icon" onclick="openApp('notes')">
+                <div class="app-icon-bg" style="background: #f2e9d4;">
+                  <span>📝</span>
+                </div>
+                <div class="app-icon-label">备忘录</div>
+              </div>
+              <div class="app-icon">
+                <div class="app-icon-bg" style="background: linear-gradient(135deg, #e3702a 0%, #e8c34a 100%);">
+                  <span>🎵</span>
+                </div>
+                <div class="app-icon-label">音乐</div>
+              </div>
+              <div class="app-icon">
+                <div class="app-icon-bg" style="background: linear-gradient(135deg, #3a7ae8 0%, #5aadec 100%);">
+                  <span>📷</span>
+                </div>
+                <div class="app-icon-label">相机</div>
+              </div>
+              <div class="app-icon">
+                <div class="app-icon-bg" style="background: linear-gradient(135deg, #3aa858 0%, #6ad878 100%);">
+                  <span>📞</span>
+                </div>
+                <div class="app-icon-label">电话</div>
+              </div>
+              <div class="app-icon">
+                <div class="app-icon-bg" style="background: linear-gradient(135deg, #3a7ae8 0%, #5aadec 100%);">
+                  <span>✉️</span>
+                </div>
+                <div class="app-icon-label">邮件</div>
+              </div>
+              <div class="app-icon">
+                <div class="app-icon-bg" style="background: linear-gradient(135deg, #8a5ae8 0%, #b07af0 100%);">
+                  <span>🗺️</span>
+                </div>
+                <div class="app-icon-label">地图</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Calculator -->
+          <div class="screen-view" id="view-calc">
+            <div class="calc-nav">
+              <span class="calc-back" onclick="goHome()">◀ 主屏幕</span>
+            </div>
+            <div class="calc-display">
+              <div class="calc-expr" id="calc-expr"></div>
+              <div class="calc-result" id="calc-result">0</div>
+            </div>
+            <div class="calc-buttons">
+              <button class="calc-btn fn" onclick="calcFn('AC')">AC</button>
+              <button class="calc-btn fn" onclick="calcFn('+/-')">+/-</button>
+              <button class="calc-btn fn" onclick="calcFn('%')">%</button>
+              <button class="calc-btn op" onclick="calcOp('/')">÷</button>
+              <button class="calc-btn num" onclick="calcNum('7')">7</button>
+              <button class="calc-btn num" onclick="calcNum('8')">8</button>
+              <button class="calc-btn num" onclick="calcNum('9')">9</button>
+              <button class="calc-btn op" onclick="calcOp('*')">×</button>
+              <button class="calc-btn num" onclick="calcNum('4')">4</button>
+              <button class="calc-btn num" onclick="calcNum('5')">5</button>
+              <button class="calc-btn num" onclick="calcNum('6')">6</button>
+              <button class="calc-btn op" onclick="calcOp('-')">−</button>
+              <button class="calc-btn num" onclick="calcNum('1')">1</button>
+              <button class="calc-btn num" onclick="calcNum('2')">2</button>
+              <button class="calc-btn num" onclick="calcNum('3')">3</button>
+              <button class="calc-btn op" onclick="calcOp('+')">+</button>
+              <button class="calc-btn num zero" onclick="calcNum('0')">0</button>
+              <button class="calc-btn num" onclick="calcNum('.')">.</button>
+              <button class="calc-btn eq" onclick="calcEq()">=</button>
+            </div>
+          </div>
+
+          <!-- Clock -->
+          <div class="screen-view" id="view-clock">
+            <div class="clock-nav">
+              <span class="clock-back" onclick="goHome()">◀ 主屏幕</span>
+            </div>
+            <div class="clock-display-area">
+              <div class="analog-clock">
+                <div class="clock-face">
+                  <div class="hand hand-hour" id="hand-h"></div>
+                  <div class="hand hand-min" id="hand-m"></div>
+                  <div class="hand hand-sec" id="hand-s"></div>
+                  <div class="clock-center"></div>
+                </div>
+              </div>
+              <div class="clock-digital" id="clockDigital">09:41</div>
+              <div class="clock-date-text" id="clockDate">2026年6月26日</div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="screen-view" id="view-notes">
+            <div class="notes-nav">
+              <span class="notes-back" onclick="goHome()">◀ 备忘录</span>
+              <span class="notes-title">触摸改变了一切</span>
+            </div>
+            <textarea class="notes-content" spellcheck="false">2007年1月9日
+
+史蒂夫·乔布斯走上舞台，
+说「我们今天要发明电话。」
+
+然后他划了一下屏幕。
+
+没有点击，没有键盘，没有鼠标。
+只有手指和玻璃之间的那一层。
+
+那个时刻，界面第一次
+变成了真实世界的延伸。
+
+你的手指知道怎么用它，
+因为它和你的直觉说的是
+同一种语言。
+
+(你可以在这里随意输入)
+</textarea>
+          </div>
+        </div>
+        <div class="phone-home-btn" onclick="goHome()">
+          <div class="phone-home-inner"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sidebar -->
+    <aside class="sidebar-section">
+      <div class="era-badge-touch">● 2007 / Touch Era</div>
+
+      <div class="placard">
+        <div class="placard-id">展品 003 · 多点触控界面</div>
+        <div class="placard-year">2007</div>
+        <div class="placard-title">触摸时代</div>
+        <div class="placard-desc">
+          键盘消失了。鼠标消失了。取而代之的，是我们自己的手指。<br><br>
+          突然间，界面可以感知<strong style="color:var(--text)">意图</strong>——你不需要点击精确的像素，你只需要划、捏、拽。<br><br>
+          但这只是下一步的序曲。机器学会了感知手指，但还不懂你的心思。
+        </div>
+        <div class="placard-quote">
+          「我们今天要发明电话。」<br>— Steve Jobs, 2007年1月9日
+        </div>
+      </div>
+
+      <div class="hint-box">
+        <strong>试试这些：</strong><br>
+        · 点击<strong>计算器</strong>做计算<br>
+        · 点击<strong>时钟</strong>看实时时间<br>
+        · 点击<strong>备忘录</strong>随意写字<br>
+        · 点击左下 ○ 返回主屏幕
+      </div>
+    </aside>
+  </main>
+
+  <footer class="room-footer">
+    <a href="room-gui.html" class="room-nav-btn">← 图形界面</a>
+    <span class="room-counter">03 · 触摸 / 05</span>
+    <a href="room-llm.html" class="room-nav-btn next">语言模型 →</a>
+  </footer>
+
+  <script>
+    // Time
+    function updateTime() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2,'0');
+      const m = String(now.getMinutes()).padStart(2,'0');
+      const s = String(now.getSeconds()).padStart(2,'0');
+      const hShort = now.getHours() % 12 || 12;
+      const mStr = String(now.getMinutes()).padStart(2,'0');
+      const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+      const timeStr = `${hShort}:${mStr} ${ampm}`;
+      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const dateStr = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}`;
+
+      document.getElementById('statusTime').textContent = timeStr;
+      document.getElementById('homeTime').textContent = timeStr;
+      document.getElementById('homeDate').textContent = dateStr;
+      document.getElementById('clockDigital').textContent = `${h}:${m}`;
+      document.getElementById('clockDate').textContent = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+
+      // Analog clock
+      const secDeg  = now.getSeconds() * 6;
+      const minDeg  = now.getMinutes() * 6 + now.getSeconds() * 0.1;
+      const hourDeg = (now.getHours() % 12) * 30 + now.getMinutes() * 0.5;
+      document.getElementById('hand-s').style.transform = `translateX(-50%) rotate(${secDeg}deg)`;
+      document.getElementById('hand-m').style.transform = `translateX(-50%) rotate(${minDeg}deg)`;
+      document.getElementById('hand-h').style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // App navigation
+    function openApp(id) {
+      const home = document.getElementById('view-home');
+      const app = document.getElementById('view-' + id);
+      if (!app) return;
+      home.classList.remove('active');
+      home.style.display = 'none';
+      app.classList.add('active');
+      app.style.display = 'flex';
+    }
+
+    function goHome() {
+      document.querySelectorAll('.screen-view').forEach(v => {
+        v.classList.remove('active');
+        v.style.display = 'none';
+      });
+      const home = document.getElementById('view-home');
+      home.classList.add('active');
+      home.style.display = 'flex';
+    }
+
+    // Calculator logic
+    let calcState = { display: '0', expr: '', op: null, prev: null, waitingForNum: false };
+
+    function updateCalcDisplay() {
+      document.getElementById('calc-result').textContent = calcState.display;
+      document.getElementById('calc-expr').textContent = calcState.expr;
+    }
+
+    function calcNum(n) {
+      if (calcState.waitingForNum) {
+        calcState.display = n === '.' ? '0.' : n;
+        calcState.waitingForNum = false;
+      } else {
+        if (n === '.' && calcState.display.includes('.')) return;
+        calcState.display = calcState.display === '0' && n !== '.'
+          ? n
+          : calcState.display + n;
+      }
+      updateCalcDisplay();
+    }
+
+    function calcOp(op) {
+      const opSym = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+      calcState.prev = parseFloat(calcState.display);
+      calcState.op = op;
+      calcState.expr = calcState.display + ' ' + (opSym[op] || op);
+      calcState.waitingForNum = true;
+      updateCalcDisplay();
+    }
+
+    function calcEq() {
+      if (calcState.op === null || calcState.prev === null) return;
+      const cur = parseFloat(calcState.display);
+      let result;
+      switch (calcState.op) {
+        case '+': result = calcState.prev + cur; break;
+        case '-': result = calcState.prev - cur; break;
+        case '*': result = calcState.prev * cur; break;
+        case '/': result = cur !== 0 ? calcState.prev / cur : 'Error'; break;
+        default: return;
+      }
+      const resultStr = typeof result === 'number'
+        ? (Number.isInteger(result) ? String(result) : parseFloat(result.toFixed(9)).toString())
+        : result;
+      calcState.expr = calcState.expr + ' ' + calcState.display + ' =';
+      calcState.display = resultStr;
+      calcState.op = null;
+      calcState.prev = null;
+      calcState.waitingForNum = true;
+      updateCalcDisplay();
+    }
+
+    function calcFn(fn) {
+      const val = parseFloat(calcState.display);
+      if (fn === 'AC') {
+        calcState = { display: '0', expr: '', op: null, prev: null, waitingForNum: false };
+      } else if (fn === '+/-') {
+        calcState.display = String(-val);
+      } else if (fn === '%') {
+        calcState.display = String(val / 100);
+      }
+      updateCalcDisplay();
+    }
+  </script>
+</body>
+</html>

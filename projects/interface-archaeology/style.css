@@ -1,0 +1,220 @@
+/* ===================================
+   界面考古馆 · INTERFACE ARCHAEOLOGY
+   Shared Museum Styles
+   =================================== */
+
+:root {
+  --bg: #0c0c10;
+  --surface: #161618;
+  --surface-2: #1e1e22;
+  --border: #2a2a32;
+  --border-light: #3a3a44;
+  --gold: #c8a96e;
+  --gold-dim: #7a6540;
+  --text: #e8e6e0;
+  --text-dim: #888882;
+  --text-faint: #444440;
+  --accent-cli: #3ddc84;
+  --accent-gui: #8a7aaa;
+  --accent-touch: #e88060;
+  --accent-llm: #60a8e8;
+  --accent-none: #c8a96e;
+  --radius: 6px;
+  --transition: 0.2s ease;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Museum Nav (Top) ── */
+.museum-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: rgba(12, 12, 16, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  z-index: 200;
+}
+
+.museum-logo {
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  color: var(--gold);
+  text-decoration: none;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.museum-logo span {
+  color: var(--text-dim);
+  margin-left: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  font-size: 0.78rem;
+}
+
+.museum-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-era-tag {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.nav-home-link {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-decoration: none;
+  letter-spacing: 0.06em;
+  transition: color var(--transition);
+}
+
+.nav-home-link:hover { color: var(--gold); }
+
+/* ── Room Footer (Bottom Nav) ── */
+.room-footer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  background: rgba(12, 12, 16, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  z-index: 200;
+}
+
+.room-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: all var(--transition);
+  background: transparent;
+  cursor: pointer;
+}
+
+.room-nav-btn:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+  background: rgba(200, 169, 110, 0.05);
+}
+
+.room-nav-btn.next {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+
+.room-nav-btn.next:hover {
+  background: rgba(200, 169, 110, 0.1);
+}
+
+.room-counter {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+/* ── Exhibit Placard ── */
+.placard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  padding: 1.4rem 1.8rem;
+  border-radius: 0 var(--radius) var(--radius) 0;
+  max-width: 360px;
+}
+
+.placard-id {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.placard-year {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+  margin-bottom: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.placard-title {
+  font-size: 1.05rem;
+  color: var(--text);
+  margin-bottom: 0.8rem;
+  font-weight: 500;
+}
+
+.placard-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.75;
+}
+
+.placard-quote {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  font-style: italic;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Era Badge ── */
+.era-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding: 0.28rem 0.75rem;
+  border: 1px solid var(--gold-dim);
+  border-radius: 20px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-light); }

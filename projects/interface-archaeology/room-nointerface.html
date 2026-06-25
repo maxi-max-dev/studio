@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>展厅5：无界面 · 界面考古馆</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: #060608;
+      overflow: hidden;
+    }
+
+    /* ── Core ── */
+    .room {
+      min-height: 100vh;
+      padding: 52px 0 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Subtle background breathing */
+    .bg-breathe {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 60% at 50% 50%,
+        rgba(200, 169, 110, 0.04) 0%,
+        transparent 100%);
+      animation: breathe 6s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.05); }
+    }
+
+    /* ── Center Orb ── */
+    .orb-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .orb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow:
+        0 0 10px 2px rgba(200, 169, 110, 0.5),
+        0 0 30px 8px rgba(200, 169, 110, 0.2),
+        0 0 80px 20px rgba(200, 169, 110, 0.08);
+      animation: orbPulse 3.5s ease-in-out infinite;
+      transition: all 0.6s ease;
+    }
+
+    @keyframes orbPulse {
+      0%, 100% { box-shadow: 0 0 10px 2px rgba(200,169,110,0.5), 0 0 30px 8px rgba(200,169,110,0.2), 0 0 80px 20px rgba(200,169,110,0.08); }
+      50%       { box-shadow: 0 0 16px 4px rgba(200,169,110,0.7), 0 0 50px 14px rgba(200,169,110,0.3), 0 0 120px 40px rgba(200,169,110,0.12); }
+    }
+
+    .orb.active {
+      background: #fff;
+      box-shadow:
+        0 0 16px 4px rgba(255,255,255,0.6),
+        0 0 50px 14px rgba(255,255,255,0.3),
+        0 0 120px 40px rgba(255,255,255,0.12);
+    }
+
+    /* ── UI Layer (hidden until needed) ── */
+    .interface-layer {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .intent-field {
+      position: relative;
+      width: min(460px, 80vw);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      pointer-events: none;
+    }
+
+    .intent-field.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+    }
+
+    .intent-input {
+      width: 100%;
+      background: rgba(20, 20, 24, 0.7);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(200, 169, 110, 0.3);
+      border-radius: 30px;
+      padding: 0.85rem 1.4rem;
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: inherit;
+      outline: none;
+      text-align: center;
+      letter-spacing: 0.02em;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      caret-color: var(--gold);
+    }
+
+    .intent-input:focus {
+      border-color: rgba(200, 169, 110, 0.6);
+      box-shadow: 0 0 0 4px rgba(200, 169, 110, 0.08), 0 8px 40px rgba(0,0,0,0.4);
+    }
+
+    .intent-input::placeholder {
+      color: rgba(200, 169, 110, 0.4);
+    }
+
+    /* ── Response area ── */
+    .response-area {
+      margin-top: 1.5rem;
+      text-align: center;
+      min-height: 2rem;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+
+    .response-area.visible {
+      opacity: 1;
+    }
+
+    .response-text {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+      margin-bottom: 0.5rem;
+    }
+
+    .response-action {
+      font-size: 0.75rem;
+      color: var(--gold);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* ── Floating result cards ── */
+    .result-card {
+      position: fixed;
+      background: rgba(16, 16, 20, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      font-size: 0.82rem;
+      color: var(--text);
+      opacity: 0;
+      transform: translateY(10px) scale(0.97);
+      transition: all 0.4s ease;
+      pointer-events: none;
+      z-index: 20;
+      max-width: 260px;
+    }
+
+    .result-card.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .result-card-title {
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+
+    .result-card-value {
+      font-size: 1.2rem;
+      font-weight: 300;
+      color: var(--text);
+      margin-bottom: 0.2rem;
+    }
+
+    .result-card-sub {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* ── Ambient text (very subtle) ── */
+    .ambient-line {
+      position: fixed;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      color: rgba(200, 169, 110, 0.15);
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 5;
+      user-select: none;
+    }
+
+    /* ── Hint area ── */
+    .hint-area {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      opacity: 0;
+      transition: opacity 1s ease;
+      pointer-events: none;
+      z-index: 30;
+    }
+
+    .hint-area.visible { opacity: 1; pointer-events: all; }
+
+    .hint-text {
+      font-size: 0.72rem;
+      color: rgba(200, 169, 110, 0.4);
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+    }
+
+    .hint-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      justify-content: center;
+    }
+
+    .hint-pill {
+      font-size: 0.68rem;
+      color: rgba(200, 169, 110, 0.5);
+      border: 1px solid rgba(200, 169, 110, 0.15);
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .hint-pill:hover {
+      color: var(--gold);
+      border-color: rgba(200, 169, 110, 0.4);
+    }
+
+    /* ── Closing exhibit overlay ── */
+    .exhibit-end {
+      position: fixed;
+      inset: 0;
+      background: rgba(6, 6, 8, 0.96);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+    }
+
+    .exhibit-end.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .exhibit-end-content {
+      text-align: center;
+      max-width: 440px;
+      padding: 3rem;
+    }
+
+    .exhibit-end-eyebrow {
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+
+    .exhibit-end-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    .exhibit-end-text {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.8;
+      margin-bottom: 2rem;
+    }
+
+    .exhibit-end-quote {
+      font-size: 0.82rem;
+      font-style: italic;
+      color: var(--text-faint);
+      border-top: 1px solid var(--border);
+      padding-top: 1.2rem;
+      margin-bottom: 2rem;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1.6rem;
+      background: transparent;
+      border: 1px solid var(--gold-dim);
+      border-radius: var(--radius);
+      color: var(--gold);
+      text-decoration: none;
+      font-size: 0.82rem;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: rgba(200, 169, 110, 0.1);
+      border-color: var(--gold);
+    }
+
+    /* ── Placard mode ── */
+    .placard-section {
+      position: fixed;
+      right: 2.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 30;
+      opacity: 0;
+      transition: opacity 1.5s ease;
+    }
+
+    .placard-section.visible { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="bg-breathe"></div>
+
+  <nav class="museum-nav">
+    <a href="index.html" class="museum-logo">INTERFACE<span>界面考古馆</span></a>
+    <div class="museum-nav-right">
+      <span class="nav-era-tag">展厅 5 / 5 · 无界面</span>
+      <a href="index.html" class="nav-home-link">← 大厅</a>
+    </div>
+  </nav>
+
+  <!-- Center orb -->
+  <div class="room">
+    <div class="orb-container">
+      <div class="orb" id="orb"></div>
+    </div>
+  </div>
+
+  <!-- Ambient text lines -->
+  <div class="ambient-line" style="top: 20%; left: 8%;">意图</div>
+  <div class="ambient-line" style="top: 35%; right: 6%;">INTENT</div>
+  <div class="ambient-line" style="bottom: 25%; left: 12%;">无需点击</div>
+  <div class="ambient-line" style="bottom: 30%; right: 10%;">NO BUTTONS</div>
+
+  <!-- Input interface (appears on interaction) -->
+  <div class="interface-layer">
+    <div class="intent-field" id="intentField">
+      <input
+        class="intent-input"
+        id="intentInput"
+        type="text"
+        placeholder="你想做什么…"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+    <div class="response-area" id="responseArea">
+      <div class="response-text" id="responseText"></div>
+      <div class="response-action" id="responseAction"></div>
+    </div>
+  </div>
+
+  <!-- Hint pills -->
+  <div class="hint-area" id="hintArea">
+    <div class="hint-text">试着说出你的意图</div>
+    <div class="hint-pills">
+      <span class="hint-pill" onclick="quickIntent('现在几点了')">现在几点了</span>
+      <span class="hint-pill" onclick="quickIntent('我想听音乐')">我想听音乐</span>
+      <span class="hint-pill" onclick="quickIntent('今天天气')">今天天气</span>
+      <span class="hint-pill" onclick="quickIntent('帮我记一件事')">帮我记一件事</span>
+      <span class="hint-pill" onclick="quickIntent('我想回顾一下')">回顾整个博物馆</span>
+    </div>
+  </div>
+
+  <!-- Floating result cards -->
+  <div class="result-card" id="card-time" style="top: 30%; right: 18%;">
+    <div class="result-card-title">现在时间</div>
+    <div class="result-card-value" id="card-time-val">–</div>
+    <div class="result-card-sub" id="card-time-sub">–</div>
+  </div>
+
+  <div class="result-card" id="card-music" style="top: 25%; left: 12%;">
+    <div class="result-card-title">正在播放</div>
+    <div class="result-card-value">Clair de Lune</div>
+    <div class="result-card-sub">Claude Debussy · 3:54</div>
+  </div>
+
+  <div class="result-card" id="card-weather" style="bottom: 30%; right: 16%;">
+    <div class="result-card-title">今日天气</div>
+    <div class="result-card-value">☁ 21°C</div>
+    <div class="result-card-sub">布里斯班 · 晴转多云</div>
+  </div>
+
+  <div class="result-card" id="card-note" style="bottom: 28%; left: 14%;">
+    <div class="result-card-title">已记录</div>
+    <div class="result-card-value" id="card-note-val" style="font-size:0.85rem;">–</div>
+    <div class="result-card-sub">刚刚</div>
+  </div>
+
+  <!-- Placard -->
+  <div class="placard-section" id="placardSection">
+    <div class="placard" style="max-width: 280px;">
+      <div class="placard-id">展品 005 · 无界面</div>
+      <div class="placard-year">∞</div>
+      <div class="placard-title">无界面</div>
+      <div class="placard-desc">
+        界面不是消失了。<br>它变成了你感觉不到的东西。<br><br>
+        你说话，它就做。你思考，它就懂。没有按钮需要找，没有菜单需要打开。<br><br>
+        <strong style="color:var(--text)">软件的终极形态，是存在于语言和意图之间的那个瞬间。</strong>
+      </div>
+      <div class="placard-quote">
+        「最好的设计，是你感觉不到它存在。就像鞋合脚的那双，你一天都想不起来它。」
+      </div>
+    </div>
+  </div>
+
+  <!-- Exhibit end overlay -->
+  <div class="exhibit-end" id="exhibitEnd">
+    <div class="exhibit-end-content">
+      <div class="exhibit-end-eyebrow">考古完成</div>
+      <h2 class="exhibit-end-title">界面的终点</h2>
+      <p class="exhibit-end-text">
+        你走过了五个展厅——<br>
+        从打字符的黑暗里，到窗口和图标，<br>
+        到手指滑动，到语言驱动，<br>
+        到最后什么都没有。<br><br>
+        界面一直都是翻译层——<br>
+        人类的意图与机器的执行之间的那道门。<br>
+        随着机器真正开始懂人，这道门会越来越轻，越来越薄，最后——
+        <br><strong style="color: var(--text)">消失不见。</strong>
+      </p>
+      <div class="exhibit-end-quote">
+        「最好的设计，是你感觉不到它存在。」
+      </div>
+      <a href="index.html" class="btn-primary">← 返回大厅</a>
+    </div>
+  </div>
+
+  <footer class="room-footer">
+    <a href="room-llm.html" class="room-nav-btn">← 语言模型</a>
+    <span class="room-counter">05 · 无界面 / 05</span>
+    <a href="index.html" class="room-nav-btn">返回大厅</a>
+  </footer>
+
+  <script>
+    // State
+    let interacted = false;
+    let interactionCount = 0;
+
+    // Show placard after 2s
+    setTimeout(() => {
+      document.getElementById('placardSection').classList.add('visible');
+    }, 2000);
+
+    // Show hints after 3s
+    setTimeout(() => {
+      document.getElementById('hintArea').classList.add('visible');
+    }, 3000);
+
+    // Click anywhere to summon input
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.museum-nav') || e.target.closest('.room-footer') || e.target.closest('.exhibit-end')) return;
+      if (!interacted) {
+        revealInput();
+        interacted = true;
+      }
+    });
+
+    // Also listen for keyboard
+    document.addEventListener('keydown', (e) => {
+      if (!interacted && e.key.length === 1) {
+        revealInput();
+        interacted = true;
+        // Let the key go into the input
+        setTimeout(() => {
+          const inp = document.getElementById('intentInput');
+          inp.value += e.key;
+          inp.focus();
+        }, 100);
+      }
+    });
+
+    function revealInput() {
+      const field = document.getElementById('intentField');
+      field.classList.add('visible');
+      document.getElementById('orb').classList.add('active');
+      setTimeout(() => document.getElementById('intentInput').focus(), 100);
+    }
+
+    // Intent processing
+    const intentInput = document.getElementById('intentInput');
+
+    intentInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        processIntent(intentInput.value.trim());
+      }
+    });
+
+    function quickIntent(text) {
+      revealInput();
+      intentInput.value = text;
+      intentInput.focus();
+      setTimeout(() => processIntent(text), 300);
+    }
+
+    function processIntent(text) {
+      if (!text) return;
+      interactionCount++;
+
+      const t = text.toLowerCase();
+      const responseArea = document.getElementById('responseArea');
+      const responseText = document.getElementById('responseText');
+      const responseAction = document.getElementById('responseAction');
+
+      // Detect and respond
+      if (/几点|时间|time/.test(t)) {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2,'0');
+        const m = String(now.getMinutes()).padStart(2,'0');
+        document.getElementById('card-time-val').textContent = `${h}:${m}`;
+        document.getElementById('card-time-sub').textContent = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+        showCard('card-time');
+        respond(responseArea, responseText, responseAction, '已为你获取当前时间', '无需打开时钟 App');
+      } else if (/音乐|music|歌|听/.test(t)) {
+        showCard('card-music');
+        respond(responseArea, responseText, responseAction, '正在为你播放', 'Clair de Lune · Debussy');
+      } else if (/天气|weather|温度|热|冷/.test(t)) {
+        showCard('card-weather');
+        respond(responseArea, responseText, responseAction, '今日布里斯班天气已获取', '21°C · 晴转多云');
+      } else if (/记|笔记|note|备忘/.test(t)) {
+        const noteText = text.replace(/^(帮我记|我想记|记一下|帮我|记)/i, '').trim() || '想到了一件事';
+        document.getElementById('card-note-val').textContent = noteText || '已记录';
+        showCard('card-note');
+        respond(responseArea, responseText, responseAction, '已记录', '保存到备忘录');
+      } else if (/回顾|博物馆|展厅|全部|历史/.test(t)) {
+        respond(responseArea, responseText, responseAction, '你刚刚走过了人机界面的 40 年', '命令行 → 图形 → 触摸 → 语言 → 无界面');
+        setTimeout(() => {
+          document.getElementById('exhibitEnd').classList.add('visible');
+        }, 1800);
+        return;
+      } else {
+        respond(responseArea, responseText, responseAction, '听到了', '在执行…（这是 ∞ 年后的界面）');
+      }
+
+      intentInput.value = '';
+
+      // After 6 interactions, show the end
+      if (interactionCount >= 4) {
+        setTimeout(() => {
+          respond(responseArea, responseText, responseAction, '你已经体验过无界面了', '→ 继续探索，还是看看总结？');
+        }, 2000);
+      }
+    }
+
+    function respond(area, textEl, actionEl, text, action) {
+      textEl.textContent = text;
+      actionEl.textContent = action;
+      area.classList.add('visible');
+    }
+
+    function showCard(id) {
+      // Hide all cards first
+      document.querySelectorAll('.result-card').forEach(c => c.classList.remove('visible'));
+      // Show target
+      setTimeout(() => {
+        document.getElementById(id)?.classList.add('visible');
+        setTimeout(() => {
+          document.getElementById(id)?.classList.remove('visible');
+        }, 4000);
+      }, 200);
+    }
+  </script>
+</body>
+</html>

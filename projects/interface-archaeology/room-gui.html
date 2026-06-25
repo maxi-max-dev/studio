@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>展厅2：图形界面时代 · 界面考古馆</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      background: var(--bg);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .room-layout {
+      display: flex;
+      height: 100vh;
+      padding: 52px 0 60px;
+    }
+
+    /* Desktop area */
+    .desktop-area {
+      flex: 1;
+      position: relative;
+      background: #3a6ea5; /* Win95 teal */
+      overflow: hidden;
+      cursor: default;
+    }
+
+    /* Subtle scanline effect */
+    .desktop-area::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.03) 0px,
+        rgba(0,0,0,0.03) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Desktop icons */
+    .desktop-icon {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 2px;
+      cursor: pointer;
+      user-select: none;
+      width: 72px;
+    }
+
+    .desktop-icon:hover,
+    .desktop-icon.selected {
+      background: rgba(0, 0, 128, 0.4);
+    }
+
+    .desktop-icon-img {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .desktop-icon-label {
+      font-size: 11px;
+      color: white;
+      text-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+      text-align: center;
+      line-height: 1.3;
+      font-family: 'Arial', sans-serif;
+      font-weight: bold;
+    }
+
+    /* Taskbar */
+    .taskbar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 32px;
+      background: linear-gradient(180deg, #c0c0c0 0%, #888 100%);
+      border-top: 2px solid #fff;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 4px;
+      z-index: 50;
+      font-family: 'Arial', 'Helvetica', sans-serif;
+    }
+
+    .start-btn {
+      height: 24px;
+      padding: 0 8px;
+      background: linear-gradient(180deg, #c0c0c0 0%, #888 100%);
+      border: 2px solid;
+      border-color: #fff #444 #444 #fff;
+      font-size: 11px;
+      font-weight: bold;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      user-select: none;
+      color: #000;
+    }
+
+    .start-btn:active,
+    .start-btn.pressed {
+      border-color: #444 #fff #fff #444;
+    }
+
+    .taskbar-divider {
+      width: 1px;
+      height: 22px;
+      background: #888;
+      border-right: 1px solid #fff;
+    }
+
+    .taskbar-clock {
+      margin-left: auto;
+      font-size: 11px;
+      font-family: inherit;
+      color: #000;
+      padding: 0 8px;
+      border: 1px solid #888;
+      border-color: #888 #fff #fff #888;
+      height: 24px;
+      display: flex;
+      align-items: center;
+    }
+
+    .taskbar-app-btn {
+      height: 24px;
+      padding: 0 8px;
+      background: linear-gradient(180deg, #c0c0c0 0%, #a0a0a0 100%);
+      border: 2px solid;
+      border-color: #fff #444 #444 #fff;
+      font-size: 11px;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      user-select: none;
+      color: #000;
+      min-width: 100px;
+    }
+
+    .taskbar-app-btn.active {
+      border-color: #444 #fff #fff #444;
+      background: linear-gradient(180deg, #a0a0a0 0%, #c0c0c0 100%);
+    }
+
+    /* Start menu */
+    .start-menu {
+      position: absolute;
+      bottom: 32px;
+      left: 4px;
+      width: 200px;
+      background: #c0c0c0;
+      border: 2px solid;
+      border-color: #fff #444 #444 #fff;
+      display: none;
+      z-index: 200;
+      font-family: 'Arial', 'Helvetica', sans-serif;
+    }
+
+    .start-menu.visible { display: block; }
+
+    .start-menu-header {
+      background: linear-gradient(90deg, #000080 0%, #1084d0 100%);
+      padding: 0.8rem 0.5rem;
+      display: flex;
+      align-items: flex-end;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: -1px;
+      height: 100px;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+      font-family: 'Times New Roman', serif;
+    }
+
+    .start-menu-item {
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #000;
+    }
+
+    .start-menu-item:hover {
+      background: #000080;
+      color: #fff;
+    }
+
+    .start-menu-separator {
+      height: 1px;
+      background: #888;
+      border-bottom: 1px solid #fff;
+      margin: 2px 4px;
+    }
+
+    .start-menu-icon { font-size: 16px; }
+
+    /* Windows */
+    .win95-window {
+      position: absolute;
+      background: #c0c0c0;
+      border: 2px solid;
+      border-color: #fff #444 #444 #fff;
+      min-width: 200px;
+      min-height: 100px;
+      z-index: 100;
+      display: none;
+      font-family: 'Arial', 'Helvetica', sans-serif;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+    }
+
+    .win95-window.visible { display: block; }
+
+    .win95-titlebar {
+      background: linear-gradient(90deg, #000080 0%, #1084d0 100%);
+      color: white;
+      padding: 3px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: move;
+      user-select: none;
+    }
+
+    .win95-titlebar.inactive {
+      background: linear-gradient(90deg, #7a7a7a 0%, #a0a0a0 100%);
+    }
+
+    .win95-title-text {
+      font-size: 11px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .win95-controls {
+      display: flex;
+      gap: 2px;
+    }
+
+    .win95-btn {
+      width: 16px;
+      height: 14px;
+      background: #c0c0c0;
+      border: 1px solid;
+      border-color: #fff #444 #444 #fff;
+      font-size: 9px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-family: 'Arial', sans-serif;
+      font-weight: bold;
+    }
+
+    .win95-btn:active {
+      border-color: #444 #fff #fff #444;
+    }
+
+    .win95-content {
+      padding: 8px;
+      font-size: 12px;
+      color: #000;
+    }
+
+    /* Notepad */
+    .notepad-menu {
+      background: #c0c0c0;
+      border-bottom: 1px solid #888;
+      padding: 2px 0;
+      display: flex;
+      gap: 0;
+    }
+
+    .notepad-menu-item {
+      padding: 2px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #000;
+    }
+
+    .notepad-menu-item:hover {
+      background: #000080;
+      color: #fff;
+    }
+
+    .notepad-textarea {
+      width: 100%;
+      height: 240px;
+      background: #fff;
+      border: 2px solid;
+      border-color: #888 #fff #fff #888;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #000;
+      padding: 4px;
+      resize: none;
+      outline: none;
+    }
+
+    /* My Computer contents */
+    .mycomp-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      padding: 8px;
+    }
+
+    .mycomp-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 4px;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .mycomp-item:hover { background: rgba(0,0,128,0.1); }
+
+    .mycomp-item-icon { font-size: 24px; }
+    .mycomp-item-label { font-size: 10px; text-align: center; color: #000; }
+
+    /* IE window */
+    .ie-toolbar {
+      background: #c0c0c0;
+      border-bottom: 1px solid #888;
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .ie-addressbar {
+      flex: 1;
+      height: 20px;
+      background: white;
+      border: 1px solid #888;
+      font-size: 11px;
+      padding: 0 4px;
+      font-family: 'Arial', sans-serif;
+      color: #000;
+    }
+
+    .ie-content {
+      padding: 16px;
+      background: white;
+      height: 200px;
+      font-family: 'Times New Roman', serif;
+      font-size: 14px;
+      color: #000;
+    }
+
+    /* Right sidebar */
+    .sidebar-section {
+      width: 280px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 1.5rem 2.5rem 1.5rem 1.5rem;
+      border-left: 1px solid var(--border);
+    }
+
+    .era-badge-gui {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent-gui);
+      padding: 0.28rem 0.75rem;
+      border: 1px solid rgba(138, 122, 170, 0.35);
+      border-radius: 20px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hint-box {
+      margin-top: 1.5rem;
+      padding: 1rem 1.2rem;
+      background: rgba(138, 122, 170, 0.06);
+      border: 1px solid rgba(138, 122, 170, 0.15);
+      border-radius: var(--radius);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    .hint-box strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <nav class="museum-nav">
+    <a href="index.html" class="museum-logo">INTERFACE<span>界面考古馆</span></a>
+    <div class="museum-nav-right">
+      <span class="nav-era-tag">展厅 2 / 5 · 图形界面时代</span>
+      <a href="index.html" class="nav-home-link">← 大厅</a>
+    </div>
+  </nav>
+
+  <div class="room-layout">
+    <!-- Desktop -->
+    <div class="desktop-area" id="desktop">
+      <!-- Icons -->
+      <div class="desktop-icon" style="top: 20px; left: 16px;" ondblclick="openWindow('mycomp')">
+        <div class="desktop-icon-img">🖥️</div>
+        <div class="desktop-icon-label">My Computer</div>
+      </div>
+      <div class="desktop-icon" style="top: 110px; left: 16px;" ondblclick="openWindow('notepad')">
+        <div class="desktop-icon-img">📝</div>
+        <div class="desktop-icon-label">Notepad</div>
+      </div>
+      <div class="desktop-icon" style="top: 200px; left: 16px;" ondblclick="openWindow('ie')">
+        <div class="desktop-icon-img">🌐</div>
+        <div class="desktop-icon-label">Internet Explorer</div>
+      </div>
+      <div class="desktop-icon" style="top: 290px; left: 16px;" ondblclick="openWindow('recyclebin')">
+        <div class="desktop-icon-img">🗑️</div>
+        <div class="desktop-icon-label">Recycle Bin</div>
+      </div>
+
+      <!-- My Computer Window -->
+      <div class="win95-window" id="win-mycomp" style="top: 60px; left: 120px; width: 320px;">
+        <div class="win95-titlebar" id="tb-mycomp">
+          <div class="win95-title-text">🖥️ My Computer</div>
+          <div class="win95-controls">
+            <div class="win95-btn" onclick="minimizeWindow('mycomp')">_</div>
+            <div class="win95-btn" onclick="maximizeWindow('mycomp')">□</div>
+            <div class="win95-btn" onclick="closeWindow('mycomp')">✕</div>
+          </div>
+        </div>
+        <div class="win95-content">
+          <div class="mycomp-grid">
+            <div class="mycomp-item"><div class="mycomp-item-icon">💾</div><div class="mycomp-item-label">3½ Floppy (A:)</div></div>
+            <div class="mycomp-item"><div class="mycomp-item-icon">💿</div><div class="mycomp-item-label">Museum (C:)</div></div>
+            <div class="mycomp-item"><div class="mycomp-item-icon">📁</div><div class="mycomp-item-label">Exhibits</div></div>
+            <div class="mycomp-item"><div class="mycomp-item-icon">🖨️</div><div class="mycomp-item-label">Printers</div></div>
+            <div class="mycomp-item"><div class="mycomp-item-icon">🕹️</div><div class="mycomp-item-label">Control Panel</div></div>
+            <div class="mycomp-item"><div class="mycomp-item-icon">📋</div><div class="mycomp-item-label">Clipboard</div></div>
+          </div>
+          <div style="font-size:11px; color:#444; padding: 4px 8px;">6 object(s)</div>
+        </div>
+      </div>
+
+      <!-- Notepad Window -->
+      <div class="win95-window" id="win-notepad" style="top: 80px; left: 180px; width: 380px;">
+        <div class="win95-titlebar" id="tb-notepad">
+          <div class="win95-title-text">📝 Untitled - Notepad</div>
+          <div class="win95-controls">
+            <div class="win95-btn" onclick="minimizeWindow('notepad')">_</div>
+            <div class="win95-btn" onclick="maximizeWindow('notepad')">□</div>
+            <div class="win95-btn" onclick="closeWindow('notepad')">✕</div>
+          </div>
+        </div>
+        <div class="notepad-menu">
+          <div class="notepad-menu-item">File</div>
+          <div class="notepad-menu-item">Edit</div>
+          <div class="notepad-menu-item">Format</div>
+          <div class="notepad-menu-item">Help</div>
+        </div>
+        <div class="win95-content" style="padding: 0;">
+          <textarea class="notepad-textarea" id="notepad-text" spellcheck="false">The GUI was invented so that humans
+didn't have to learn a language to
+talk to their computers.
+
+Instead of typing commands, you could
+click pictures. Point and click.
+
+It was magic. It was 1984.
+
+Then 1995. Then everyone had one.
+
+Double-click an icon to see what happens.
+Press Start to see the future.
+
+(You can type here freely.)</textarea>
+        </div>
+      </div>
+
+      <!-- Internet Explorer Window -->
+      <div class="win95-window" id="win-ie" style="top: 100px; left: 200px; width: 400px;">
+        <div class="win95-titlebar" id="tb-ie">
+          <div class="win95-title-text">🌐 Microsoft Internet Explorer</div>
+          <div class="win95-controls">
+            <div class="win95-btn" onclick="minimizeWindow('ie')">_</div>
+            <div class="win95-btn" onclick="maximizeWindow('ie')">□</div>
+            <div class="win95-btn" onclick="closeWindow('ie')">✕</div>
+          </div>
+        </div>
+        <div class="ie-toolbar">
+          <input class="ie-addressbar" value="http://museum.local/exhibit2" readonly>
+          <span style="font-size:11px; padding: 0 4px;">🌐</span>
+        </div>
+        <div class="ie-content">
+          <h2 style="font-size:18px; color:#000080; margin-bottom:12px;">
+            ⚠️ Cannot find server
+          </h2>
+          <p style="font-size:13px; margin-bottom:8px;">
+            Internet Explorer cannot display the webpage.
+          </p>
+          <p style="font-size:12px; color:#444;">
+            The page you are looking for is currently unavailable.
+          </p>
+          <hr style="margin: 12px 0; border-color:#ccc;">
+          <p style="font-size:11px; color:#666;">
+            <em>"The World Wide Web is for everyone."</em><br>
+            — Tim Berners-Lee, 1995
+          </p>
+          <br>
+          <p style="font-size:11px; color:#888;">
+            (This exhibit does not require an internet connection.<br>
+            The internet does not yet exist in 1995.)
+          </p>
+        </div>
+      </div>
+
+      <!-- Recycle Bin Window -->
+      <div class="win95-window" id="win-recyclebin" style="top: 120px; left: 150px; width: 300px;">
+        <div class="win95-titlebar" id="tb-recyclebin">
+          <div class="win95-title-text">🗑️ Recycle Bin</div>
+          <div class="win95-controls">
+            <div class="win95-btn" onclick="minimizeWindow('recyclebin')">_</div>
+            <div class="win95-btn" onclick="maximizeWindow('recyclebin')">□</div>
+            <div class="win95-btn" onclick="closeWindow('recyclebin')">✕</div>
+          </div>
+        </div>
+        <div class="win95-content">
+          <div style="text-align:center; padding: 24px; color: #666; font-size: 12px;">
+            <div style="font-size:32px; margin-bottom:12px;">🗑️</div>
+            <strong>Recycle Bin is empty</strong><br><br>
+            <em style="font-size:11px;">
+              Deleted interfaces end up here.<br>
+              Command lines, punch cards, BASIC.<br>
+              Even this GUI, one day.
+            </em>
+          </div>
+        </div>
+      </div>
+
+      <!-- Start Menu -->
+      <div class="start-menu" id="startMenu">
+        <div class="start-menu-header">Windows 95</div>
+        <div class="start-menu-item" onclick="openWindow('notepad')">
+          <span class="start-menu-icon">📝</span> Notepad
+        </div>
+        <div class="start-menu-item">
+          <span class="start-menu-icon">🎮</span> Solitaire
+        </div>
+        <div class="start-menu-item">
+          <span class="start-menu-icon">📺</span> Media Player
+        </div>
+        <div class="start-menu-separator"></div>
+        <div class="start-menu-item">
+          <span class="start-menu-icon">⚙️</span> Settings
+        </div>
+        <div class="start-menu-item">
+          <span class="start-menu-icon">🔍</span> Find
+        </div>
+        <div class="start-menu-separator"></div>
+        <div class="start-menu-item" onclick="goNext()">
+          <span class="start-menu-icon">➡️</span> Next Exhibit...
+        </div>
+        <div class="start-menu-separator"></div>
+        <div class="start-menu-item">
+          <span class="start-menu-icon">🔌</span> Shut Down...
+        </div>
+      </div>
+
+      <!-- Taskbar -->
+      <div class="taskbar" id="taskbar">
+        <button class="start-btn" id="startBtn" onclick="toggleStartMenu()">
+          <span>🪟</span> <strong>Start</strong>
+        </button>
+        <div class="taskbar-divider"></div>
+        <div id="taskbar-apps"></div>
+        <div class="taskbar-clock" id="clock">12:00 PM</div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar-section">
+      <div class="era-badge-gui">● 1995 / GUI Era</div>
+
+      <div class="placard">
+        <div class="placard-id">展品 002 · 图形用户界面</div>
+        <div class="placard-year">1995</div>
+        <div class="placard-title">图形界面时代</div>
+        <div class="placard-desc">
+          图标、窗口、鼠标。三件事改变了一切。<br><br>
+          突然间，任何人都可以使用计算机——不需要记住命令，不需要学习语法。只需要<strong style="color:var(--text)">指向</strong>然后<strong style="color:var(--text)">点击</strong>。<br><br>
+          这是界面最繁荣的时代。也是它最拥挤的时代。
+        </div>
+        <div class="placard-quote">
+          「好的设计，是显而易见的。伟大的设计，是透明的。」<br>— Joe Sparano
+        </div>
+      </div>
+
+      <div class="hint-box">
+        <strong>试试这些：</strong><br>
+        · 双击桌面图标打开窗口<br>
+        · 拖动窗口标题栏移动它<br>
+        · 点击 <strong>Start</strong> 开始菜单<br>
+        · 在 Notepad 里随意打字
+      </div>
+    </aside>
+  </div>
+
+  <footer class="room-footer">
+    <a href="room-cli.html" class="room-nav-btn">← 命令行</a>
+    <span class="room-counter">02 · 图形界面 / 05</span>
+    <a href="room-touch.html" class="room-nav-btn next">触摸时代 →</a>
+  </footer>
+
+  <script>
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      let h = now.getHours(), m = now.getMinutes();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      document.getElementById('clock').textContent =
+        `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+    }
+    updateClock();
+    setInterval(updateClock, 10000);
+
+    // Window management
+    let activeWindow = null;
+    const zBase = 100;
+    let zTop = zBase;
+    const openWindows = new Set();
+    const windowTitles = {
+      mycomp: '🖥️ My Computer',
+      notepad: '📝 Notepad',
+      ie: '🌐 Internet Explorer',
+      recyclebin: '🗑️ Recycle Bin'
+    };
+
+    function openWindow(id) {
+      const win = document.getElementById('win-' + id);
+      if (!win) return;
+      win.classList.add('visible');
+      openWindows.add(id);
+      bringToFront(id);
+      updateTaskbar();
+      closeStartMenu();
+    }
+
+    function closeWindow(id) {
+      const win = document.getElementById('win-' + id);
+      if (win) win.classList.remove('visible');
+      openWindows.delete(id);
+      updateTaskbar();
+    }
+
+    function minimizeWindow(id) {
+      const win = document.getElementById('win-' + id);
+      if (win) win.style.display = 'none';
+    }
+
+    function maximizeWindow(id) {
+      // Simple toggle: do nothing fancy
+    }
+
+    function bringToFront(id) {
+      if (activeWindow) {
+        const prev = document.getElementById('tb-' + activeWindow);
+        if (prev) prev.classList.add('inactive');
+      }
+      const win = document.getElementById('win-' + id);
+      const tb = document.getElementById('tb-' + id);
+      if (win) { win.style.zIndex = ++zTop; win.style.display = 'block'; }
+      if (tb) tb.classList.remove('inactive');
+      activeWindow = id;
+    }
+
+    function updateTaskbar() {
+      const container = document.getElementById('taskbar-apps');
+      container.innerHTML = '';
+      openWindows.forEach(id => {
+        const btn = document.createElement('button');
+        btn.className = 'taskbar-app-btn' + (id === activeWindow ? ' active' : '');
+        btn.textContent = windowTitles[id] || id;
+        btn.onclick = () => {
+          const win = document.getElementById('win-' + id);
+          if (win) {
+            win.style.display = 'block';
+            bringToFront(id);
+          }
+          updateTaskbar();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    // Start menu
+    function toggleStartMenu() {
+      const menu = document.getElementById('startMenu');
+      const btn = document.getElementById('startBtn');
+      menu.classList.toggle('visible');
+      btn.classList.toggle('pressed');
+    }
+
+    function closeStartMenu() {
+      document.getElementById('startMenu').classList.remove('visible');
+      document.getElementById('startBtn').classList.remove('pressed');
+    }
+
+    document.getElementById('desktop').addEventListener('click', (e) => {
+      if (!e.target.closest('#startMenu') && !e.target.closest('#startBtn')) {
+        closeStartMenu();
+      }
+    });
+
+    // Window dragging
+    document.querySelectorAll('.win95-titlebar').forEach(tb => {
+      let dragging = false, ox = 0, oy = 0;
+      const win = tb.closest('.win95-window');
+      const id = win.id.replace('win-', '');
+
+      tb.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.win95-controls')) return;
+        dragging = true;
+        ox = e.clientX - win.offsetLeft;
+        oy = e.clientY - win.offsetTop;
+        bringToFront(id);
+        updateTaskbar();
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const desktop = document.getElementById('desktop');
+        const rect = desktop.getBoundingClientRect();
+        let newX = e.clientX - ox;
+        let newY = e.clientY - oy;
+        newX = Math.max(0, Math.min(newX, rect.width - win.offsetWidth));
+        newY = Math.max(0, Math.min(newY, rect.height - win.offsetHeight));
+        win.style.left = newX + 'px';
+        win.style.top = newY + 'px';
+      });
+
+      document.addEventListener('mouseup', () => { dragging = false; });
+
+      win.addEventListener('mousedown', () => {
+        bringToFront(id);
+        updateTaskbar();
+      });
+    });
+
+    // Icon double-click selection
+    document.querySelectorAll('.desktop-icon').forEach(icon => {
+      icon.addEventListener('click', function() {
+        document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    function goNext() {
+      window.location.href = 'room-touch.html';
+    }
+
+    // Open notepad by default
+    setTimeout(() => openWindow('notepad'), 400);
+  </script>
+</body>
+</html>
