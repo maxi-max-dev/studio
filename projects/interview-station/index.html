@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面试备战台</title>
+<style>
+:root {
+  --bg:#0f1117; --surface:#1a1f2e; --surface2:#242938; --border:#2d3548;
+  --text:#e2e8f0; --muted:#94a3b8; --dim:#64748b;
+  --accent:#f59e0b; --accent-bg:rgba(245,158,11,.12);
+  --green:#10b981; --green-bg:rgba(16,185,129,.12);
+  --blue:#3b82f6; --blue-bg:rgba(59,130,246,.12);
+  --red:#ef4444; --red-bg:rgba(239,68,68,.12);
+  --purple:#a78bfa;
+  --r:10px;
+  --font:-apple-system,'PingFang SC','Hiragino Sans GB',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;min-height:100vh}
+button{cursor:pointer;font-family:inherit;border:none;background:none}
+input,textarea,select{font-family:inherit}
+
+/* LAYOUT */
+.app-header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;padding:0 24px}
+.header-inner{display:flex;align-items:center;gap:20px;max-width:1100px;margin:0 auto;height:54px}
+.app-logo{font-size:15px;font-weight:700;color:var(--accent);white-space:nowrap;flex-shrink:0}
+.app-logo span{color:var(--dim);font-weight:400;font-size:12px;margin-left:6px}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab-btn{padding:7px 14px;color:var(--muted);border-radius:6px;font-size:13px;white-space:nowrap;transition:all .15s}
+.tab-btn:hover{color:var(--text);background:var(--surface2)}
+.tab-btn.active{color:var(--accent);background:var(--accent-bg)}
+.app-main{max-width:1100px;margin:0 auto;padding:28px 24px}
+.tab-section{display:none}
+.tab-section.active{display:block}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px}
+.card+.card{margin-top:14px}
+.card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:12px}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:500}
+.badge-behavioral{background:var(--blue-bg);color:var(--blue)}
+.badge-product{background:var(--green-bg);color:var(--green)}
+.badge-strategy{background:var(--accent-bg);color:var(--accent)}
+.badge-analytics{background:rgba(167,139,250,.15);color:var(--purple)}
+.badge-ai{background:rgba(236,72,153,.12);color:#f472b6}
+.badge-hr{background:rgba(251,146,60,.15);color:#fb923c}
+.diff-dot{display:inline-flex;gap:3px;align-items:center}
+.diff-dot span.d{width:7px;height:7px;border-radius:50%;background:var(--border)}
+.d1 span.d:nth-child(1){background:var(--green)}
+.d2 span.d:nth-child(1),.d2 span.d:nth-child(2){background:var(--accent)}
+.d3 span.d:nth-child(1),.d3 span.d:nth-child(2),.d3 span.d:nth-child(3){background:var(--red)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-size:14px;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--accent);color:#0f1117}
+.btn-primary:hover{background:#fbbf24}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--border)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid transparent}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-sm{padding:5px 10px;font-size:13px}
+
+/* SECTION HEADERS */
+.section-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;gap:12px}
+.section-head h2{font-size:20px}
+.section-desc{color:var(--muted);font-size:14px;margin-top:3px}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:720px){.grid-2{grid-template-columns:1fr}}
+
+/* POSITIONING */
+.arc-item{display:flex;gap:14px;padding:14px 16px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);margin-bottom:10px}
+.arc-num{font-size:20px;font-weight:700;color:var(--accent);min-width:26px;line-height:1.3}
+.arc-label{font-weight:600;font-size:14px}
+.arc-body{color:var(--muted);font-size:13px;margin-top:3px}
+.kw-grid{display:flex;flex-wrap:wrap;gap:7px}
+.kw-pill{padding:3px 10px;border-radius:99px;font-size:13px;border:1px solid var(--border);color:var(--muted);background:var(--surface2);cursor:default;transition:all .15s}
+.kw-pill:hover{border-color:var(--accent);color:var(--accent)}
+.target-card{padding:14px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);margin-bottom:10px}
+.target-name{font-weight:600;font-size:15px}
+.target-role{color:var(--muted);font-size:13px;margin:3px 0}
+.target-angle{font-size:13px;color:var(--dim)}
+.target-angle strong{color:var(--accent)}
+
+/* QUESTIONS */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;align-items:center}
+.filter-row{display:flex;gap:4px;flex-wrap:wrap}
+.filter-btn{padding:4px 11px;border-radius:6px;font-size:13px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);transition:all .12s;cursor:pointer}
+.filter-btn.active,.filter-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
+.search-box{flex:1;min-width:180px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px}
+.search-box:focus{outline:none;border-color:var(--accent)}
+.search-box::placeholder{color:var(--dim)}
+.q-list{display:flex;flex-direction:column;gap:8px}
+.q-item{padding:13px 16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;transition:border-color .15s}
+.q-item.practiced{border-left:3px solid var(--green)}
+.q-body{flex:1}
+.q-text{font-size:15px;line-height:1.5}
+.q-meta{display:flex;align-items:center;gap:8px;margin-top:7px}
+.q-check{width:22px;height:22px;border-radius:50%;background:var(--surface);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .12s;color:transparent;font-size:11px}
+.q-check.done{background:var(--green);border-color:var(--green);color:#fff}
+.diff-label{font-size:12px;color:var(--dim)}
+
+/* STORIES */
+.story-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.story-card{padding:16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);transition:border-color .15s}
+.story-card:hover{border-color:var(--dim)}
+.story-title{font-weight:600;font-size:15px}
+.story-tags{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.story-tag{padding:2px 8px;border-radius:99px;font-size:12px;background:var(--accent-bg);color:var(--accent)}
+.story-preview{color:var(--muted);font-size:13px;line-height:1.5}
+.story-actions{display:flex;gap:6px;margin-top:10px}
+.empty-state{text-align:center;padding:50px 20px;color:var(--dim)}
+.empty-icon{font-size:44px;margin-bottom:10px;opacity:.5}
+
+/* MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:32px 20px;overflow-y:auto}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px;width:100%;max-width:620px}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{width:28px;height:28px;border-radius:50%;background:var(--surface2);color:var(--muted);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;border:none}
+.modal-close:hover{color:var(--text)}
+
+/* FORMS */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--dim);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.form-input,.form-textarea{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:14px;transition:border-color .12s}
+.form-input:focus,.form-textarea:focus{outline:none;border-color:var(--accent)}
+.form-textarea{resize:vertical;min-height:76px}
+
+/* MOCK */
+.mock-setup{max-width:520px;margin:0 auto;text-align:center;padding:36px 0}
+.mock-setup h2{font-size:22px;margin-bottom:8px}
+.mock-setup p{color:var(--muted);margin-bottom:24px}
+.mock-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:24px;text-align:left}
+.mock-type-btn{padding:12px 10px;background:var(--surface2);border:2px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .12s}
+.mock-type-btn.selected{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.mock-type-btn:hover{border-color:var(--dim);color:var(--text)}
+.mock-session{max-width:680px;margin:0 auto}
+.mock-phase{text-align:center;padding:16px 0 8px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.mock-question-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:26px;margin-bottom:18px}
+.mock-q-cat{margin-bottom:10px}
+.mock-q-text{font-size:17px;line-height:1.5;font-weight:500}
+.timer-ring{display:flex;flex-direction:column;align-items:center;margin:20px 0}
+.timer-display{font-size:60px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);line-height:1}
+.timer-label{font-size:13px;color:var(--muted);margin-top:6px}
+.mock-controls{display:flex;gap:10px;justify-content:center;margin-bottom:20px}
+.score-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px}
+.score-title{font-size:16px;font-weight:600;margin-bottom:16px}
+.score-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;flex-wrap:wrap}
+.score-row-label{font-size:14px;min-width:130px}
+.star-field{display:flex;gap:5px}
+.star{font-size:22px;cursor:pointer;color:var(--border);transition:color .1s;line-height:1}
+.star.active{color:var(--accent)}
+.mock-history{margin-top:28px}
+.history-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.history-date{font-size:12px;color:var(--dim);min-width:72px;flex-shrink:0}
+.history-q{flex:1;font-size:13px;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.history-score{font-size:13px;font-weight:600;color:var(--accent);flex-shrink:0}
+
+/* FRAMEWORKS */
+.fw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.fw-card-wrapper{height:200px;perspective:1000px}
+.fw-card{width:100%;height:100%;position:relative;transform-style:preserve-3d;transition:transform .5s ease;cursor:pointer}
+.fw-card.flipped{transform:rotateY(180deg)}
+.fw-front,.fw-back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:var(--r);padding:18px;border:1px solid var(--border)}
+.fw-front{background:var(--surface);display:flex;flex-direction:column;justify-content:space-between}
+.fw-back{background:var(--surface2);transform:rotateY(180deg);display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.fw-name{font-size:18px;font-weight:700}
+.fw-subtitle{color:var(--muted);font-size:13px;margin-top:5px}
+.fw-hint{font-size:12px;color:var(--dim)}
+.fw-back-title{font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.fw-step{font-size:12px;color:var(--text);display:flex;gap:7px;line-height:1.4}
+.fw-step-key{color:var(--accent);font-weight:700;min-width:14px;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="app-logo">面试备战台 <span>Interview Command Center</span></div>
+    <nav class="tabs" id="mainTabs">
+      <button class="tab-btn active" data-tab="positioning">🧭 定位核心</button>
+      <button class="tab-btn" data-tab="questions">📚 题库</button>
+      <button class="tab-btn" data-tab="stories">📖 故事库</button>
+      <button class="tab-btn" data-tab="mock">🎯 模拟面试</button>
+      <button class="tab-btn" data-tab="frameworks">🃏 框架卡</button>
+    </nav>
+  </div>
+</header>
+
+<main class="app-main">
+
+<!-- ══════════ 定位核心 ══════════ -->
+<section id="tab-positioning" class="tab-section active">
+  <div class="section-head">
+    <div><h2>定位核心</h2><p class="section-desc">你的叙事弧、差异化优势、目标公司角度——每次开口前先看一眼。</p></div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <div class="card-title">核心叙事弧</div>
+        <div class="arc-item"><div class="arc-num">1</div><div><div class="arc-label">我是谁</div><div class="arc-body">有 HR 专业背景的 AI PM。能用真正理解人才管理痛点的眼光评估 AI 招聘工具——而不只是套 LLM。</div></div></div>
+        <div class="arc-item"><div class="arc-num">2</div><div><div class="arc-label">我做过什么</div><div class="arc-body">系统研究 70+ AI 日记产品、22+ 目标公司竞争格局；亲手构建了 5 Agent + 32 cron 任务的个人自动化系统——PM 的工作就是让复杂系统运转。</div></div></div>
+        <div class="arc-item"><div class="arc-num">3</div><div><div class="arc-label">为什么是我</div><div class="arc-body">不只懂 AI 能力，更懂"为什么 AI 招聘工具在实操中失败"（偏见、候选人体验、数据出口问题）。这是普通 PM 缺少的 HR 视角。</div></div></div>
+        <div class="arc-item" style="margin-bottom:0"><div class="arc-num">4</div><div><div class="arc-label">想去哪里</div><div class="arc-body">产品策略 × 内容 × AI 的交叉地带。不想做纯"接 LLM API"的工作——想参与定义产品 PMF 的过程。</div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">关键词库——每个答案植入 2-3 个</div>
+        <div class="kw-grid">
+          <span class="kw-pill">HR 视角</span><span class="kw-pill">系统性偏见</span><span class="kw-pill">候选人体验</span>
+          <span class="kw-pill">AI Agent</span><span class="kw-pill">数据隐私</span><span class="kw-pill">PMF 验证</span>
+          <span class="kw-pill">跨文化 PM</span><span class="kw-pill">量化评估</span><span class="kw-pill">产品-策略-内容</span>
+          <span class="kw-pill">双语沟通</span><span class="kw-pill">人才洞察</span><span class="kw-pill">可解释 AI</span>
+          <span class="kw-pill">最小闭环</span><span class="kw-pill">不被 GPT 包装</span><span class="kw-pill">长期留存</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">目标公司 · 你的切入角度</div>
+        <div class="target-card"><div class="target-name">影视飓风</div><div class="target-role">AI 内容运营 / 编导方向</div><div class="target-angle"><strong>角度：</strong>AI 如何重构视频生产工作流——不是"替代剪辑师"，而是让内容团队把精力放在策划层。你理解 AIGC 与创意方向的边界。</div></div>
+        <div class="target-card"><div class="target-name">Manus</div><div class="target-role">Agent AI PM</div><div class="target-angle"><strong>角度：</strong>你亲手跑过 5 Agent 系统，体验了任务边界模糊、权限溢出、输出不可解释的问题——正是 Manus PM 每天要解决的。</div></div>
+        <div class="target-card"><div class="target-name">飞书 Singapore</div><div class="target-role">国际化 PM</div><div class="target-angle"><strong>角度：</strong>中国产品出海的信息架构、表达适配、文化差异——双语视角 + 海外留学经历是稀缺的。</div></div>
+        <div class="target-card" style="margin-bottom:0"><div class="target-name">Moka AI / HR Tech</div><div class="target-role">HR Tech PM</div><div class="target-angle"><strong>角度：</strong>系统研究过 ATS 痛点、AI 简历偏见、候选人体验失败案例。PM + HR 双重视角，不是单纯功能堆砌。</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">黄金口诀</div>
+        <div style="font-size:13px;line-height:1.9;color:var(--muted)">
+          <p>🎯 <strong style="color:var(--text)">不是"我懂 AI"</strong>——是"我懂 AI 为什么在 HR 场景里失败"</p>
+          <p>📊 <strong style="color:var(--text)">每个故事必须有数字</strong>——留存率、时间节省、准确率提升</p>
+          <p>🔍 <strong style="color:var(--text)">被问"为什么你？"</strong>——回到 HR × AI 的交叉，没人能复制这个组合</p>
+          <p>⚡ <strong style="color:var(--text)">STAR 比例：行动占 60%</strong>——情境不要超过 30 秒</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 题库 ══════════ -->
+<section id="tab-questions" class="tab-section">
+  <div class="section-head">
+    <div><h2>题库</h2><p class="section-desc">80 道题，覆盖行为 / 产品 / 策略 / 数据 / AI / HR 六大类。点击圆圈标记已练。</p></div>
+    <div id="qCountBadge" class="badge" style="background:var(--accent-bg);color:var(--accent);font-size:13px;padding:4px 12px;flex-shrink:0"></div>
+  </div>
+  <div class="filters">
+    <div class="filter-row" id="catFilter">
+      <button class="filter-btn active" data-cat="all">全部</button>
+      <button class="filter-btn" data-cat="behavioral">行为</button>
+      <button class="filter-btn" data-cat="product">产品</button>
+      <button class="filter-btn" data-cat="strategy">策略</button>
+      <button class="filter-btn" data-cat="analytics">数据</button>
+      <button class="filter-btn" data-cat="ai">AI专项</button>
+      <button class="filter-btn" data-cat="hr">HR专项</button>
+    </div>
+    <div class="filter-row" id="diffFilter">
+      <button class="filter-btn active" data-diff="all">难度</button>
+      <button class="filter-btn" data-diff="1">简单</button>
+      <button class="filter-btn" data-diff="2">中等</button>
+      <button class="filter-btn" data-diff="3">困难</button>
+    </div>
+    <div class="filter-row" id="pracFilter">
+      <button class="filter-btn active" data-prac="all">状态</button>
+      <button class="filter-btn" data-prac="0">未练</button>
+      <button class="filter-btn" data-prac="1">已练</button>
+    </div>
+    <input type="search" class="search-box" id="qSearch" placeholder="搜索题目...">
+  </div>
+  <div class="q-list" id="qList"></div>
+</section>
+
+<!-- ══════════ 故事库 ══════════ -->
+<section id="tab-stories" class="tab-section">
+  <div class="section-head">
+    <div><h2>故事库</h2><p class="section-desc">用 STAR 模板记录你的 6-8 个核心故事，每次面试前快速回顾。</p></div>
+    <button class="btn btn-primary" id="newStoryBtn" style="flex-shrink:0">＋ 新建故事</button>
+  </div>
+  <div id="storyContainer"></div>
+</section>
+
+<!-- ══════════ 模拟面试 ══════════ -->
+<section id="tab-mock" class="tab-section">
+  <div id="mockSetupView">
+    <div class="mock-setup">
+      <h2>模拟面试</h2>
+      <p>选一个类型，随机抽题。30 秒思考，3 分钟作答，然后自评打分。</p>
+      <div class="mock-type-grid" id="mockTypeGrid">
+        <button class="mock-type-btn selected" data-mtype="all">🎲 随机全部</button>
+        <button class="mock-type-btn" data-mtype="behavioral">行为面试</button>
+        <button class="mock-type-btn" data-mtype="product">产品设计</button>
+        <button class="mock-type-btn" data-mtype="strategy">策略分析</button>
+        <button class="mock-type-btn" data-mtype="analytics">数据估算</button>
+        <button class="mock-type-btn" data-mtype="ai">AI 专项</button>
+        <button class="mock-type-btn" data-mtype="hr">HR 专项</button>
+      </div>
+      <button class="btn btn-primary" id="startMockBtn" style="font-size:16px;padding:12px 32px">开始模拟 →</button>
+    </div>
+    <div class="mock-history" id="mockHistory"></div>
+  </div>
+
+  <div id="mockSessionView" style="display:none">
+    <div class="mock-session">
+      <div class="mock-phase" id="mockPhaseLabel"></div>
+      <div class="mock-question-box">
+        <div class="mock-q-cat" id="mockQCat"></div>
+        <div class="mock-q-text" id="mockQText"></div>
+      </div>
+      <div class="timer-ring">
+        <div class="timer-display" id="timerDisplay">0:30</div>
+        <div class="timer-label" id="timerLabel">思考 · 不用开口</div>
+      </div>
+      <div class="mock-controls">
+        <button class="btn btn-ghost" id="skipTimerBtn">跳过计时</button>
+        <button class="btn btn-danger" id="exitMockBtn">退出</button>
+      </div>
+      <div class="score-section" id="scoreSection" style="display:none">
+        <div class="score-title">自评打分（1 = 很差，5 = 很好）</div>
+        <div class="score-row"><div class="score-row-label">🏗 结构清晰度</div><div class="star-field" data-field="structure"><span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span></div></div>
+        <div class="score-row"><div class="score-row-label">💎 内容深度</div><div class="star-field" data-field="content"><span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span></div></div>
+        <div class="score-row"><div class="score-row-label">🤖 AI 专项角度</div><div class="star-field" data-field="ai_angle"><span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span></div></div>
+        <div class="score-row"><div class="score-row-label">👔 HR 视角体现</div><div class="star-field" data-field="hr_angle"><span class="star" data-v="1">★</span><span class="star" data-v="2">★</span><span class="star" data-v="3">★</span><span class="star" data-v="4">★</span><span class="star" data-v="5">★</span></div></div>
+        <div class="form-group" style="margin-top:14px">
+          <label class="form-label">复盘备注</label>
+          <textarea class="form-textarea" id="mockNotes" placeholder="哪里说得不好？下次改什么？" style="min-height:64px"></textarea>
+        </div>
+        <button class="btn btn-primary" id="submitScoreBtn" style="width:100%;justify-content:center">保存 & 下一题</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 框架卡 ══════════ -->
+<section id="tab-frameworks" class="tab-section">
+  <div class="section-head">
+    <div><h2>框架卡</h2><p class="section-desc">点击卡片翻转查看框架详情。面试前 10 分钟快速热身。</p></div>
+  </div>
+  <div class="fw-grid" id="fwGrid"></div>
+</section>
+
+</main>
+
+<!-- STORY MODAL -->
+<div class="modal-backdrop" id="storyModal">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="storyModalTitle">新建故事</span>
+      <button class="modal-close" id="closeStoryModal">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">故事标题</label><input type="text" class="form-input" id="storyTitleInput" placeholder="如：用数据推翻产品方向的那次"></div>
+    <div class="form-group"><label class="form-label">主题标签（空格分隔）</label><input type="text" class="form-input" id="storyTagsInput" placeholder="领导力 数据驱动 AI应用 HR视角"></div>
+    <div class="form-group"><label class="form-label">S · Situation 情境</label><textarea class="form-textarea" id="storySituation" placeholder="背景、团队、时间线..."></textarea></div>
+    <div class="form-group"><label class="form-label">T · Task 任务</label><textarea class="form-textarea" id="storyTask" placeholder="你需要做什么？面对什么挑战？"></textarea></div>
+    <div class="form-group"><label class="form-label">A · Action 行动（占篇幅 60%）</label><textarea class="form-textarea" id="storyAction" placeholder="你具体做了什么？分步骤，体现 PM 判断..." style="min-height:100px"></textarea></div>
+    <div class="form-group"><label class="form-label">R · Result 结果</label><textarea class="form-textarea" id="storyResult" placeholder="结果是什么？最好有数字/指标"></textarea></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px">
+      <button class="btn btn-ghost" id="cancelStoryBtn">取消</button>
+      <button class="btn btn-primary" id="saveStoryBtn">保存故事</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─── DATA: QUESTIONS ─── */
+const QUESTIONS=[
+  {id:1,cat:'behavioral',diff:2,zh:'告诉我一次你在没有明确所有权的情况下主导了一个项目的经历。'},
+  {id:2,cat:'behavioral',diff:2,zh:'描述一次你在数据不完整的情况下做出重要决策的经历。'},
+  {id:3,cat:'behavioral',diff:3,zh:'你什么时候曾经对高层决策提出异议？结果如何？'},
+  {id:4,cat:'behavioral',diff:2,zh:'告诉我一次产品失败的经历，以及你从中学到了什么。'},
+  {id:5,cat:'behavioral',diff:2,zh:'描述你如何处理与工程师之间的意见分歧。'},
+  {id:6,cat:'behavioral',diff:2,zh:'告诉我你如何在多个优先级同时冲突时做出取舍。'},
+  {id:7,cat:'behavioral',diff:2,zh:'描述一次你用数据改变了团队方向的经历。'},
+  {id:8,cat:'behavioral',diff:2,zh:'你如何建立和维持跨职能团队的信任？给一个具体例子。'},
+  {id:9,cat:'behavioral',diff:3,zh:'告诉我一次必须在没有足够资源的情况下交付产品的经历。'},
+  {id:10,cat:'behavioral',diff:1,zh:'你如何处理来自用户的强烈负面反馈？给个具体例子。'},
+  {id:11,cat:'behavioral',diff:2,zh:'描述一次你成功推动了一个别人认为不可能实现的功能的经历。'},
+  {id:12,cat:'behavioral',diff:2,zh:'告诉我你如何向非技术利益相关者解释复杂技术概念。'},
+  {id:13,cat:'behavioral',diff:1,zh:'描述你如何设定和追踪产品目标。你用什么框架？'},
+  {id:14,cat:'behavioral',diff:2,zh:'告诉我一次你失去了重要用户/客户的经历，你如何应对？'},
+  {id:15,cat:'behavioral',diff:3,zh:'描述一次你必须在发布速度和产品质量之间做出痛苦取舍的经历。'},
+  {id:16,cat:'behavioral',diff:2,zh:'你如何从用户研究中提取洞察并转化为具体的产品决策？'},
+  {id:17,cat:'behavioral',diff:2,zh:'告诉我你如何在短时间内快速了解一个陌生领域并做出产品判断。'},
+  {id:18,cat:'behavioral',diff:3,zh:'描述你如何说服一个强烈反对你方案的高管或同事。'},
+  {id:19,cat:'behavioral',diff:1,zh:'告诉我你是如何管理产品 Roadmap 优先级的。'},
+  {id:20,cat:'behavioral',diff:2,zh:'你有没有主动关掉一个你自己启动的功能/项目？为什么？'},
+  {id:21,cat:'product',diff:2,zh:'为外卖骑手设计一款 AI 助手，帮助他们更高效地管理每日接单。'},
+  {id:22,cat:'product',diff:2,zh:'如何改进 LinkedIn 的招聘功能？请从候选人和 HR 双向角度分析。'},
+  {id:23,cat:'product',diff:2,zh:'为影视后期制作团队设计一款 AI 辅助剪辑工具。核心功能是什么？'},
+  {id:24,cat:'product',diff:3,zh:'设计一款帮助 HR 快速筛选简历但不引入系统性偏见的工具。'},
+  {id:25,cat:'product',diff:2,zh:'如何重新设计绩效评估流程，使其对员工更公平、对管理者更省力？'},
+  {id:26,cat:'product',diff:2,zh:'为 Feishu 设计一个让首次使用的海外用户更容易上手的功能。'},
+  {id:27,cat:'product',diff:2,zh:'设计一款个人 AI 日记应用，用户数据隐私是核心诉求之一。'},
+  {id:28,cat:'product',diff:3,zh:'为 Manus 设计一个 Agent 任务分配与进度追踪界面。'},
+  {id:29,cat:'product',diff:2,zh:'为求职者设计一款能提供精准、可执行反馈的面试练习工具。'},
+  {id:30,cat:'product',diff:2,zh:'设计一个帮助内容创作者用 AI 提升创作工作流的功能。'},
+  {id:31,cat:'product',diff:1,zh:'如何改进现有求职平台（如 Boss直聘）的职位推荐算法？'},
+  {id:32,cat:'product',diff:2,zh:'为远程团队设计一款异步协作工具，重点解决时区带来的沟通摩擦。'},
+  {id:33,cat:'product',diff:2,zh:'设计一款 AI 驱动的员工入职体验工具，减少 HR 手动操作。'},
+  {id:34,cat:'product',diff:3,zh:'如何改进现有 AI 助手当它出错时的用户体验（错误恢复流程）？'},
+  {id:35,cat:'product',diff:2,zh:'为 Z 世代大学生设计一款职业规划产品，核心价值主张是什么？'},
+  {id:36,cat:'strategy',diff:3,zh:'如果你是 Notion AI 的 PM，你会如何应对来自 Cursor 的竞争？'},
+  {id:37,cat:'strategy',diff:3,zh:'飞书如何在东南亚市场与 Slack 竞争？你的差异化策略是什么？'},
+  {id:38,cat:'strategy',diff:3,zh:'AI 招聘工具如何避免落入"GPT 包装"陷阱，建立真正的产品壁垒？'},
+  {id:39,cat:'strategy',diff:3,zh:'如果你是 Manus 的 PM，你会优先解决哪个用户痛点？如何验证？'},
+  {id:40,cat:'strategy',diff:3,zh:'中国 AI 产品出海面临的最大挑战是什么？你会如何系统性解决？'},
+  {id:41,cat:'strategy',diff:2,zh:'内容创作平台（如 B 站）应该如何整合 AIGC 功能而不破坏社区生态？'},
+  {id:42,cat:'strategy',diff:2,zh:'如何评估一个 AI 功能的产品市场契合度（PMF）？你的验证框架是什么？'},
+  {id:43,cat:'strategy',diff:2,zh:'你会如何为一个全新 AI 功能制定定价/收费策略？'},
+  {id:44,cat:'strategy',diff:3,zh:'影视飓风如果要打造 SaaS 产品，你会建议从哪个切入点？为什么？'},
+  {id:45,cat:'strategy',diff:2,zh:'企业级 AI 产品和消费级 AI 产品在 PM 策略上有何本质区别？'},
+  {id:46,cat:'strategy',diff:3,zh:'DAU 突然下降 20%，你的系统性诊断框架是什么？'},
+  {id:47,cat:'strategy',diff:2,zh:'你会如何决定是自研 AI 模型还是接入第三方 API？决策框架是什么？'},
+  {id:48,cat:'strategy',diff:3,zh:'如何在 AI 产品中定义和衡量"用户信任"这个指标？'},
+  {id:49,cat:'strategy',diff:2,zh:'公司应该在什么情况下考虑从 B2C 转向 B2B（或反之）？'},
+  {id:50,cat:'strategy',diff:3,zh:'预算被削减 50%，你如何系统性地调整产品 Roadmap？'},
+  {id:51,cat:'analytics',diff:2,zh:'估算中国所有求职者每天花在招聘软件上的总时间（量级估算）。'},
+  {id:52,cat:'analytics',diff:3,zh:'用户留存率从 40% 降到 30%，你的根因分析路径是什么？'},
+  {id:53,cat:'analytics',diff:3,zh:'如何设计一个实验来验证 AI 推荐功能是否真的提升了用户价值？'},
+  {id:54,cat:'analytics',diff:2,zh:'估算飞书在东南亚市场可能触达的企业用户规模（量级估算）。'},
+  {id:55,cat:'analytics',diff:2,zh:'你会选择哪些北极星指标来衡量一个 AI 写作助手的成功？'},
+  {id:56,cat:'analytics',diff:3,zh:'如何判断一个功能 A/B 测试的结果是否统计显著、值得全量发布？'},
+  {id:57,cat:'analytics',diff:2,zh:'估算 B 站视频创作者使用 AI 辅助工具的潜在市场规模。'},
+  {id:58,cat:'analytics',diff:3,zh:'NPS 从 +20 降到 -10，你的分析路径和行动优先级是什么？'},
+  {id:59,cat:'analytics',diff:3,zh:'如何公平比较 AI 客服与人工客服的效果？实验设计思路是什么？'},
+  {id:60,cat:'analytics',diff:2,zh:'如何用数据证明某个用户旅程的摩擦点需要被优先修复？'},
+  {id:61,cat:'ai',diff:2,zh:'如何向非技术利益相关者解释 LLM 的幻觉问题，以及如何在产品中处理它？'},
+  {id:62,cat:'ai',diff:3,zh:'你会如何为一个"自信但错误"的 AI 功能设计安全机制？'},
+  {id:63,cat:'ai',diff:3,zh:'RAG（检索增强生成）和微调在产品决策上有何区别？你会如何在项目中选择？'},
+  {id:64,cat:'ai',diff:2,zh:'如何全面衡量一个 AI 功能的质量（不止看准确率）？'},
+  {id:65,cat:'ai',diff:3,zh:'当 AI 模型输出存在系统性偏见时，PM 应该如何处理？流程是什么？'},
+  {id:66,cat:'ai',diff:2,zh:'如何在 AI 功能的创新速度与用户信任之间保持平衡？'},
+  {id:67,cat:'ai',diff:3,zh:'描述你对 AI Agent 架构的理解，以及它如何影响 PM 的产品设计决策。'},
+  {id:68,cat:'ai',diff:2,zh:'数据隐私问题如何影响你对 AI 功能的产品决策？举一个具体例子。'},
+  {id:69,cat:'ai',diff:2,zh:'如何在产品中提升 AI 决策的可解释性（XAI），而不牺牲太多体验？'},
+  {id:70,cat:'ai',diff:2,zh:'你认为未来 12 个月内 AI PM 最重要的三项技能是什么？'},
+  {id:71,cat:'hr',diff:3,zh:'AI 简历筛选工具如何系统性地避免对特定群体的偏见？你会设计哪些保障机制？'},
+  {id:72,cat:'hr',diff:2,zh:'你如何评估一个 HR SaaS 产品真正的竞争壁垒（不是功能清单）？'},
+  {id:73,cat:'hr',diff:2,zh:'描述 AI 在绩效管理中的具体应用场景以及它的伦理风险。'},
+  {id:74,cat:'hr',diff:3,zh:'HR Tech 产品中，数据隐私合规（GDPR、个保法）如何影响核心功能设计？'},
+  {id:75,cat:'hr',diff:2,zh:'ATS 系统中最常见的候选人体验痛点是什么？你会优先改哪个？'},
+  {id:76,cat:'hr',diff:3,zh:'AI 视频面试工具的伦理边界在哪里？PM 应该画哪些红线？'},
+  {id:77,cat:'hr',diff:2,zh:'你如何向持怀疑态度的 HR 部门销售一款 AI 驱动的招聘工具？'},
+  {id:78,cat:'hr',diff:3,zh:'人才流失预测模型的产品挑战（不是技术挑战）是什么？你如何解决？'},
+  {id:79,cat:'hr',diff:2,zh:'在 HR Tech 领域，什么是真正的产品差异化？举一个你认为做对的案例。'},
+  {id:80,cat:'hr',diff:2,zh:'你会如何为中小企业（SMB）和大型企业分别设计 HR AI 产品？策略有何不同？'},
+];
+
+/* ─── DATA: FRAMEWORKS ─── */
+const FRAMEWORKS=[
+  {name:'CIRCLES',subtitle:'产品设计结构框架',color:'#3b82f6',back:'7步走完一道设计题',steps:[['C','Comprehend — 理解题目，澄清假设'],['I','Identify — 确定目标用户'],['R','Report — 列出用户需求'],['C','Cut — 确定优先级切入点'],['L','List — 头脑风暴解决方案'],['E','Evaluate — 评估优劣权衡'],['S','Summarize — 明确推荐方案']]},
+  {name:'HEART',subtitle:'Google UX 指标框架',color:'#10b981',back:'五维度衡量用户体验',steps:[['H','Happiness — 满意度 (NPS/CSAT)'],['E','Engagement — 参与深度 (频次/时长)'],['A','Adoption — 新功能采纳率'],['R','Retention — 留存率 (D1/D7/D30)'],['T','Task Success — 任务完成率 & 时长']]},
+  {name:'RICE',subtitle:'功能优先级打分',color:'#f59e0b',back:'Reach × Impact × Confidence ÷ Effort',steps:[['R','Reach — 受影响用户数（单位时间）'],['I','Impact — 对核心目标的影响力 (0.25-3x)'],['C','Confidence — 数据置信度 (%)'],['E','Effort — 所需工程人月数'],['=','RICE Score 越高 → 越优先做']]},
+  {name:'AARRR',subtitle:'增长漏斗 / 海盗指标',color:'#a78bfa',back:'转化漏斗全链路分析',steps:[['A','Acquisition — 用户从哪里来？CAC?'],['A','Activation — 首次获得核心价值？'],['R','Retention — 用户会回来吗？'],['R','Revenue — 用户付费了吗？LTV?'],['R','Referral — 用户会推荐吗？K-factor?']]},
+  {name:'JTBD',subtitle:'Jobs-to-be-Done',color:'#f472b6',back:'人们雇用产品去完成一项"工作"',steps:[['➤','问：用户在什么情境下"雇用"了这个产品？'],['➤','问：他们之前是怎么"解雇"旧方案的？'],['➤','功能性 vs 情感性 vs 社会性需求'],['➤','关注"工作"而非用户人口属性'],['➤','Jobs Map：起点 → 中间步骤 → 终点']]},
+  {name:'North Star',subtitle:'北极星指标',color:'#fb923c',back:'找到那一个能预测长期增长的指标',steps:[['1','体现核心用户价值（不是收入本身）'],['2','与长期留存和增长正相关'],['3','可被所有团队拆解为子指标'],['4','反例：DAU 是度量，不是北极星'],['5','例：Spotify=听歌时长；Airbnb=预订晚数']]},
+  {name:'OKR',subtitle:'目标 & 关键结果',color:'#34d399',back:'O = 方向；KR = 可量化里程碑',steps:[['O','Objective：定性、激励人心，不含数字'],['KR','Key Results：3-5个，可量化，有截止日'],['↑','KR 应是结果，不是行动 (Output≠Outcome)'],['⚠','警惕 KR 变成 Task list'],['✓','季度末 KR 完成 70% = 合格挑战目标']]},
+  {name:'Issue Tree',subtitle:'问题树 / MECE 分析',color:'#60a5fa',back:'假设驱动 + MECE 分解定位根因',steps:[['1','明确问题：营收下降？留存下降？'],['2','MECE 拆分：穷举且互不重叠'],['3','优先验证最可能的假设分支'],['4','用数据排除/确认各分支'],['5','行动建议：直接对应已验证根因']]},
+];
+
+/* ─── STORAGE ─── */
+const LS={
+  practiced:()=>JSON.parse(localStorage.getItem('is_practiced')||'{}'),
+  setPracticed:v=>localStorage.setItem('is_practiced',JSON.stringify(v)),
+  stories:()=>JSON.parse(localStorage.getItem('is_stories')||'[]'),
+  setStories:v=>localStorage.setItem('is_stories',JSON.stringify(v)),
+  history:()=>JSON.parse(localStorage.getItem('is_history')||'[]'),
+  setHistory:v=>localStorage.setItem('is_history',JSON.stringify(v)),
+};
+
+/* ─── UTILS ─── */
+const h=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const CAT={behavioral:'行为',product:'产品设计',strategy:'策略',analytics:'数据',ai:'AI专项',hr:'HR专项'};
+const DIFF={1:'简单',2:'中等',3:'困难'};
+
+/* ─── TABS ─── */
+document.getElementById('mainTabs').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab-btn');
+  if(!btn)return;
+  const id=btn.dataset.tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+  document.querySelectorAll('.tab-section').forEach(s=>s.classList.toggle('active',s.id==='tab-'+id));
+  if(id==='questions')renderQ();
+  if(id==='stories')renderStories();
+  if(id==='mock')renderHistory();
+  if(id==='frameworks')renderFW();
+});
+
+/* ─── QUESTIONS ─── */
+let qF={cat:'all',diff:'all',prac:'all',search:''};
+
+function renderQ(){
+  const pr=LS.practiced();
+  const qs=QUESTIONS.filter(q=>{
+    if(qF.cat!=='all'&&q.cat!==qF.cat)return false;
+    if(qF.diff!=='all'&&String(q.diff)!==qF.diff)return false;
+    if(qF.prac!=='all'){const d=!!pr[q.id];if(qF.prac==='1'&&!d)return false;if(qF.prac==='0'&&d)return false;}
+    if(qF.search&&!q.zh.toLowerCase().includes(qF.search.toLowerCase()))return false;
+    return true;
+  });
+  const done=Object.keys(pr).length;
+  document.getElementById('qCountBadge').textContent=done+' / '+QUESTIONS.length+' 已练';
+  const list=document.getElementById('qList');
+  if(!qs.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><p>没有符合筛选条件的题目</p></div>';return;}
+  list.innerHTML=qs.map(q=>{
+    const isDone=!!pr[q.id];
+    return`<div class="q-item${isDone?' practiced':''}">
+      <div class="q-check${isDone?' done':''}" data-check="${q.id}">${isDone?'✓':''}</div>
+      <div class="q-body">
+        <div class="q-text">${h(q.zh)}</div>
+        <div class="q-meta">
+          <span class="badge badge-${q.cat}">${CAT[q.cat]}</span>
+          <div class="diff-dot d${q.diff}">
+            <span class="d"></span><span class="d"></span><span class="d"></span>
+            <span class="diff-label" style="margin-left:4px">${DIFF[q.diff]}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('qList').addEventListener('click',e=>{
+  const c=e.target.closest('[data-check]');
+  if(!c)return;
+  const id=parseInt(c.dataset.check);
+  const pr=LS.practiced();
+  if(pr[id])delete pr[id]; else pr[id]=1;
+  LS.setPracticed(pr);renderQ();
+});
+
+function bindFilter(containerId,key){
+  document.getElementById(containerId).addEventListener('click',e=>{
+    const btn=e.target.closest('[data-'+key+']');
+    if(!btn)return;
+    document.querySelectorAll('#'+containerId+' .filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    qF[key]=btn.dataset[key];
+    renderQ();
+  });
+}
+bindFilter('catFilter','cat');
+bindFilter('diffFilter','diff');
+bindFilter('pracFilter','prac');
+document.getElementById('qSearch').addEventListener('input',e=>{qF.search=e.target.value;renderQ();});
+
+/* ─── STORIES ─── */
+let editSid=null;
+
+function renderStories(){
+  const ss=LS.stories();
+  const c=document.getElementById('storyContainer');
+  if(!ss.length){
+    c.innerHTML=`<div class="empty-state"><div class="empty-icon">📖</div><p>还没有故事。点击「新建故事」用 STAR 模板记录第一个案例。</p><p style="margin-top:8px;font-size:12px">建议覆盖：领导力 / 数据驱动 / 失败复盘 / 跨职能 / AI应用 / HR视角</p></div>
+    <div class="card" style="margin-top:16px"><div class="card-title">💡 推荐覆盖主题</div><div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:4px">${['领导力','数据驱动','失败复盘','跨职能协作','AI应用','HR视角','快速学习','用户洞察'].map(t=>`<span class="kw-pill">${t}</span>`).join('')}</div></div>`;
+    return;
+  }
+  c.innerHTML=`<div class="story-grid">${ss.map(s=>`
+    <div class="story-card">
+      <div class="story-title">${h(s.title)}</div>
+      <div class="story-tags">${(s.tags||[]).map(t=>`<span class="story-tag">${h(t)}</span>`).join('')}</div>
+      <div class="story-preview">${h((s.situation||'').slice(0,80)+(s.situation&&s.situation.length>80?'...':''))}</div>
+      <div class="story-actions">
+        <button class="btn btn-ghost btn-sm" data-edit="${h(s.id)}">编辑</button>
+        <button class="btn btn-danger btn-sm" data-del="${h(s.id)}">删除</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+document.getElementById('storyContainer').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-edit]');
+  const dl=e.target.closest('[data-del]');
+  if(ed)openStoryModal(ed.dataset.edit);
+  if(dl&&confirm('确认删除这个故事？')){
+    LS.setStories(LS.stories().filter(s=>s.id!==dl.dataset.del));
+    renderStories();
+  }
+});
+
+function openStoryModal(id){
+  editSid=id||null;
+  const s=id?LS.stories().find(x=>x.id===id):null;
+  document.getElementById('storyModalTitle').textContent=id?'编辑故事':'新建故事';
+  document.getElementById('storyTitleInput').value=s?.title||'';
+  document.getElementById('storyTagsInput').value=(s?.tags||[]).join(' ');
+  document.getElementById('storySituation').value=s?.situation||'';
+  document.getElementById('storyTask').value=s?.task||'';
+  document.getElementById('storyAction').value=s?.action||'';
+  document.getElementById('storyResult').value=s?.result||'';
+  document.getElementById('storyModal').classList.add('open');
+}
+
+function closeStoryModal(){document.getElementById('storyModal').classList.remove('open');editSid=null;}
+
+document.getElementById('newStoryBtn').addEventListener('click',()=>openStoryModal(null));
+document.getElementById('closeStoryModal').addEventListener('click',closeStoryModal);
+document.getElementById('cancelStoryBtn').addEventListener('click',closeStoryModal);
+document.getElementById('storyModal').addEventListener('click',e=>{if(e.target===document.getElementById('storyModal'))closeStoryModal();});
+
+document.getElementById('saveStoryBtn').addEventListener('click',()=>{
+  const title=document.getElementById('storyTitleInput').value.trim();
+  if(!title){alert('请填写故事标题');return;}
+  const story={
+    id:editSid||'s'+Date.now(),
+    title,
+    tags:document.getElementById('storyTagsInput').value.trim().split(/\s+/).filter(Boolean),
+    situation:document.getElementById('storySituation').value.trim(),
+    task:document.getElementById('storyTask').value.trim(),
+    action:document.getElementById('storyAction').value.trim(),
+    result:document.getElementById('storyResult').value.trim(),
+  };
+  const ss=LS.stories();
+  if(editSid){const i=ss.findIndex(s=>s.id===editSid);if(i>=0)ss[i]=story;else ss.push(story);}
+  else ss.push(story);
+  LS.setStories(ss);
+  closeStoryModal();renderStories();
+});
+
+/* ─── MOCK INTERVIEW ─── */
+let mType='all';
+let mState={q:null,phase:'think',timeLeft:30,timer:null,scores:{}};
+
+document.getElementById('mockTypeGrid').addEventListener('click',e=>{
+  const btn=e.target.closest('[data-mtype]');
+  if(!btn)return;
+  document.querySelectorAll('.mock-type-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  mType=btn.dataset.mtype;
+});
+
+document.getElementById('startMockBtn').addEventListener('click',()=>{
+  const pool=mType==='all'?QUESTIONS:QUESTIONS.filter(q=>q.cat===mType);
+  if(!pool.length){alert('该类型下没有题目');return;}
+  startMock(pool[Math.floor(Math.random()*pool.length)]);
+});
+
+function startMock(q){
+  mState={q,phase:'think',timeLeft:30,timer:null,scores:{}};
+  document.getElementById('mockSetupView').style.display='none';
+  document.getElementById('mockSessionView').style.display='block';
+  document.getElementById('scoreSection').style.display='none';
+  document.getElementById('mockNotes').value='';
+  document.querySelectorAll('.star').forEach(s=>s.classList.remove('active'));
+  document.getElementById('mockQCat').innerHTML=`<span class="badge badge-${q.cat}">${CAT[q.cat]}</span>`;
+  document.getElementById('mockQText').textContent=q.zh;
+  setPhase('think');
+  mState.timer=setInterval(tick,1000);
+}
+
+function tick(){
+  mState.timeLeft--;
+  updateTimer();
+  if(mState.timeLeft<=0){
+    clearInterval(mState.timer);
+    if(mState.phase==='think'){mState.phase='answer';mState.timeLeft=180;setPhase('answer');mState.timer=setInterval(tick,1000);}
+    else endAnswer();
+  }
+}
+
+function setPhase(p){
+  const pl=document.getElementById('mockPhaseLabel');
+  const tl=document.getElementById('timerLabel');
+  if(p==='think'){pl.textContent='🤔 思考时间';tl.textContent='思考 · 不用开口';}
+  else{pl.textContent='🎤 作答时间';tl.textContent='开始回答吧';}
+  updateTimer();
+}
+
+function updateTimer(){
+  const m=Math.floor(mState.timeLeft/60),s=mState.timeLeft%60;
+  const el=document.getElementById('timerDisplay');
+  el.textContent=m+':'+(s<10?'0':'')+s;
+  el.style.color=mState.phase==='think'?'var(--blue)':mState.timeLeft<=10?'var(--red)':'var(--accent)';
+}
+
+function endAnswer(){
+  clearInterval(mState.timer);
+  document.getElementById('mockPhaseLabel').textContent='📝 自评打分';
+  const el=document.getElementById('timerDisplay');
+  el.textContent='完成';el.style.color='var(--green)';
+  document.getElementById('timerLabel').textContent='给这次作答打个分';
+  document.getElementById('scoreSection').style.display='block';
+}
+
+document.getElementById('skipTimerBtn').addEventListener('click',()=>{
+  clearInterval(mState.timer);
+  if(mState.phase==='think'){mState.phase='answer';mState.timeLeft=180;setPhase('answer');mState.timer=setInterval(tick,1000);}
+  else endAnswer();
+});
+
+document.getElementById('exitMockBtn').addEventListener('click',()=>{
+  clearInterval(mState.timer);
+  document.getElementById('mockSetupView').style.display='block';
+  document.getElementById('mockSessionView').style.display='none';
+  renderHistory();
+});
+
+document.getElementById('scoreSection').addEventListener('click',e=>{
+  const star=e.target.closest('.star');
+  if(!star)return;
+  const field=star.closest('.star-field');
+  if(!field)return;
+  const v=parseInt(star.dataset.v),fn=field.dataset.field;
+  mState.scores[fn]=v;
+  field.querySelectorAll('.star').forEach(s=>s.classList.toggle('active',parseInt(s.dataset.v)<=v));
+});
+
+document.getElementById('submitScoreBtn').addEventListener('click',()=>{
+  const vals=Object.values(mState.scores);
+  const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):'-';
+  const rec={
+    id:'m'+Date.now(),qId:mState.q.id,qText:mState.q.zh,qCat:mState.q.cat,
+    scores:mState.scores,avg,
+    notes:document.getElementById('mockNotes').value.trim(),
+    date:new Date().toLocaleDateString('zh-CN'),
+  };
+  const hist=LS.history();hist.unshift(rec);if(hist.length>50)hist.splice(50);LS.setHistory(hist);
+  const pr=LS.practiced();pr[mState.q.id]=1;LS.setPracticed(pr);
+  const pool=mType==='all'?QUESTIONS:QUESTIONS.filter(q=>q.cat===mType);
+  startMock(pool[Math.floor(Math.random()*pool.length)]);
+});
+
+function renderHistory(){
+  const hist=LS.history();
+  const c=document.getElementById('mockHistory');
+  if(!hist.length){c.innerHTML='';return;}
+  c.innerHTML=`<h3 style="font-size:14px;color:var(--dim);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">最近练习记录</h3>
+  ${hist.slice(0,10).map(r=>`<div class="history-item">
+    <div class="history-date">${r.date}</div>
+    <span class="badge badge-${r.qCat}" style="flex-shrink:0">${CAT[r.qCat]}</span>
+    <div class="history-q">${h(r.qText)}</div>
+    <div class="history-score">⭐ ${r.avg}</div>
+  </div>`).join('')}`;
+}
+
+/* ─── FRAMEWORKS ─── */
+let fwDone=false;
+function renderFW(){
+  if(fwDone)return;fwDone=true;
+  const g=document.getElementById('fwGrid');
+  g.innerHTML=FRAMEWORKS.map((fw,i)=>`
+    <div class="fw-card-wrapper">
+      <div class="fw-card" id="fw${i}">
+        <div class="fw-front">
+          <div><div class="fw-name" style="color:${fw.color}">${fw.name}</div><div class="fw-subtitle">${fw.subtitle}</div></div>
+          <div class="fw-hint">点击翻转查看详情 →</div>
+        </div>
+        <div class="fw-back">
+          <div class="fw-back-title">${fw.back}</div>
+          ${fw.steps.map(([k,v])=>`<div class="fw-step"><span class="fw-step-key">${k}</span><span>${v}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('');
+  g.addEventListener('click',e=>{
+    const w=e.target.closest('.fw-card-wrapper');
+    if(w)w.querySelector('.fw-card').classList.toggle('flipped');
+  });
+}
+
+/* ─── INIT ─── */
+renderQ();
+</script>
+</body>
+</html>
