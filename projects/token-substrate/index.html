@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Token Substrate</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <h1>Token Substrate</h1>
+    <span class="tagline">Who controls the compute controls the future. Watch it play out.</span>
+    <span id="tick-display">T+0</span>
+  </header>
+
+  <main>
+    <section class="canvas-area">
+      <canvas id="sim-canvas"></canvas>
+    </section>
+
+    <aside class="controls-panel">
+
+      <div class="panel-section">
+        <h3>Scenarios</h3>
+        <div id="preset-buttons"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3>Parameters</h3>
+        <div id="slider-controls"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3>Playback</h3>
+        <div class="playback-btns">
+          <button id="btn-play">Pause</button>
+          <button id="btn-reset">Reset</button>
+          <button id="btn-speed">1× Speed</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3>Legend</h3>
+        <div id="legend-items"></div>
+      </div>
+
+    </aside>
+  </main>
+
+  <footer class="stats-bar">
+
+    <div class="stat-block">
+      <span class="stat-lbl">Gini Coefficient</span>
+      <span class="stat-val" id="stat-gini">—</span>
+      <div class="stat-bar">
+        <div class="stat-bar-fill" id="gini-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="stat-block">
+      <span class="stat-lbl">Corp Token Share</span>
+      <span class="stat-val" id="stat-corp" style="color:#e05a5a">—</span>
+    </div>
+
+    <div class="stat-block">
+      <span class="stat-lbl">Individual Survival</span>
+      <span class="stat-val" id="stat-survival" style="color:#5aaae0">—</span>
+      <div class="stat-bar">
+        <div class="stat-bar-fill" id="surv-fill" style="width:100%"></div>
+      </div>
+    </div>
+
+    <div class="stat-block">
+      <span class="stat-lbl">Commons Pool</span>
+      <span class="stat-val" id="stat-commons" style="color:#5ae0a0;font-size:18px">—</span>
+    </div>
+
+    <div class="stat-block">
+      <span class="stat-lbl">Innovators Alive</span>
+      <span class="stat-val" id="stat-innovators" style="color:#5aaae0">—</span>
+    </div>
+
+    <div class="chart-block">
+      <div class="chart-legend">
+        <div class="chart-legend-item">
+          <div class="chart-legend-line" style="background:#e05a5a"></div>Gini
+        </div>
+        <div class="chart-legend-item">
+          <div class="chart-legend-line" style="background:#5aaae0"></div>Survival
+        </div>
+        <div class="chart-legend-item">
+          <div class="chart-legend-line" style="background:#5ae0a0"></div>Non-corp share
+        </div>
+      </div>
+      <svg id="timeline-svg" viewBox="0 0 280 42" preserveAspectRatio="none"></svg>
+    </div>
+
+  </footer>
+
+  <script src="simulation.js"></script>
+  <script src="renderer.js"></script>
+  <script src="ui.js"></script>
+
+</body>
+</html>
