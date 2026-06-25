@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>No.007 · 印</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #030506;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  font-family: 'Georgia', 'Songti SC', serif;
+  user-select: none;
+}
+
+canvas { display: block; width: 100%; height: 100%; }
+
+.label {
+  position: fixed;
+  bottom: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 2.5s ease;
+  white-space: nowrap;
+}
+.label.shown { opacity: 1; }
+
+.name {
+  font-size: 1.3rem;
+  letter-spacing: 0.4em;
+  color: #a8d890;
+  opacity: 0.18;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.hint {
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  color: #263424;
+  display: block;
+}
+
+.num {
+  position: fixed; top: 38px; left: 44px;
+  font-size: 0.6rem; font-family: 'Courier New', monospace;
+  color: #182016; letter-spacing: 0.12em;
+}
+.vc {
+  position: fixed; top: 38px; right: 44px;
+  font-size: 0.6rem; font-family: 'Courier New', monospace;
+  color: #182016; letter-spacing: 0.12em;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div class="label" id="label">
+  <span class="name">印</span>
+  <span class="hint" id="hint"></span>
+</div>
+<div class="num">No.007</div>
+<div class="vc" id="vc"></div>
+
+<script>
+// ── Visit memory ──────────────────────────────────────────────
+const raw   = parseInt(localStorage.getItem('yin_visits') || '0') + 1;
+localStorage.setItem('yin_visits', String(raw));
+const stage = Math.min(raw, 7);
+
+const HINTS = [
+  '初次相遇',
+  '第二次来 · 它记住了你',
+  '第三次来 · 又长了一圈',
+  '第四次来 · 还在生长',
+  '第五次来 · 快了',
+  '第六次来 · 最后一圈',
+  '第七次来 · 它完整了',
+];
+
+const label  = document.getElementById('label');
+const hintEl = document.getElementById('hint');
+const vcEl   = document.getElementById('vc');
+
+hintEl.textContent = raw <= 7 ? HINTS[raw - 1] : `第 ${raw} 次来 · 它在等`;
+vcEl.textContent   = `VISIT  ${String(raw).padStart(2, '0')}`;
+setTimeout(() => label.classList.add('shown'), 900);
+
+// ── Canvas setup ──────────────────────────────────────────────
+const cv  = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const C   = [168, 216, 144];
+
+let W, H, DPR, CX, CY;
+function resize() {
+  DPR = Math.min(devicePixelRatio || 1, 2);
+  W   = cv.width  = innerWidth  * DPR;
+  H   = cv.height = innerHeight * DPR;
+  CX  = W / 2;
+  CY  = H / 2;
+}
+resize();
+addEventListener('resize', resize);
+
+// ── Crystal ring definitions (CSS-pixel units) ────────────────
+// n = leaf count, r = orbit radius, hL = half-length, hW = half-width,
+// deg = angular offset, s = minimum stage to appear
+const RINGS = [
+  { n:  6, r:  44, hL: 22, hW: 4.5, deg:  0,   s: 1 },
+  { n:  6, r:  76, hL: 18, hW: 3.5, deg: 30,   s: 2 },
+  { n: 12, r: 106, hL: 11, hW: 2.2, deg: 15,   s: 3 },
+  { n:  6, r: 136, hL: 24, hW: 5.0, deg:  0,   s: 4 },
+  { n: 12, r: 160, hL:  9, hW: 1.8, deg:  7.5, s: 5 },
+  { n:  6, r: 188, hL: 18, hW: 3.8, deg: 30,   s: 6 },
+];
+
+// ── Ambient particles ─────────────────────────────────────────
+const parts = Array.from({ length: Math.max(8, stage * 5) }, () => ({
+  a:   Math.random() * Math.PI * 2,
+  r:   30 + Math.random() * 210,
+  spd: (Math.random() < 0.5 ? 1 : -1) * (0.0003 + Math.random() * 0.0007),
+  sz:  0.5 + Math.random() * 1.2,
+  ph:  Math.random() * Math.PI * 2,
+  op:  0.06 + Math.random() * 0.14,
+}));
+
+// ── Animation state ───────────────────────────────────────────
+const LOAD_T = performance.now();
+let t        = 0;
+let gRot     = 0;
+const gSpd   = stage >= 7 ? 0.00022 : 0.00005;
+
+function ease3(x) {
+  const v = Math.max(0, Math.min(1, x));
+  return 1 - Math.pow(1 - v, 3);
+}
+
+// Draw one leaf centered at (px, py), long axis along `angle`.
+// Tip points radially outward. Uses ctx.rotate(angle - π/2) so that
+// local (0, -hL) maps to world direction (cos angle, sin angle).
+function drawLeaf(px, py, angle, hL, hW, alpha) {
+  if (hL < 0.5 || hW < 0.2 || alpha < 0.005) return;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(angle - Math.PI / 2);
+  ctx.beginPath();
+  ctx.moveTo(0, -hL);
+  ctx.bezierCurveTo( hW * 0.85, -hL * 0.3,  hW * 0.85, hL * 0.3, 0,  hL);
+  ctx.bezierCurveTo(-hW * 0.85,  hL * 0.3, -hW * 0.85, -hL * 0.3, 0, -hL);
+  ctx.closePath();
+  ctx.fillStyle   = `rgba(${C[0]},${C[1]},${C[2]},${alpha})`;
+  ctx.strokeStyle = `rgba(${C[0]},${C[1]},${C[2]},${alpha * 0.35})`;
+  ctx.lineWidth   = 0.6;
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── Main loop ─────────────────────────────────────────────────
+function frame() {
+  requestAnimationFrame(frame);
+  t    += 0.016;
+  gRot += gSpd;
+  const elapsed = performance.now() - LOAD_T;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Ambient particles
+  for (const p of parts) {
+    p.a += p.spd;
+    const px = CX + Math.cos(p.a) * p.r * DPR;
+    const py = CY + Math.sin(p.a) * p.r * DPR;
+    const fl = 0.4 + 0.6 * Math.sin(t * 1.4 + p.ph);
+    ctx.beginPath();
+    ctx.arc(px, py, p.sz * DPR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${C[0]},${C[1]},${C[2]},${p.op * fl})`;
+    ctx.fill();
+  }
+
+  // Crystal rings — each ring appears at its stage and fades/scales in
+  for (const ring of RINGS) {
+    if (ring.s > stage) continue;
+
+    const isNew   = (raw === ring.s);
+    const reveal  = isNew ? ease3(elapsed / 2200) : 1;
+    const breathe = isNew ? 1 : 1 + 0.03 * Math.sin(t * 0.55 + ring.s * 0.7);
+    const alpha   = isNew
+      ? reveal * 0.52
+      : 0.35 + 0.12 * Math.sin(t * 0.38 + ring.s * 0.6);
+
+    const offRad = ring.deg * Math.PI / 180;
+    const rPx    = ring.r * DPR * breathe;
+
+    for (let i = 0; i < ring.n; i++) {
+      const a  = (i / ring.n) * Math.PI * 2 + offRad + gRot;
+      const px = CX + Math.cos(a) * rPx;
+      const py = CY + Math.sin(a) * rPx;
+      drawLeaf(px, py, a, ring.hL * DPR * reveal, ring.hW * DPR * reveal, alpha);
+    }
+  }
+
+  // Center core
+  const pulse = 0.5 + 0.5 * Math.sin(t * 1.1);
+  const coreR = (2.5 + pulse * 1.8) * DPR;
+
+  const grd = ctx.createRadialGradient(CX, CY, 0, CX, CY, coreR * 5);
+  grd.addColorStop(0, `rgba(${C[0]},${C[1]},${C[2]},${0.28 + pulse * 0.14})`);
+  grd.addColorStop(1, `rgba(${C[0]},${C[1]},${C[2]},0)`);
+  ctx.beginPath();
+  ctx.arc(CX, CY, coreR * 5, 0, Math.PI * 2);
+  ctx.fillStyle = grd;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(CX, CY, coreR, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(${C[0]},${C[1]},${C[2]},${0.65 + pulse * 0.2})`;
+  ctx.fill();
+}
+
+frame();
+</script>
+</body>
+</html>

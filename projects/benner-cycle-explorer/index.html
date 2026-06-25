@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>经济周期探索器</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090f;--bg2:#111118;--border:#1c1c28;
+  --text:#b8b9c8;--dim:#42435a;--bright:#e4e5f0;
+  --blue:#3b82f6;--amber:#f59e0b;--red:#ef4444;
+  --green:#22c55e;--purple:#a855f7;--teal:#14b8a6;--gray:#6b7280;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,'PingFang SC','Hiragino Sans GB',system-ui,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{padding:18px 28px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+header h1{font-size:17px;font-weight:600;color:var(--bright);letter-spacing:-.3px}
+header p{margin-top:3px;font-size:12px;color:var(--dim)}
+.controls{display:flex;align-items:center;gap:20px;padding:10px 28px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.toggles{display:flex;gap:14px}
+.tog{display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;user-select:none}
+.tog input{appearance:none;width:13px;height:13px;border:1.5px solid currentColor;border-radius:3px;cursor:pointer;position:relative;flex-shrink:0}
+.tog input:checked::after{content:'';position:absolute;inset:2px;background:currentColor;border-radius:1px}
+.tog.k{color:var(--blue)}.tog.b{color:var(--amber)}.tog.e{color:var(--text)}.tog.f{color:var(--dim)}
+.sep{width:1px;height:18px;background:var(--border)}
+.jumps{display:flex;gap:5px}
+.jbtn{padding:3px 9px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--dim);font-size:11px;cursor:pointer;transition:all .12s}
+.jbtn:hover{border-color:var(--dim);color:var(--text)}
+.hint{margin-left:auto;font-size:11px;color:var(--dim)}
+#wrap{position:relative;flex:1;overflow:hidden;cursor:grab;min-height:0}
+#wrap.drag{cursor:grabbing}
+#c{display:block;width:100%;height:100%}
+#tip{position:fixed;pointer-events:none;background:#16162080;backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:7px;padding:10px 14px;font-size:12px;max-width:270px;z-index:100;opacity:0;transition:opacity .1s;line-height:1.5}
+#tip.on{opacity:1}
+#tip-yr{font-size:10px;color:var(--dim);margin-bottom:3px}
+#tip-badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;margin-bottom:5px;font-weight:500}
+#tip-name{font-weight:600;color:var(--bright);margin-bottom:3px}
+#tip-desc{color:var(--text);font-size:11px}
+footer{padding:10px 28px;border-top:1px solid var(--border);display:flex;gap:16px;flex-shrink:0;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+.ld{width:9px;height:9px;border-radius:50%}
+.ll{width:22px;height:2.5px;border-radius:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>经济周期探索器</h1>
+  <p>康德拉季耶夫长波 · 本纳周期 · 历史市场事件 ／ 滚轮缩放，拖拽平移，悬停查看详情</p>
+</header>
+<div class="controls">
+  <div class="toggles">
+    <label class="tog k"><input type="checkbox" id="tK" checked>康德拉季耶夫</label>
+    <label class="tog b"><input type="checkbox" id="tB" checked>本纳周期</label>
+    <label class="tog e"><input type="checkbox" id="tE" checked>历史事件</label>
+    <label class="tog f"><input type="checkbox" id="tF" checked>未来预测</label>
+  </div>
+  <div class="sep"></div>
+  <div class="jumps">
+    <button class="jbtn" data-y="1860">1860s</button>
+    <button class="jbtn" data-y="1900">1900s</button>
+    <button class="jbtn" data-y="1929">1929</button>
+    <button class="jbtn" data-y="1970">1970s</button>
+    <button class="jbtn" data-y="2000">2000s</button>
+    <button class="jbtn" data-y="2024">现在</button>
+  </div>
+  <span class="hint">← 拖拽 · 滚轮缩放 →</span>
+</div>
+<div id="wrap"><canvas id="c"></canvas></div>
+<div id="tip"><div id="tip-yr"></div><div id="tip-badge"></div><div id="tip-name"></div><div id="tip-desc"></div></div>
+<footer>
+  <div class="leg"><div class="ll" style="background:var(--blue)"></div>康德拉季耶夫长波（45-60年）</div>
+  <div class="leg"><div class="ll" style="background:var(--amber)"></div>本纳周期（~17年）</div>
+  <div class="leg"><div class="ld" style="background:var(--red)"></div>崩溃</div>
+  <div class="leg"><div class="ld" style="background:var(--amber)"></div>顶峰</div>
+  <div class="leg"><div class="ld" style="background:var(--blue)"></div>里程碑</div>
+  <div class="leg"><div class="ld" style="background:var(--green)"></div>复苏</div>
+  <div class="leg"><div class="ld" style="background:var(--purple)"></div>地缘</div>
+  <div class="leg"><div class="ld" style="background:var(--gray)"></div>预测</div>
+</footer>
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+
+const KD = [
+  {y:1840,v:-.4,lb:'K2·春',ph:'spring'},
+  {y:1857,v:.85,lb:'K2·夏顶（铁路繁荣）',ph:'summer'},
+  {y:1873,v:.1,lb:'K2·秋',ph:'autumn'},
+  {y:1885,v:-.9,lb:'K2·冬（长期萧条）',ph:'winter'},
+  {y:1896,v:-.05,lb:'K3·春（钢铁电力）',ph:'spring'},
+  {y:1913,v:.85,lb:'K3·夏顶（一战前繁荣）',ph:'summer'},
+  {y:1920,v:.1,lb:'K3·秋',ph:'autumn'},
+  {y:1932,v:-.9,lb:'K3·冬（大萧条）',ph:'winter'},
+  {y:1946,v:-.05,lb:'K4·春（战后重建）',ph:'spring'},
+  {y:1966,v:.85,lb:'K4·夏顶（黄金三十年）',ph:'summer'},
+  {y:1975,v:.1,lb:'K4·秋（石油危机）',ph:'autumn'},
+  {y:1982,v:-.9,lb:'K4·冬（沃尔克冲击）',ph:'winter'},
+  {y:1991,v:-.05,lb:'K5·春（互联网新浪潮）',ph:'spring'},
+  {y:2000,v:.85,lb:'K5·夏顶（科技泡沫）',ph:'summer'},
+  {y:2008,v:.1,lb:'K5·秋（金融危机）',ph:'autumn'},
+  {y:2016,v:-.9,lb:'K5·冬（低增长通缩）',ph:'winter'},
+  {y:2026,v:-.05,lb:'K6·春（AI革命）',ph:'spring'},
+  {y:2042,v:.85,lb:'K6·夏顶（AI产业成熟？）',ph:'summer',p:1},
+];
+
+const KD_DESC = {
+  spring:'长波春季——新技术萌芽，资本开始流入新产业，增长稳步回升',
+  summer:'长波夏季——繁荣顶峰，通胀抬头，资产估值达到极点',
+  autumn:'长波秋季——去杠杆开始，金融化盛行，实体经济降温',
+  winter:'长波冬季——萧条或停滞，旧产业出清，为下一轮春季蓄力',
+};
+
+const BN = [
+  {y:1843,v:-.9,t:'low'},{y:1853,v:.9,t:'high'},
+  {y:1858,v:-.9,t:'low'},{y:1872,v:.9,t:'high'},
+  {y:1878,v:-.5,t:'low'},{y:1893,v:-.9,t:'low'},
+  {y:1902,v:.9,t:'high'},{y:1907,v:-.4,t:'low'},
+  {y:1919,v:.6,t:'high'},{y:1921,v:-.9,t:'low'},
+  {y:1929,v:.9,t:'high'},{y:1933,v:-.9,t:'low'},
+  {y:1953,v:.9,t:'high'},{y:1962,v:-.4,t:'low'},
+  {y:1966,v:.85,t:'high'},{y:1974,v:-.9,t:'low'},
+  {y:1983,v:.9,t:'high'},{y:1987,v:-.5,t:'low'},
+  {y:2000,v:.85,t:'high'},{y:2003,v:-.5,t:'low'},
+  {y:2007,v:.9,t:'high'},{y:2009,v:-.9,t:'low'},
+  {y:2018,v:.6,t:'high'},{y:2020,v:-.6,t:'low'},
+  {y:2026,v:.75,t:'high',p:1},{y:2033,v:.9,t:'high',p:1},
+  {y:2037,v:-.9,t:'low',p:1},{y:2044,v:.6,t:'high',p:1},
+];
+
+const EV = [
+  {y:1857,n:'1857年恐慌',t:'crash',d:'铁路过度扩张引发美国金融危机，蔓延至欧洲，史上第一次真正意义上的全球金融危机'},
+  {y:1873,n:'长期萧条开始',t:'crash',d:'维也纳证交所崩溃，触发长达23年通缩与萧条，铁路时代繁荣终结'},
+  {y:1893,n:'1893年恐慌',t:'crash',d:'美国铁路公司大规模破产，银行挤兑浪潮席卷全国'},
+  {y:1907,n:'1907年银行危机',t:'crash',d:'铜价操纵失败引爆纽约银行挤兑，J.P.摩根出手救市，直接催生美联储'},
+  {y:1913,n:'美联储成立',t:'mile',d:'Federal Reserve Act正式签署，现代中央银行体系诞生，货币政策的历史转折点'},
+  {y:1914,n:'一战爆发',t:'geo',d:'全球贸易断裂，纽约证交所停市四个月，金本位体系开始瓦解'},
+  {y:1920,n:'1920-21年急性萧条',t:'crash',d:'一战后去杠杆引发极为剧烈的通缩，农产品价格腰斩，但12个月后快速反弹'},
+  {y:1929,n:'大崩溃',t:'crash',d:'黑色星期四，道指最终跌去89%，大萧条正式开始，持续整整十年'},
+  {y:1933,n:'罗斯福新政',t:'mile',d:'Glass-Steagall法案通过，银行与证券分离，美元暂时脱离金本位'},
+  {y:1944,n:'布雷顿森林协议',t:'mile',d:'美元与黄金挂钩（35美元/盎司），现代国际货币体系建立，确立美元霸权'},
+  {y:1945,n:'二战结束',t:'geo',d:'战后重建周期开启，西欧与日本快速工业化，全球经济进入黄金三十年'},
+  {y:1966,n:'漂亮50泡沫顶峰',t:'peak',d:'"漂亮50"蓝筹股PE超过40倍，"不惜任何代价"买入的信念主导市场'},
+  {y:1971,n:'尼克松关闭黄金窗口',t:'mile',d:'布雷顿森林体系终结，全球进入法币时代，通胀压力随之持续释放'},
+  {y:1973,n:'石油危机',t:'crash',d:'OPEC石油禁运，油价4倍上涨，西方陷入滞胀，凯恩斯主义失效'},
+  {y:1980,n:'沃尔克冲击',t:'mile',d:'美联储将联邦基金利率拉至20%，以衰退换通胀终结，为1980年代大牛市奠基'},
+  {y:1982,n:'拉美债务危机',t:'crash',d:'墨西哥宣告无力偿债，拉美国家相继违约，国际银行体系面临系统性风险'},
+  {y:1987,n:'黑色星期一',t:'crash',d:'程序化交易引发道指单日跌22.6%，史上最大单日跌幅，但次日市场开始反弹'},
+  {y:1990,n:'日本泡沫破裂',t:'crash',d:'日经从39000点开始漫长下跌，房地产股市双崩，失去的三十年开始'},
+  {y:1997,n:'亚洲金融风暴',t:'crash',d:'泰铢脱锚后，韩国印尼泰国相继向IMF求援，索罗斯一战成名'},
+  {y:2000,n:'互联网泡沫顶峰',t:'peak',d:'纳斯达克达到5049点历史高位，数百家.com公司估值荒诞离谱'},
+  {y:2001,n:'互联网崩溃+9·11',t:'crash',d:'纳斯达克跌去78%，叠加9·11恐袭，美联储大幅降息为地产泡沫埋下伏笔'},
+  {y:2003,n:'触底反弹',t:'recov',d:'美联储降息至1%，地产与信贷扩张周期开始，全球流动性开始泛滥'},
+  {y:2007,n:'次贷危机苗头',t:'peak',d:'美国房价见顶，MBS与CDO市场出现裂缝，部分对冲基金已爆仓'},
+  {y:2008,n:'全球金融危机',t:'crash',d:'雷曼兄弟倒闭（9月15日），百年最大金融危机，道指跌54%，信贷市场冻结'},
+  {y:2009,n:'量化宽松元年',t:'mile',d:'美联储推出QE1，开启全球央行大实验，道指在3月见底后开启十年牛市'},
+  {y:2011,n:'欧债危机',t:'crash',d:'希腊主权债务危机蔓延至意大利西班牙，欧元区面临解体风险'},
+  {y:2015,n:'中国股灾',t:'crash',d:'A股从5178点腰斩，场外配资杠杆崩溃，政府动用万亿护市'},
+  {y:2018,n:'贸易战+美股闪崩',t:'crash',d:'中美贸易战打响，美联储加息缩表，科技股四季度暴跌'},
+  {y:2020,n:'新冠崩盘与极速复苏',t:'crash',d:'史上最快33%暴跌（23天）后史上最快反弹，美联储推出无限QE'},
+  {y:2021,n:'通胀元年·万物牛',t:'peak',d:'加密货币、成长股、大宗商品同步狂欢，美联储固执认为通胀"暂时"'},
+  {y:2022,n:'加息周期·成长股熊市',t:'crash',d:'最激进加息周期（4.5%），成长股跌70-90%，债券熊市创百年纪录'},
+  {y:2023,n:'AI元年',t:'mile',d:'ChatGPT引爆大模型革命，英伟达市值登顶，算力需求暴增'},
+  {y:2025,n:'AI基础设施峰值？',t:'spec',d:'全球算力军备竞赛，万亿美元涌入数据中心，AI产业化能否追上估值？',p:1},
+];
+
+const ECOL = {crash:'#ef4444',peak:'#f59e0b',mile:'#3b82f6',recov:'#22c55e',geo:'#a855f7',spec:'#6b7280'};
+const ELAB = {crash:'崩溃',peak:'顶峰',mile:'里程碑',recov:'复苏',geo:'地缘',spec:'预测'};
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+
+const wrap = document.getElementById('wrap');
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const tip = document.getElementById('tip');
+
+let sc = 9, px = 80;
+let cW = 0, cH = 0; // logical (CSS-pixel) canvas dimensions
+const Y0 = 1840;
+
+const L = {k:true,b:true,e:true,f:true};
+
+// Layout
+const T = {
+  KT:38, KH:148, KM:112,
+  BT:202, BH:148, BM:276,
+  ET:366, EH:148,
+  AB:530,
+};
+const AMP = 58;
+
+const EROW = {
+  crash: T.ET+22,
+  peak:  T.ET+52,
+  mile:  T.ET+82,
+  recov: T.ET+112,
+  geo:   T.ET+138,
+  spec:  T.ET+138,
+};
+
+// ── COORDS ───────────────────────────────────────────────────────────────
+
+const yx = y => (y - Y0) * sc + px;
+const xy = x => (x - px) / sc + Y0;
+const vis = x => x > -60 && x < cW + 60;
+
+// ── SPLINE ───────────────────────────────────────────────────────────────
+
+function spline(pts, t=0.38) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i=0; i<pts.length-1; i++) {
+    const p0 = pts[Math.max(0,i-1)], p1=pts[i], p2=pts[i+1], p3=pts[Math.min(pts.length-1,i+2)];
+    ctx.bezierCurveTo(
+      p1.x+(p2.x-p0.x)*t, p1.y+(p2.y-p0.y)*t,
+      p2.x-(p3.x-p1.x)*t, p2.y-(p3.y-p1.y)*t,
+      p2.x, p2.y
+    );
+  }
+  ctx.stroke();
+}
+
+function splineFill(pts, midY, t=0.38) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, midY);
+  ctx.lineTo(pts[0].x, pts[0].y);
+  for (let i=0; i<pts.length-1; i++) {
+    const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+    ctx.bezierCurveTo(
+      p1.x+(p2.x-p0.x)*t, p1.y+(p2.y-p0.y)*t,
+      p2.x-(p3.x-p1.x)*t, p2.y-(p3.y-p1.y)*t,
+      p2.x, p2.y
+    );
+  }
+  ctx.lineTo(pts[pts.length-1].x, midY);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ── DRAW FUNCTIONS ────────────────────────────────────────────────────────
+
+function drawGrid() {
+  const s = Math.floor(xy(0)/10)*10, e = Math.ceil(xy(cW)/10)*10+10;
+  ctx.strokeStyle='#13131d'; ctx.lineWidth=1;
+  for (let y=s; y<=e; y+=10) {
+    const x=Math.round(yx(y))+.5;
+    if (!vis(x)) continue;
+    ctx.beginPath(); ctx.moveTo(x,T.KT); ctx.lineTo(x,T.AB); ctx.stroke();
+  }
+  ctx.strokeStyle='#1a1a28'; ctx.lineWidth=1;
+  [T.KT,T.BT-6,T.ET-6,T.AB].forEach(y=>{
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cW,y); ctx.stroke();
+  });
+  ctx.setLineDash([3,7]); ctx.strokeStyle='#18182a';
+  [T.KM,T.BM].forEach(y=>{
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(cW,y); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+}
+
+function drawAxis() {
+  const interval = sc<5?20:sc<12?10:5;
+  const s=Math.floor(xy(0)/interval)*interval, e=Math.ceil(xy(cW)/interval)*interval+interval;
+  ctx.font='10px system-ui'; ctx.textAlign='center';
+  for (let y=s; y<=e; y+=interval) {
+    const x=yx(y); if (!vis(x)) continue;
+    ctx.fillStyle='#252535';
+    ctx.fillRect(Math.round(x)-.5, T.AB-1, 1, 5);
+    ctx.fillStyle='#3a3a52';
+    ctx.fillText(y, x, T.AB+15);
+  }
+  ctx.textAlign='left'; ctx.font='9px system-ui'; ctx.fillStyle='#252535';
+  if (L.k) ctx.fillText('康德拉季耶夫', 6, T.KT+14);
+  if (L.b) ctx.fillText('本纳周期', 6, T.BT+4);
+  if (L.e) ctx.fillText('历史事件', 6, T.ET+4);
+}
+
+function drawToday() {
+  const now = new Date();
+  const nowY = now.getFullYear() + now.getMonth() / 12;
+  const x = Math.round(yx(nowY));
+  if (!vis(x)) return;
+  ctx.save();
+  // Glowing dashed line
+  ctx.shadowColor = '#22c55e';
+  ctx.shadowBlur = 8;
+  ctx.setLineDash([3,4]);
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = .85;
+  ctx.beginPath(); ctx.moveTo(x, T.KT); ctx.lineTo(x, T.AB); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  // Label with dark bg for readability
+  const lw = 26, lh = 14;
+  ctx.fillStyle = '#09090f';
+  ctx.fillRect(x - lw/2, T.KT - lh - 2, lw, lh);
+  ctx.fillStyle = '#22c55e';
+  ctx.font = 'bold 10px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillText('今日', x, T.KT - 5);
+  ctx.restore();
+}
+
+function drawKondratiev() {
+  const data = KD.filter(p=>L.f||!p.p);
+  if (data.length<2) return;
+  const all = data.map(p=>({x:yx(p.y), y:T.KM-p.v*AMP}));
+  const solid = all.filter((_,i)=>!data[i].p);
+  const pi = data.findIndex(p=>p.p);
+
+  // fill
+  const g=ctx.createLinearGradient(0,T.KM-AMP,0,T.KM+AMP);
+  g.addColorStop(0,'rgba(59,130,246,.14)');
+  g.addColorStop(.5,'rgba(59,130,246,.03)');
+  g.addColorStop(1,'rgba(59,130,246,.1)');
+  ctx.fillStyle=g;
+  splineFill(solid, T.KM);
+
+  // solid line
+  ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2; ctx.globalAlpha=.85;
+  ctx.setLineDash([]);
+  if (solid.length>1) spline(solid);
+
+  // predicted line
+  if (L.f && pi>0) {
+    const pred=all.slice(pi-1);
+    ctx.setLineDash([6,5]); ctx.globalAlpha=.35;
+    spline(pred);
+    ctx.setLineDash([]);
+  }
+  ctx.globalAlpha=1;
+
+  // dots + labels
+  ctx.font='9px system-ui'; ctx.textAlign='center';
+  data.forEach((p,i)=>{
+    const x=yx(p.y), y=T.KM-p.v*AMP;
+    if (!vis(x)) return;
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fillStyle=p.p?'rgba(59,130,246,.35)':'#3b82f6';
+    ctx.fill();
+    if (Math.abs(p.v)>.7 && sc>2.5) {
+      ctx.fillStyle=p.p?'rgba(59,130,246,.3)':'rgba(59,130,246,.65)';
+      ctx.fillText(p.lb.split('（')[0], x, p.v>0?y-10:y+18);
+    }
+  });
+}
+
+function drawBenner() {
+  const data = BN.filter(p=>L.f||!p.p);
+  if (data.length<2) return;
+  const all=data.map(p=>({x:yx(p.y),y:T.BM-p.v*AMP}));
+  const solid=all.filter((_,i)=>!data[i].p);
+  const pi=data.findIndex(p=>p.p);
+
+  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2; ctx.setLineDash([]);
+  if (solid.length>1) { ctx.globalAlpha=.75; spline(solid); ctx.globalAlpha=1; }
+
+  if (L.f && pi>0) {
+    const pred=all.slice(pi-1);
+    ctx.setLineDash([5,5]); ctx.globalAlpha=.3;
+    spline(pred);
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+  }
+
+  ctx.font='9px system-ui'; ctx.textAlign='center';
+  data.forEach((p,i)=>{
+    const x=yx(p.y), y=T.BM-p.v*AMP;
+    if (!vis(x)||p.t==='mid') return;
+    const hi=p.t==='high';
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle=p.p?(hi?'rgba(245,158,11,.3)':'rgba(239,68,68,.3)'):(hi?'#f59e0b':'#ef4444');
+    ctx.fill();
+    if (sc>3) {
+      ctx.fillStyle=p.p?'rgba(180,130,50,.35)':'rgba(180,140,60,.65)';
+      ctx.fillText(p.y, x, hi?y-10:y+18);
+    }
+  });
+}
+
+function drawEvents() {
+  const evs = EV.filter(e=>L.f||!e.p);
+  Object.entries(EROW).forEach(([t,y])=>{
+    if (t==='spec') return;
+    ctx.font='9px system-ui'; ctx.textAlign='left';
+    ctx.fillStyle=(ECOL[t]||'#fff')+'50';
+    ctx.fillText(ELAB[t]||'', 6, y+3);
+  });
+  // track last x where a year label was drawn per row, to avoid crowding
+  const lastLX = {};
+  evs.forEach(e=>{
+    const x=yx(e.y); if (!vis(x)) return;
+    const ry=EROW[e.t]??EROW.crash;
+    const col=ECOL[e.t]??'#888';
+    const fut=!!e.p;
+    ctx.beginPath(); ctx.moveTo(x,T.AB-3); ctx.lineTo(x,ry+7);
+    ctx.strokeStyle=col+(fut?'28':'22'); ctx.lineWidth=1; ctx.setLineDash([]); ctx.stroke();
+    ctx.beginPath(); ctx.arc(x,ry,5,0,Math.PI*2);
+    ctx.fillStyle=fut?col+'48':col; ctx.fill();
+    if (sc > 5 && x-(lastLX[ry]??-999) >= 22) {
+      ctx.font='9px system-ui'; ctx.textAlign='center';
+      ctx.fillStyle=fut?col+'55':col+'99';
+      ctx.fillText(e.y, x, ry+17);
+      lastLX[ry] = x;
+    }
+  });
+}
+
+function render() {
+  const W=cW, H=cH;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#09090f'; ctx.fillRect(0,0,W,H);
+  if (L.k){ctx.fillStyle='rgba(59,130,246,.022)';ctx.fillRect(0,T.KT,W,T.KH)}
+  if (L.b){ctx.fillStyle='rgba(245,158,11,.015)';ctx.fillRect(0,T.BT-6,W,T.BH)}
+  if (L.e){ctx.fillStyle='rgba(255,255,255,.01)';ctx.fillRect(0,T.ET-6,W,T.EH+6)}
+  drawGrid(); drawToday();
+  if (L.k) drawKondratiev();
+  if (L.b) drawBenner();
+  if (L.e) drawEvents();
+  drawAxis();
+}
+
+// ── INTERACTION ───────────────────────────────────────────────────────────
+
+function applyDpr() {
+  const dpr = window.devicePixelRatio || 1;
+  const r = wrap.getBoundingClientRect();
+  cW = r.width; cH = r.height;
+  c.width = cW * dpr; c.height = cH * dpr;
+  c.style.width = cW + 'px'; c.style.height = cH + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function resize() { applyDpr(); render(); }
+window.addEventListener('resize', resize);
+
+wrap.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const mx=e.offsetX, my=xy(mx);
+  const f=e.deltaY<0?1.13:.9;
+  sc=Math.max(1.5,Math.min(90,sc*f));
+  px=mx-(my-Y0)*sc;
+  render();
+},{passive:false});
+
+let drag=false,dx0=0,px0=0;
+wrap.addEventListener('mousedown',e=>{if(e.button!==0)return;drag=true;dx0=e.clientX;px0=px;wrap.classList.add('drag')});
+window.addEventListener('mousemove',e=>{if(drag){px=px0+(e.clientX-dx0);render()}hover(e)});
+window.addEventListener('mouseup',()=>{drag=false;wrap.classList.remove('drag')});
+
+// touch
+let lt=0,lx0=0,lpx0=0;
+wrap.addEventListener('touchstart',e=>{
+  if(e.touches.length===1){lx0=e.touches[0].clientX;lpx0=px}
+  else if(e.touches.length===2) lt=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+},{passive:true});
+wrap.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  if(e.touches.length===1){px=lpx0+(e.touches[0].clientX-lx0);render()}
+  else if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+    const mx=(e.touches[0].clientX+e.touches[1].clientX)/2-wrap.getBoundingClientRect().left;
+    const my=xy(mx); const f=d/lt;
+    sc=Math.max(1.5,Math.min(90,sc*f)); px=mx-(my-Y0)*sc; lt=d; render();
+  }
+},{passive:false});
+
+// hover / tooltip
+function hover(e) {
+  if (drag){tip.classList.remove('on');return}
+  const r=wrap.getBoundingClientRect();
+  const cx=e.clientX-r.left, cy=e.clientY-r.top;
+  if(cx<0||cx>cW||cy<0||cy>cH){tip.classList.remove('on');return}
+
+  let found=null;
+
+  if (L.e) {
+    for(const ev of EV){
+      if(!L.f&&ev.p) continue;
+      const ex=yx(ev.y), ey=EROW[ev.t]??EROW.crash;
+      if(Math.hypot(cx-ex,cy-ey)<13){
+        found={yr:ev.y,name:ev.n,type:ev.t,desc:ev.d}; break;
+      }
+    }
+  }
+
+  if(!found&&L.k){
+    for(const kp of KD){
+      if(!L.f&&kp.p) continue;
+      const kx=yx(kp.y), ky=T.KM-kp.v*AMP;
+      if(Math.hypot(cx-kx,cy-ky)<15){
+        found={yr:kp.y,name:kp.lb,type:'k_'+kp.ph,desc:'康德拉季耶夫长波 · '+KD_DESC[kp.ph]}; break;
+      }
+    }
+  }
+
+  if(!found&&L.b){
+    for(const bp of BN){
+      if(!L.f&&bp.p) continue;
+      if(bp.t==='mid') continue;
+      const bx=yx(bp.y), by=T.BM-bp.v*AMP;
+      if(Math.hypot(cx-bx,cy-by)<15){
+        const hi=bp.t==='high';
+        found={yr:bp.y,name:`本纳周期 ${hi?'顶部（卖出信号）':'底部（买入信号）'}`,type:hi?'peak':'crash',
+               desc:`本纳周期预测${bp.p?'（预测）':''} ${hi?'上升周期顶点，警惕见顶回落':'下降周期底部，或为逢低布局机会'}`}; break;
+      }
+    }
+  }
+
+  if(found){
+    const col=ECOL[found.type]??(found.type.startsWith('k_')?'#3b82f6':'#888');
+    const lab=ELAB[found.type]??(found.type.startsWith('k_spring')?'K春':found.type.startsWith('k_summer')?'K夏':found.type.startsWith('k_autumn')?'K秋':'K冬');
+    document.getElementById('tip-yr').textContent=found.yr+' 年';
+    const badge=document.getElementById('tip-badge');
+    badge.textContent=lab; badge.style.background=col+'2a'; badge.style.color=col;
+    document.getElementById('tip-name').textContent=found.name;
+    document.getElementById('tip-desc').textContent=found.desc;
+    const tw=290, tx=e.clientX+18>window.innerWidth-tw?e.clientX-tw-18:e.clientX+18;
+    tip.style.left=tx+'px'; tip.style.top=(e.clientY-8)+'px';
+    tip.classList.add('on');
+  } else {
+    tip.classList.remove('on');
+  }
+}
+
+// controls
+document.getElementById('tK').onchange=e=>{L.k=e.target.checked;render()};
+document.getElementById('tB').onchange=e=>{L.b=e.target.checked;render()};
+document.getElementById('tE').onchange=e=>{L.e=e.target.checked;render()};
+document.getElementById('tF').onchange=e=>{L.f=e.target.checked;render()};
+
+document.querySelectorAll('.jbtn').forEach(btn=>{
+  btn.onclick=()=>{
+    const ty=parseInt(btn.dataset.y);
+    px=cW*0.38-(ty-Y0)*sc;
+    render();
+  };
+});
+
+// init
+function init(){
+  applyDpr();
+  sc=9; px=cW*0.28-(1950-Y0)*sc;
+  render();
+}
+init();
+</script>
+</body>
+</html>

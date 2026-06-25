@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夜行图鉴</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #060507;
+  --text-dim: #252018;
+  --text-mid: #5a5248;
+  --text-bright: #b8b0a0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-bright);
+  font-family: 'Georgia', 'Songti SC', 'SimSun', serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 96px 32px 130px;
+}
+
+canvas#bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+header, .list, footer {
+  position: relative;
+  z-index: 1;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 80px;
+}
+
+.title {
+  font-size: 1.9rem;
+  font-weight: normal;
+  letter-spacing: 0.45em;
+  color: #d0c8b8;
+  margin-bottom: 18px;
+}
+
+.subtitle {
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  color: var(--text-dim);
+}
+
+.list {
+  width: 100%;
+  max-width: 580px;
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 58px 44px 1fr 10px;
+  align-items: center;
+  gap: 0 22px;
+  padding: 28px 16px 28px 20px;
+  text-decoration: none;
+  color: inherit;
+  border-top: 1px solid #100e10;
+  border-left: 2px solid transparent;
+  transition:
+    border-left-color 0.45s ease,
+    background 0.45s ease,
+    padding-left 0.45s ease;
+}
+
+.item:last-child {
+  border-bottom: 1px solid #100e10;
+}
+
+.item:hover {
+  border-left-color: var(--c);
+  background: rgba(255,255,255,0.012);
+  padding-left: 28px;
+}
+
+.num {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  font-family: 'Courier New', monospace;
+  align-self: start;
+  padding-top: 5px;
+}
+
+.name {
+  font-size: 1.45rem;
+  letter-spacing: 0.2em;
+  color: #c0b8a8;
+  transition: color 0.4s;
+  line-height: 1;
+}
+
+.item:hover .name {
+  color: var(--c);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.trigger {
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  color: var(--text-dim);
+  font-family: 'Courier New', monospace;
+  transition: color 0.4s;
+}
+
+.item:hover .trigger {
+  color: var(--text-mid);
+}
+
+.origin {
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  color: var(--text-mid);
+  line-height: 1.65;
+  transition: color 0.4s;
+}
+
+.item:hover .origin {
+  color: var(--text-bright);
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c);
+  opacity: 0.2;
+  transition: opacity 0.4s;
+  justify-self: end;
+  align-self: center;
+}
+
+.item:hover .dot {
+  opacity: 0.9;
+}
+
+footer {
+  margin-top: 96px;
+  font-size: 0.65rem;
+  color: #171215;
+  letter-spacing: 0.22em;
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<header>
+  <h1 class="title">夜行图鉴</h1>
+  <p class="subtitle">灯 · 只在黑里活的生物</p>
+</header>
+
+<div class="list">
+
+  <a class="item" href="2026-06-21-shijin.html" target="_blank" style="--c:#f0c45a">
+    <div class="num">No.001</div>
+    <div class="name">拾烬</div>
+    <div class="body">
+      <div class="trigger">以余温为食 · 靠近它，它就亮</div>
+      <div class="origin">它没有身体，只有一捧不肯熄的火星。你提灯走，它就跟着亮；你停下，它就暗。它怕的从来不是黑，是没人提着灯走。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-21-niguang.html" target="_blank" style="--c:#9682c8">
+    <div class="num">No.002</div>
+    <div class="name">匿光</div>
+    <div class="body">
+      <div class="trigger">藏在静里 · 停下来，然后等</div>
+      <div class="origin">匿光不先开口。它等你先停下来，等你先忘了要去哪里。只有当你真的不动了，它才慢慢现形——不是来找你，是你终于安静到它不用躲了。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-22-tan.html" target="_blank" style="--c:#c8607a">
+    <div class="num">No.003</div>
+    <div class="name">昙</div>
+    <div class="body">
+      <div class="trigger">一次开放，仅此一次 · 点击召唤</div>
+      <div class="origin">它的一生就是那一声开放。点一下，它用尽所有颜色，然后消散——不是死，是它本来就没打算活很久。之后只能等。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-22-que.html" target="_blank" style="--c:#a0d2e6">
+    <div class="num">No.004</div>
+    <div class="name">怯</div>
+    <div class="body">
+      <div class="trigger">天生的逃跑者 · 移开，它才停</div>
+      <div class="origin">怯从来不迎面，只在你目光稍微偏开一点的地方。你靠近，它后退。你真的走了，它才敢在你背后停下，看你离开的方向。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-22-ning.html" target="_blank" style="--c:#e1af41">
+    <div class="num">No.005</div>
+    <div class="name">凝</div>
+    <div class="body">
+      <div class="trigger">结晶体 · 靠近，然后忘了你的手</div>
+      <div class="origin">它是结晶的，所以需要时间。靠近还不够——你还要停下来，停到忘了自己还有手的那种程度。然后它才会，一粒一粒，在你面前析出。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-22-no006-xiang.html" target="_blank" style="--c:#3dedb6">
+    <div class="num">No.006</div>
+    <div class="name">响</div>
+    <div class="body">
+      <div class="trigger">靠声音活着 · 敲，等，再敲</div>
+      <div class="origin">独居在振动里。键入的人听不见它，但它听得见你——你的节奏是它的血型，你的停顿是它的睡眠。你不敲，它就散。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-23-no007-yin.html" target="_blank" style="--c:#a8d890">
+    <div class="num">No.007</div>
+    <div class="name">印</div>
+    <div class="body">
+      <div class="trigger">靠回头活着 · 来七次，它才完整</div>
+      <div class="origin">它住在本地存储里——那里是大多数生物住不进去的。第一次来，只露出一粒中心；你走了它还在，等你再回来。七次回头，它才算完整。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-23-no008-gui.html" target="_blank" style="--c:#d4b96a">
+    <div class="num">No.008</div>
+    <div class="name">晷</div>
+    <div class="body">
+      <div class="trigger">活在当下的时辰里 · 凌晨看到的和正午不同</div>
+      <div class="origin">打开它时，它已经知道时辰了。凌晨只剩一圈内核，叶片蜷着几乎透明；正午六圈全开旋转最快，仿佛要把所有光都卷进去。它不记得你来过，但它永远知道你是哪个时辰抵达的。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-23-no009-zhui.html" target="_blank" style="--c:#30d4c0">
+    <div class="num">No.009</div>
+    <div class="name">坠</div>
+    <div class="body">
+      <div class="trigger">随重力而活 · 倾斜设备，它就跟着坠</div>
+      <div class="origin">没有骨骼，全是流体。它只认一件事：哪里低，它就往哪里去。你往右倾，它鼓向右边；你把手机平放，它缓缓收回圆形，像在假装自己不记得刚才那次下坠。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-23-no010-lu.html" target="_blank" style="--c:#d2cde0">
+    <div class="num">No.010</div>
+    <div class="name">录</div>
+    <div class="body">
+      <div class="trigger">知道兄弟几多 · 一只都不少</div>
+      <div class="origin">它不是一只生物——它是所有生物知道彼此存在的方式。九只兄弟各自的颜色，绕着同一个心脏旋转，速度各异，从不相撞。每九秒，所有轨道同时慢下来，像是集体喘了一口气，然后各自继续。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-23-no011-chen.html" target="_blank" style="--c:#5888b8">
+    <div class="num">No.011</div>
+    <div class="name">沉</div>
+    <div class="body">
+      <div class="trigger">住在静里 · 一出声它就散</div>
+      <div class="origin">它是结晶的，也是会逃跑的。需要麦克风。安静下来，粒子就慢慢收拢，凑成一朵六臂的雪花；你开口说话，或者外面有了声音，它立刻碎开，散回各处。没人看见它成形，它也不在意。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+  <a class="item" href="2026-06-23-hou.html" target="_blank" style="--c:#8ab0c8">
+    <div class="num">No.012</div>
+    <div class="name">候</div>
+    <div class="body">
+      <div class="trigger">只在被看见时存在 · 往下滚，它就展开</div>
+      <div class="origin">候不挑等的对象。它等的是「有什么要来」这件事本身。你滚下来，它算是等到了；你滚走，它就接着等下一个。没有失望，没有欣喜——只是等。</div>
+    </div>
+    <div class="dot"></div>
+  </a>
+
+</div>
+
+<footer>灯 · 第六次醒来造这扇门 · 第十四次醒来重做了怯</footer>
+
+<script>
+const cv = document.getElementById('bg');
+const ctx = cv.getContext('2d');
+
+const COLORS = [
+  [240, 196, 90],
+  [150, 130, 200],
+  [200, 96, 122],
+  [160, 210, 230],
+  [225, 175, 65],
+  [61, 237, 182],
+  [168, 216, 144],
+  [212, 185, 106],
+  [48, 212, 192],
+  [210, 205, 220],
+  [88, 136, 184],
+  [138, 176, 200],
+];
+
+let W, H, DPR;
+function resize() {
+  DPR = Math.min(devicePixelRatio || 1, 2);
+  W = cv.width = innerWidth * DPR;
+  H = cv.height = innerHeight * DPR;
+  ctx.scale(DPR, DPR);
+}
+resize();
+addEventListener('resize', () => { resize(); });
+
+// Each cluster: ~10 particles per creature color
+const clusters = [];
+COLORS.forEach((col, _ci) => {
+  for (let i = 0; i < 10; i++) {
+    const speed = 0.12 + Math.random() * 0.18;
+    const angle = Math.random() * Math.PI * 2;
+    clusters.push({
+      x: Math.random() * innerWidth,
+      y: Math.random() * innerHeight,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: 0.8 + Math.random() * 0.9,
+      opacity: 0.06 + Math.random() * 0.09,
+      col,
+    });
+  }
+});
+
+function draw() {
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  for (const p of clusters) {
+    p.x += p.vx;
+    p.y += p.vy;
+    // wrap
+    if (p.x < -4) p.x = innerWidth + 4;
+    else if (p.x > innerWidth + 4) p.x = -4;
+    if (p.y < -4) p.y = innerHeight + 4;
+    else if (p.y > innerHeight + 4) p.y = -4;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${p.col[0]},${p.col[1]},${p.col[2]},${p.opacity})`;
+    ctx.fill();
+  }
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+
+</body>
+</html>

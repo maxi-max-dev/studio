@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>No.009 · 坠</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #070b0f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas { display: block; touch-action: none; }
+  #ui {
+    position: fixed;
+    bottom: 2rem;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: 'Georgia', 'STSong', 'Songti SC', serif;
+    color: #2a3d42;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    line-height: 2.1;
+    pointer-events: none;
+  }
+  #hint {
+    position: fixed;
+    top: 1.5rem;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 0.6rem;
+    letter-spacing: 0.13em;
+    color: #1a2830;
+    pointer-events: none;
+    font-family: 'Georgia', serif;
+    transition: color 1s;
+  }
+  #hint.active { color: #2e5060; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">倾斜设备感受重力 · 桌面请移动鼠标</div>
+<div id="ui">No.009 &nbsp;·&nbsp; 坠<br><span id="status">它漂浮着，等待下坠</span></div>
+
+<script>
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+const statusEl = document.getElementById('status');
+const hintEl = document.getElementById('hint');
+
+let W, H, cx, cy, R;
+function resize() {
+  W = cvs.width = window.innerWidth;
+  H = cvs.height = window.innerHeight;
+  cx = W / 2; cy = H / 2;
+  R = Math.min(W, H) * 0.26;
+  resetMotes();
+}
+
+// Gravity vector (normalized, pointing toward the "heavy" side)
+let gravX = 0, gravY = 0;
+let tGravX = 0, tGravY = 0;
+let hasGyro = false;
+let lastActive = 0;
+
+function setGrav(gx, gy) {
+  const len = Math.hypot(gx, gy);
+  tGravX = len > 1 ? gx / len : gx;
+  tGravY = len > 1 ? gy / len : gy;
+  lastActive = Date.now();
+  hintEl.classList.add('active');
+}
+
+window.addEventListener('deviceorientation', e => {
+  if (e.gamma == null) return;
+  hasGyro = true;
+  const gx = (e.gamma || 0) / 48;
+  const gy = Math.max(-1, Math.min(1, ((e.beta || 0) - 15) / 55));
+  setGrav(gx, gy);
+});
+
+window.addEventListener('mousemove', e => {
+  if (hasGyro) return;
+  const mx = (e.clientX - cx) / (W * 0.44);
+  const my = (e.clientY - cy) / (H * 0.44);
+  setGrav(mx, my);
+});
+
+window.addEventListener('touchmove', e => {
+  if (hasGyro) return;
+  e.preventDefault();
+  const touch = e.touches[0];
+  const mx = (touch.clientX - cx) / (W * 0.44);
+  const my = (touch.clientY - cy) / (H * 0.44);
+  setGrav(mx, my);
+}, { passive: false });
+
+// ─── Blob outline ─────────────────────────────────────────────
+// r(θ) deforms toward gravity direction:
+// fat on the downward side, pinched at the tail (upward side)
+function blobRadius(theta, gLen, gAngle, breathe) {
+  const c = Math.cos(theta - gAngle);
+  // Deformation: bulge toward gravity (c=+1), pinch away (c=-1)
+  const deform = gLen * (0.32 * c - 0.07 * (1 - c) * (1 - c));
+  return R * (1 + deform) * (1 + breathe * 0.035);
+}
+
+// ─── Inner motes ───────────────────────────────────────────────
+const MOTE_COUNT = 16;
+const motes = [];
+function makeMote(i) {
+  return {
+    x: 0, y: 0, vx: 0, vy: 0,
+    r: 1.6 + (i % 4) * 0.55,
+    phase: (i / MOTE_COUNT) * Math.PI * 2,
+  };
+}
+function resetMotes() {
+  motes.length = 0;
+  for (let i = 0; i < MOTE_COUNT; i++) {
+    const m = makeMote(i);
+    const a = (i / MOTE_COUNT) * Math.PI * 2;
+    const d = R * (0.08 + 0.5 * (i % 3) / 2);
+    m.x = cx + Math.cos(a) * d;
+    m.y = cy + Math.sin(a) * d;
+    motes.push(m);
+  }
+}
+
+resize();
+window.addEventListener('resize', resize);
+
+// ─── Particles ─────────────────────────────────────────────────
+const PARTS = 35;
+const parts = Array.from({ length: PARTS }, () => ({
+  x: 0, y: 0, vx: 0, vy: 0, life: 0, maxLife: 0, r: 0,
+}));
+let partIdx = 0;
+function spawnPart(x, y) {
+  const p = parts[partIdx++ % PARTS];
+  p.x = x; p.y = y;
+  p.vx = (Math.random() - 0.5) * 0.6;
+  p.vy = (Math.random() - 0.5) * 0.6;
+  p.r = 1 + Math.random() * 1.5;
+  p.maxLife = p.life = 50 + Math.random() * 80;
+}
+
+let tick = 0;
+
+function draw() {
+  requestAnimationFrame(draw);
+  tick++;
+
+  // Smooth gravity (lag for weight feel)
+  gravX += (tGravX - gravX) * 0.065;
+  gravY += (tGravY - gravY) * 0.065;
+  const gLen = Math.hypot(gravX, gravY);
+  const gAngle = Math.atan2(gravY, gravX);
+
+  // Breathing
+  const breathe = Math.sin(tick * 0.019);
+
+  // Trail clear
+  ctx.fillStyle = 'rgba(7, 11, 15, 0.87)';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Gravity attractor glow ──────────────────────────────────
+  if (gLen > 0.04) {
+    const ax = cx + gravX * R * 0.58;
+    const ay = cy + gravY * R * 0.58;
+    const glow = ctx.createRadialGradient(ax, ay, 0, ax, ay, R * 0.8);
+    glow.addColorStop(0, `rgba(18, 110, 100, ${0.09 * gLen})`);
+    glow.addColorStop(1, 'rgba(18, 110, 100, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ── Build blob path ────────────────────────────────────────
+  const N = 200;
+  const blobPts = [];
+  for (let i = 0; i < N; i++) {
+    const theta = (i / N) * Math.PI * 2;
+    const r = blobRadius(theta, gLen, gAngle, breathe);
+    blobPts.push([cx + Math.cos(theta) * r, cy + Math.sin(theta) * r]);
+  }
+
+  // Outer glow (oversized blob)
+  ctx.save();
+  ctx.globalAlpha = 0.14 + 0.04 * gLen;
+  const glowPath = new Path2D();
+  for (let i = 0; i < N; i++) {
+    const theta = (i / N) * Math.PI * 2;
+    const r = blobRadius(theta, gLen, gAngle, breathe) * 1.5;
+    const x = cx + Math.cos(theta) * r;
+    const y = cy + Math.sin(theta) * r;
+    i === 0 ? glowPath.moveTo(x, y) : glowPath.lineTo(x, y);
+  }
+  glowPath.closePath();
+  const glowCx = cx + gravX * R * 0.22;
+  const glowCy = cy + gravY * R * 0.22;
+  const grdGlow = ctx.createRadialGradient(glowCx, glowCy, 0, glowCx, glowCy, R * 1.6);
+  grdGlow.addColorStop(0, '#1fcfc0');
+  grdGlow.addColorStop(0.5, '#0a5a55');
+  grdGlow.addColorStop(1, 'rgba(0,40,50,0)');
+  ctx.fillStyle = grdGlow;
+  ctx.fill(glowPath);
+  ctx.restore();
+
+  // Main body
+  const bodyPath = new Path2D();
+  blobPts.forEach(([x, y], i) => {
+    i === 0 ? bodyPath.moveTo(x, y) : bodyPath.lineTo(x, y);
+  });
+  bodyPath.closePath();
+
+  const bodyCx = cx + gravX * R * 0.18;
+  const bodyCy = cy + gravY * R * 0.18;
+  const bodyGrd = ctx.createRadialGradient(bodyCx, bodyCy, 0, cx, cy, R * 1.25);
+  bodyGrd.addColorStop(0, 'rgba(48, 210, 188, 0.52)');
+  bodyGrd.addColorStop(0.45, 'rgba(18, 120, 112, 0.36)');
+  bodyGrd.addColorStop(0.85, 'rgba(8, 55, 65, 0.28)');
+  bodyGrd.addColorStop(1, 'rgba(4, 20, 28, 0)');
+  ctx.fillStyle = bodyGrd;
+  ctx.fill(bodyPath);
+
+  // Rim
+  ctx.strokeStyle = `rgba(70, 210, 190, ${0.18 + 0.07 * gLen + 0.03 * breathe})`;
+  ctx.lineWidth = 1.2;
+  ctx.stroke(bodyPath);
+
+  // ── Motes update ───────────────────────────────────────────
+  for (let i = 0; i < motes.length; i++) {
+    const m = motes[i];
+
+    // Pull toward gravity focus
+    const fx = cx + gravX * R * 0.52;
+    const fy = cy + gravY * R * 0.52;
+    m.vx += (fx - m.x) * 0.007 * (0.3 + gLen * 0.7);
+    m.vy += (fy - m.y) * 0.007 * (0.3 + gLen * 0.7);
+
+    // Slow ambient drift
+    const orbit = tick * 0.0035 + m.phase;
+    m.vx += Math.cos(orbit) * 0.012;
+    m.vy += Math.sin(orbit) * 0.012;
+
+    // Repel from neighbors
+    for (let j = i + 1; j < motes.length; j++) {
+      const o = motes[j];
+      const dx = m.x - o.x, dy = m.y - o.y;
+      const d = Math.hypot(dx, dy) + 0.01;
+      if (d < 22) {
+        const f = (22 - d) / 22 * 0.22;
+        m.vx += dx / d * f; m.vy += dy / d * f;
+        o.vx -= dx / d * f; o.vy -= dy / d * f;
+      }
+    }
+
+    // Contain inside blob
+    const dm = Math.hypot(m.x - cx, m.y - cy);
+    const mTheta = Math.atan2(m.y - cy, m.x - cx);
+    const maxR = blobRadius(mTheta, gLen, gAngle, breathe) * 0.8;
+    if (dm > maxR) {
+      m.x = cx + Math.cos(mTheta) * maxR;
+      m.y = cy + Math.sin(mTheta) * maxR;
+      m.vx *= -0.25; m.vy *= -0.25;
+    }
+
+    m.vx *= 0.86; m.vy *= 0.86;
+    m.x += m.vx; m.y += m.vy;
+
+    // Emit particle occasionally when moving fast
+    if (gLen > 0.15 && Math.random() < 0.025) spawnPart(m.x, m.y);
+
+    // Draw mote glow
+    const mb = Math.sin(tick * 0.028 + m.phase);
+    const mr = m.r * (1 + mb * 0.3);
+    const mg = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, mr * 5);
+    mg.addColorStop(0, 'rgba(130, 255, 238, 0.75)');
+    mg.addColorStop(0.35, 'rgba(50, 200, 175, 0.25)');
+    mg.addColorStop(1, 'rgba(20, 100, 95, 0)');
+    ctx.fillStyle = mg;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, mr * 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Mote core
+    ctx.fillStyle = 'rgba(180, 255, 245, 0.8)';
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, mr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── Particles ──────────────────────────────────────────────
+  for (const p of parts) {
+    if (p.life <= 0) continue;
+    p.x += p.vx; p.y += p.vy;
+    p.life--;
+    const a = (p.life / p.maxLife) * 0.35;
+    ctx.fillStyle = `rgba(100, 230, 210, ${a})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── Core nucleus ───────────────────────────────────────────
+  const cR = 11 + 2.8 * breathe;
+  const cGrd = ctx.createRadialGradient(cx, cy, 0, cx, cy, cR * 3.2);
+  cGrd.addColorStop(0, `rgba(210, 255, 248, ${0.88 + 0.08 * breathe})`);
+  cGrd.addColorStop(0.25, 'rgba(80, 235, 210, 0.45)');
+  cGrd.addColorStop(0.7, 'rgba(20, 110, 100, 0.12)');
+  cGrd.addColorStop(1, 'rgba(10, 50, 55, 0)');
+  ctx.fillStyle = cGrd;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cR * 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Status text ────────────────────────────────────────────
+  if (gLen < 0.05) {
+    statusEl.textContent = '它漂浮着，等待下坠';
+  } else {
+    const deg = Math.round(gLen * 45);
+    const dirs = [
+      [1, 0, '向右'], [-1, 0, '向左'],
+      [0, 1, '向前'], [0, -1, '向后'],
+    ];
+    const best = dirs.reduce((b, d) =>
+      d[0] * gravX + d[1] * gravY > b.dot
+        ? { label: d[2], dot: d[0] * gravX + d[1] * gravY }
+        : b,
+      { label: '', dot: -Infinity }
+    );
+    statusEl.textContent = `倾 ${deg}° · 它${best.label}坠落`;
+  }
+}
+
+draw();
+</script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夜行图鉴 · No.010 · 录</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #060507;
+  overflow: hidden;
+  font-family: 'Georgia', 'Songti SC', 'SimSun', serif;
+}
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.label {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+.name {
+  font-size: 1.25rem;
+  color: #4a4540;
+  letter-spacing: 0.5em;
+  margin-bottom: 12px;
+}
+.sub {
+  font-size: 0.64rem;
+  color: #28222a;
+  letter-spacing: 0.22em;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="label">
+  <div class="name">录</div>
+  <div class="sub">No.010 · 知道兄弟几多 · 一只都不少</div>
+</div>
+<script>
+// Nine siblings, inner orbit to outer orbit
+const SIBLINGS = [
+  { name: '拾烬', color: [240, 196,  90] },
+  { name: '匿光', color: [150, 130, 200] },
+  { name: '昙',   color: [200,  96, 122] },
+  { name: '怯',   color: [160, 210, 230] },
+  { name: '凝',   color: [225, 175,  65] },
+  { name: '响',   color: [ 61, 237, 182] },
+  { name: '印',   color: [168, 216, 144] },
+  { name: '晷',   color: [212, 185, 106] },
+  { name: '坠',   color: [ 48, 212, 192] },
+];
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width  = innerWidth  * DPR;
+  cv.height = innerHeight * DPR;
+  ctx.scale(DPR, DPR);
+}
+resize();
+window.addEventListener('resize', () => {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  resize();
+});
+
+const N = SIBLINGS.length; // 9
+
+const orbits = SIBLINGS.map((s, i) => {
+  const t       = i / (N - 1);                          // 0=innermost, 1=outermost
+  const r_frac  = 0.078 + t * 0.36;                     // fraction of R
+  const period  = 4.5   + Math.pow(t, 0.75) * 18;      // 4.5s → 22.5s
+  const dir     = (i % 2 === 0) ? 1 : -1;               // alternating CW / CCW
+  const phase0  = (i / N) * Math.PI * 2 * 0.618;       // golden-ratio spread
+  const trailArc = Math.PI * (0.52 - t * 0.16);        // inner=longer tail
+  return { ...s, r_frac, period, dir, angle: phase0, trailArc };
+});
+
+let t0 = null, prevTs = null;
+
+function draw(ts) {
+  if (t0 === null) t0 = ts;
+  const elapsed = (ts - t0) / 1000;
+  const dt      = prevTs === null ? 0 : (ts - prevTs) / 1000;
+  prevTs = ts;
+
+  const cx = innerWidth  / 2;
+  const cy = innerHeight / 2;
+  const R  = Math.min(innerWidth, innerHeight) / 2;
+
+  // Collective-breath cycle: every N seconds (9s = one per sibling)
+  const CYCLE  = N;
+  const cycleT = (elapsed % CYCLE) / CYCLE;      // 0→1 repeating
+  // Slowdown in the last 13% of the cycle
+  const breathPhase = Math.max(0, (cycleT - 0.87) / 0.13);
+  const speedMult   = 1 - breathPhase * 0.92;
+  // Pulse ring expands in the first 12% of the new cycle
+  const ringFrac    = cycleT < 0.12 ? cycleT / 0.12 : 0;
+
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+
+  // ── Center glow ──────────────────────────────────────────────
+  const cgR = R * 0.05;
+  const cg  = ctx.createRadialGradient(cx, cy, 0, cx, cy, cgR * 3);
+  cg.addColorStop(0, 'rgba(255,248,235,0.30)');
+  cg.addColorStop(1, 'rgba(255,248,235,0)');
+  ctx.fillStyle = cg;
+  ctx.beginPath();
+  ctx.arc(cx, cy, cgR * 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── Self-orbit: 录 orbiting itself, tiny silver comet ────────
+  {
+    const selfR = R * 0.030;
+    const selfAngle = elapsed * 2.6;
+    const selfArc   = Math.PI * 0.7;
+    const SELF_STEPS = 14;
+    for (let j = 0; j <= SELF_STEPS; j++) {
+      const frac   = j / SELF_STEPS;
+      const tAngle = selfAngle - (1 - frac) * selfArc;
+      const tx = cx + Math.cos(tAngle) * selfR;
+      const ty = cy + Math.sin(tAngle) * selfR;
+      ctx.beginPath();
+      ctx.arc(tx, ty, 0.6 + frac * 1.4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,248,235,${Math.pow(frac, 1.4) * 0.55})`;
+      ctx.fill();
+    }
+  }
+
+  // ── Sibling orbits ───────────────────────────────────────────
+  orbits.forEach((orb, i) => {
+    const radius = orb.r_frac * R;
+    const [r, g, b] = orb.color;
+
+    orb.angle += orb.dir * (Math.PI * 2 / orb.period) * speedMult * dt;
+
+    // Faint guide ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.048)`;
+    ctx.lineWidth   = 0.5;
+    ctx.stroke();
+
+    // Comet: tail (frac=0) → head (frac=1) along orbital arc
+    const STEPS = 44;
+    for (let j = 0; j <= STEPS; j++) {
+      const frac   = j / STEPS;
+      const tAngle = orb.angle - orb.dir * orb.trailArc * (1 - frac);
+      const tx     = cx + Math.cos(tAngle) * radius;
+      const ty     = cy + Math.sin(tAngle) * radius;
+      const op     = Math.pow(frac, 1.55) * 0.88;
+      const dotR   = 0.6 + frac * (3.6 + i * 0.13);
+      ctx.beginPath();
+      ctx.arc(tx, ty, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${op})`;
+      ctx.fill();
+    }
+  });
+
+  // ── Pulse ring (collective breath) ───────────────────────────
+  if (ringFrac > 0) {
+    const ringR  = ringFrac * R * 0.50;
+    const ringOp = (1 - ringFrac) * 0.26;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,248,235,${ringOp})`;
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+  }
+
+  requestAnimationFrame(draw);
+}
+
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

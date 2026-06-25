@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>夜行图鉴 · No.005 · 凝</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #060402; overflow: hidden; }
+canvas { position: fixed; top: 0; left: 0; cursor: none; }
+#label {
+  position: fixed; top: 24px; left: 30px;
+  color: rgba(225, 175, 65, 0.13);
+  font: 11px/1 'Georgia', serif;
+  letter-spacing: 0.22em;
+  pointer-events: none; user-select: none;
+}
+#hint {
+  position: fixed; bottom: 28px; width: 100%; text-align: center;
+  color: rgba(225, 175, 65, 0.17);
+  font: 12px/1 'Georgia', serif;
+  letter-spacing: 0.18em;
+  pointer-events: none; user-select: none;
+  animation: fadeHint 2.5s 15s forwards ease-in;
+}
+@keyframes fadeHint { to { opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="label">夜行图鉴 · No.005 · 凝</div>
+<canvas id="c"></canvas>
+<div id="hint">靠近，然后忘了你的手</div>
+<script>
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+let W, H, CX, CY;
+
+function resize() {
+  W = cvs.width = window.innerWidth;
+  H = cvs.height = window.innerHeight;
+  CX = W / 2; CY = H / 2;
+}
+resize();
+window.addEventListener('resize', resize);
+
+let mx = CX, my = CY, mPresent = false;
+let prevMx = CX, prevMy = CY;
+let smoothVel = 0;
+let stillness = 0;
+
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; mPresent = true; });
+document.addEventListener('mouseleave', () => { mPresent = false; });
+document.addEventListener('touchmove', e => {
+  mx = e.touches[0].clientX; my = e.touches[0].clientY; mPresent = true;
+}, { passive: true });
+document.addEventListener('touchend', () => { mPresent = false; });
+
+// 六折雪晶形状，一臂朝上
+function crystalPoints() {
+  const pts = [];
+  const ARMS = 6;
+  const ARM_LEN = 88;
+
+  pts.push([0, 0]);
+
+  // 主臂：6条，各7个点，从上顺时针
+  for (let arm = 0; arm < ARMS; arm++) {
+    const a = (arm / ARMS) * Math.PI * 2 - Math.PI / 2;
+    for (let i = 1; i <= 7; i++) {
+      const d = (i / 7) * ARM_LEN;
+      pts.push([Math.cos(a) * d, Math.sin(a) * d]);
+    }
+  }
+
+  // 副臂：30°偏移，各4个点，较短
+  for (let arm = 0; arm < ARMS; arm++) {
+    const a = (arm / ARMS) * Math.PI * 2 - Math.PI / 2 + Math.PI / ARMS;
+    for (let i = 1; i <= 4; i++) {
+      const d = (i / 4) * 50;
+      pts.push([Math.cos(a) * d, Math.sin(a) * d]);
+    }
+  }
+
+  // 侧枝：每条主臂55%处，±60°方向各3个点
+  for (let arm = 0; arm < ARMS; arm++) {
+    const a = (arm / ARMS) * Math.PI * 2 - Math.PI / 2;
+    const baseDist = 0.55 * ARM_LEN;
+    const bx = Math.cos(a) * baseDist;
+    const by = Math.sin(a) * baseDist;
+    for (const dir of [-1, 1]) {
+      const bAngle = a + dir * (Math.PI / 3);
+      for (let i = 1; i <= 3; i++) {
+        const bd = (i / 3) * 26;
+        pts.push([bx + Math.cos(bAngle) * bd, by + Math.sin(bAngle) * bd]);
+      }
+    }
+  }
+
+  return pts;
+}
+
+class Particle {
+  constructor(hx, hy) {
+    this.hx = hx;
+    this.hy = hy;
+    this.orbitAngle = Math.random() * Math.PI * 2;
+    this.orbitRadius = 175 + Math.random() * 110;
+    // 每帧弧度：一圈约 13-35 秒 @ 60fps
+    this.orbitSpeed = (0.004 + Math.random() * 0.006) * (Math.random() < 0.5 ? 1 : -1);
+    this.x = Math.cos(this.orbitAngle) * this.orbitRadius;
+    this.y = Math.sin(this.orbitAngle) * this.orbitRadius;
+    this.r = 0.9 + Math.random() * 1.4;
+    this.hue = 36 + Math.random() * 26;
+    this.ph = Math.random() * Math.PI * 2;
+  }
+
+  update(pres) {
+    this.orbitAngle += this.orbitSpeed;
+    const fx = Math.cos(this.orbitAngle) * this.orbitRadius;
+    const fy = Math.sin(this.orbitAngle) * this.orbitRadius;
+    const tx = fx * (1 - pres) + this.hx * pres;
+    const ty = fy * (1 - pres) + this.hy * pres;
+    const spd = 0.018 + pres * 0.045;
+    this.x += (tx - this.x) * spd;
+    this.y += (ty - this.y) * spd;
+  }
+
+  draw(pres, t) {
+    const shimmer = 0.82 + 0.18 * Math.sin(t * 1.5 + this.ph);
+    const alpha = pres * shimmer * 0.90 + (1 - pres) * 0.08;
+    if (alpha < 0.005) return;
+    const hue = this.hue + Math.sin(t * 0.21 + this.ph) * 10;
+    const sat = 40 + pres * 42;
+    const lit = 68 + pres * 20;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = `hsl(${hue}, 88%, 66%)`;
+    ctx.shadowBlur = this.r * (3 + pres * 8);
+    ctx.fillStyle = `hsl(${hue}, ${sat}%, ${lit}%)`;
+    const rr = this.r * (0.6 + pres * 0.5);
+    ctx.beginPath();
+    ctx.arc(CX + this.x, CY + this.y, rr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+const pts = crystalPoints();
+const particles = pts.map(([x, y]) => new Particle(x, y));
+
+// 中心呼吸光晕——它存在的痕迹，比怯的鬼影更微弱
+function drawBreath(pres, t) {
+  const pulse = 0.5 + 0.5 * Math.sin(t * 0.41);
+  const a = (0.022 + pres * 0.20) * pulse;
+  if (a < 0.002) return;
+  const r = 48 + pres * 60;
+  const g = ctx.createRadialGradient(CX, CY, 0, CX, CY, r);
+  g.addColorStop(0, `rgba(245, 190, 55, ${a * 1.4})`);
+  g.addColorStop(0.45, `rgba(215, 148, 30, ${a * 0.4})`);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(CX, CY, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// 当凝完全成形时，中心出现一粒极亮的核心点
+function drawCore(pres, t) {
+  if (pres < 0.85) return;
+  const a = (pres - 0.85) / 0.15;
+  const pulse = 0.7 + 0.3 * Math.sin(t * 2.1);
+  ctx.save();
+  ctx.globalAlpha = a * 0.9 * pulse;
+  ctx.shadowColor = 'rgba(255, 215, 100, 1)';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = 'rgba(255, 235, 160, 1)';
+  ctx.beginPath();
+  ctx.arc(CX, CY, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCursor() {
+  if (!mPresent) return;
+  ctx.save();
+  ctx.globalAlpha = 0.09;
+  ctx.strokeStyle = 'rgba(215, 168, 55, 0.8)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.arc(mx, my, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+let t = 0;
+
+function loop() {
+  ctx.fillStyle = 'rgba(6, 4, 2, 0.22)';
+  ctx.fillRect(0, 0, W, H);
+  t += 0.016;
+
+  // 帧速度
+  const fdx = mx - prevMx;
+  const fdy = my - prevMy;
+  smoothVel = Math.sqrt(fdx * fdx + fdy * fdy) * 0.38 + smoothVel * 0.62;
+  prevMx = mx; prevMy = my;
+
+  // 凝结逻辑：近 + 静 → 慢慢成形；一动 → 迅速消散
+  const dist = Math.hypot(mx - CX, my - CY);
+  const isClose = mPresent && dist < 115;
+  const isStill = smoothVel < 2.0;
+
+  if (isClose && isStill) {
+    stillness = Math.min(1, stillness + 0.0025);   // ~6.7s 从0到1
+  } else if (!isStill) {
+    stillness = Math.max(0, stillness - 0.055);    // ~0.3s 消散
+  } else {
+    stillness = Math.max(0, stillness - 0.010);    // 太远但静止：缓慢流失
+  }
+
+  const pres = stillness;
+  drawBreath(pres, t);
+  particles.forEach(p => { p.update(pres); p.draw(pres, t); });
+  drawCore(pres, t);
+  drawCursor();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

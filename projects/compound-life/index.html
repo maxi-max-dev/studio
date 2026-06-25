@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>万象复利</title>
+<style>
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #06060f;
+  --sf:      #0c0c1e;
+  --sf2:     #101024;
+  --bd:      #1a1a38;
+  --bd2:     #22224a;
+  --tx:      #b8b8d8;
+  --mu:      #525278;
+  --dim:     #2a2a55;
+
+  --wealth:  #e0aa38;
+  --skill:   #30c0c0;
+  --health:  #48c070;
+  --network: #9068e0;
+  --proj:    #d86050;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--tx); font-family: -apple-system, system-ui, sans-serif; font-size: 13px; overflow: hidden; }
+
+/* ───── LAYOUT ──────────────────────────────────────────────── */
+
+.app { display: grid; grid-template-rows: 50px 1fr; height: 100vh; }
+
+header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 22px; border-bottom: 1px solid var(--bd);
+}
+header h1 { font-size: 16px; font-weight: 700; letter-spacing: .14em; color: #d8d8f8; }
+header .sep { color: var(--bd2); }
+header .sub { font-size: 11px; color: var(--mu); letter-spacing: .03em; }
+
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 5px; }
+
+.preset-btn {
+  padding: 3px 10px; font-size: 10px; border-radius: 11px;
+  border: 1px solid var(--bd2); background: transparent;
+  color: var(--mu); cursor: pointer; transition: all .16s;
+}
+.preset-btn:hover { color: var(--tx); background: var(--sf2); border-color: var(--bd2); }
+.preset-btn.active { border-color: #8080b8; color: #a0a0d0; background: rgba(80,80,160,0.12); }
+
+.reset-btn {
+  padding: 3px 10px; font-size: 10px; border-radius: 11px;
+  border: 1px solid var(--bd2); background: transparent;
+  color: var(--mu); cursor: pointer; margin-left: 4px; transition: all .16s;
+}
+.reset-btn:hover { color: #e07070; border-color: #803030; }
+
+.body { display: grid; grid-template-columns: 296px 1fr; overflow: hidden; }
+
+/* ───── SIDEBAR ─────────────────────────────────────────────── */
+
+.side {
+  border-right: 1px solid var(--bd);
+  overflow-y: auto; padding: 12px 10px 20px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.side::-webkit-scrollbar { width: 3px; }
+.side::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+
+.card {
+  border: 1px solid var(--bd);
+  border-radius: 10px; overflow: hidden;
+  transition: border-color .2s;
+}
+.card[data-on="true"] { border-color: var(--c); }
+
+.card-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; cursor: pointer;
+  background: var(--sf); user-select: none;
+}
+
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--c); box-shadow: 0 0 6px var(--c);
+  flex-shrink: 0;
+}
+
+.card-name { font-size: 12px; font-weight: 600; color: #cccce8; flex: 1; }
+
+.tog {
+  width: 26px; height: 15px; border-radius: 8px;
+  background: var(--bd2); position: relative;
+  flex-shrink: 0; transition: background .18s; cursor: pointer;
+}
+.tog.on { background: var(--c); }
+.tog::after {
+  content: ''; position: absolute;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: white; top: 3px; left: 3px;
+  transition: transform .18s;
+}
+.tog.on::after { transform: translateX(11px); }
+
+.card-body { padding: 11px 12px 13px; background: var(--sf2); display: none; }
+.card.open .card-body { display: block; }
+
+.srow { margin-bottom: 9px; }
+.srow:last-child { margin-bottom: 0; }
+
+.stlabel {
+  display: flex; justify-content: space-between;
+  font-size: 10.5px; color: var(--mu); margin-bottom: 4px;
+}
+.stlabel .sv { color: var(--tx); font-variant-numeric: tabular-nums; }
+
+input[type=range] {
+  -webkit-appearance: none; width: 100%;
+  height: 2px; border-radius: 1px;
+  background: var(--bd2); outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--c, #9090c0);
+  cursor: pointer; box-shadow: 0 0 5px var(--c, #9090c0);
+}
+
+/* ───── EVENTS CARD ─────────────────────────────────────────── */
+
+.ev-add-btn {
+  font-size: 9.5px; padding: 2px 8px; border-radius: 8px;
+  border: 1px solid var(--bd2); background: transparent;
+  color: var(--mu); cursor: pointer; margin-left: auto;
+  transition: all .14s; flex-shrink: 0;
+}
+.ev-add-btn:hover, .ev-add-btn.active {
+  border-color: #6080c0; color: #8090d8; background: rgba(80,100,192,0.1);
+}
+
+.ev-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 0; border-bottom: 1px solid var(--bd);
+  font-size: 11px;
+}
+.ev-item:last-child { border-bottom: none; }
+.ev-icon-sm { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; }
+.ev-yr-tag { color: var(--mu); font-size: 10px; font-variant-numeric: tabular-nums; min-width: 24px; }
+.ev-lbl { color: var(--tx); flex: 1; font-size: 10.5px; }
+.ev-del {
+  background: none; border: none; color: var(--mu); cursor: pointer;
+  font-size: 14px; padding: 0 2px; line-height: 1; flex-shrink: 0;
+}
+.ev-del:hover { color: #e07070; }
+.ev-empty { color: var(--mu); font-size: 10px; padding: 6px 0; }
+
+/* ───── CHART AREA ──────────────────────────────────────────── */
+
+.chart-area {
+  display: flex; flex-direction: column;
+  padding: 16px 20px 14px; gap: 6px; overflow: hidden;
+}
+
+.chart-wrap { flex: 1; min-height: 0; position: relative; }
+.chart-wrap svg { display: block; width: 100%; height: 100%; }
+
+.tip {
+  position: absolute; top: 10px; right: 0;
+  background: var(--sf); border: 1px solid var(--bd2);
+  border-radius: 8px; padding: 9px 13px;
+  pointer-events: none; opacity: 0; transition: opacity .12s;
+  min-width: 148px;
+}
+.tip.show { opacity: 1; }
+.tip-yr { font-size: 10px; color: var(--mu); margin-bottom: 6px; }
+.tip-row { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-bottom: 2px; }
+.tip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.tip-nm { color: var(--mu); flex: 1; }
+.tip-v  { color: var(--tx); font-variant-numeric: tabular-nums; }
+
+/* ───── MILESTONE BAR ───────────────────────────────────────── */
+
+.ms-bar {
+  height: 26px; display: flex; align-items: center; gap: 6px;
+  overflow-x: auto; overflow-y: hidden; padding: 0 2px; flex-shrink: 0;
+}
+.ms-bar::-webkit-scrollbar { height: 2px; }
+.ms-bar::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 1px; }
+.ms-label {
+  font-size: 9px; color: var(--dim); flex-shrink: 0; white-space: nowrap;
+}
+.ms-tag {
+  display: inline-flex; align-items: center; white-space: nowrap;
+  padding: 2px 8px; border-radius: 10px;
+  border: 1px solid; font-size: 9.5px; opacity: 0.72;
+  flex-shrink: 0; cursor: default;
+}
+.ms-empty { font-size: 9.5px; color: var(--dim); }
+
+/* ───── LEGEND ──────────────────────────────────────────────── */
+
+.legend {
+  display: flex; gap: 18px; align-items: center;
+  height: 20px; flex-wrap: wrap; flex-shrink: 0;
+}
+.leg {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--mu); cursor: pointer;
+  user-select: none; transition: color .14s;
+}
+.leg:hover { color: var(--tx); }
+.leg.off { opacity: .35; }
+.leg-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* ───── EVENT DIALOG ────────────────────────────────────────── */
+
+.ev-dialog {
+  position: fixed; z-index: 200;
+  background: var(--sf); border: 1px solid var(--bd2);
+  border-radius: 12px; padding: 14px 14px 11px;
+  width: 238px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  display: none;
+}
+.ev-dialog-title {
+  font-size: 11px; color: var(--mu); margin-bottom: 10px;
+  font-weight: 600;
+}
+.ev-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 5px; margin-bottom: 9px;
+}
+.ev-type-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 4px; border-radius: 8px;
+  border: 1px solid var(--bd2); background: var(--sf2);
+  cursor: pointer; transition: all .14s; text-align: center;
+  color: inherit;
+}
+.ev-type-btn:hover { border-color: #5868b8; background: rgba(80,100,192,0.12); }
+.ev-type-icon { font-size: 15px; line-height: 1.3; }
+.ev-type-label { font-size: 10px; color: var(--tx); font-weight: 600; }
+.ev-type-desc  { font-size: 8px; color: var(--mu); }
+.ev-cancel {
+  width: 100%; padding: 5px; font-size: 10px; border-radius: 7px;
+  border: 1px solid var(--bd2); background: transparent;
+  color: var(--mu); cursor: pointer; transition: all .14s;
+}
+.ev-cancel:hover { color: var(--tx); background: var(--sf2); }
+
+/* ───── EXPORT / SNAP BUTTONS ───────────────────────────────── */
+
+.export-btn, .snap-btn {
+  padding: 3px 10px; font-size: 10px; border-radius: 11px;
+  border: 1px solid var(--bd2); background: transparent;
+  color: var(--mu); cursor: pointer; transition: all .16s;
+}
+.export-btn:hover { color: #a0d0a0; border-color: #306050; background: rgba(48,96,80,0.12); }
+.snap-btn:hover   { color: #a0b8e8; border-color: #304878; background: rgba(48,72,120,0.12); }
+
+/* ───── SNAPSHOT MODAL ──────────────────────────────────────── */
+
+.snap-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(6,6,15,0.75); display: none;
+  align-items: center; justify-content: center;
+}
+.snap-overlay.show { display: flex; }
+.snap-card {
+  background: var(--sf); border: 1px solid var(--bd2);
+  border-radius: 14px; padding: 22px 24px 18px;
+  min-width: 420px; max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.75);
+}
+.snap-hdr {
+  font-size: 14px; font-weight: 700; color: #d8d8f8;
+  margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;
+}
+.snap-close {
+  background: none; border: none; color: var(--mu);
+  cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px;
+}
+.snap-close:hover { color: var(--tx); }
+.snap-tbl {
+  width: 100%; border-collapse: collapse; font-size: 11.5px;
+}
+.snap-tbl th {
+  text-align: right; font-size: 9.5px; color: var(--mu);
+  padding: 0 8px 10px; font-weight: 600;
+  border-bottom: 1px solid var(--bd);
+}
+.snap-tbl th:first-child { text-align: left; }
+.snap-tbl td {
+  text-align: right; padding: 7px 8px;
+  border-bottom: 1px solid var(--bd);
+  font-variant-numeric: tabular-nums; color: var(--tx);
+}
+.snap-tbl td:first-child { text-align: left; }
+.snap-tbl tr:last-child td { border-bottom: none; }
+.snap-ddot {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; margin-right: 5px; vertical-align: middle;
+}
+.snap-foot { font-size: 9px; color: var(--dim); margin-top: 12px; text-align: center; }
+
+/* ───── CROSS-EFFECT NOTE ───────────────────────────────────── */
+
+.cross-note {
+  font-size: 9px; color: var(--dim);
+  text-align: right; min-height: 14px; line-height: 1.6;
+}
+
+/* ───── MOBILE ──────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  html, body { overflow: auto; height: auto; }
+  .app { height: auto; min-height: 100svh; grid-template-rows: 48px auto; overflow: visible; }
+  .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; overflow: visible; }
+  .side { border-right: none; border-bottom: 1px solid var(--bd); max-height: 220px; overflow-y: auto; }
+  .chart-area { height: 62svh; min-height: 280px; }
+  header { padding: 0 12px; gap: 8px; }
+  header h1 { font-size: 14px; }
+  header .sub { display: none; }
+  .preset-btn, .reset-btn, .export-btn, .snap-btn { padding: 2px 7px; font-size: 9px; }
+  .snap-card { min-width: 0; width: 95vw; padding: 16px; }
+  .snap-tbl th, .snap-tbl td { padding: 5px 5px; font-size: 10.5px; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>万象复利</h1>
+    <span class="sep">·</span>
+    <span class="sub">多维人生复利可视化 &nbsp;/&nbsp; 财富 · 技能 · 健康 · 人脉 · 项目</span>
+    <div class="header-actions">
+      <button class="preset-btn" data-preset="conservative">保守稳健</button>
+      <button class="preset-btn" data-preset="balanced">探索均衡</button>
+      <button class="preset-btn" data-preset="aggressive">积极进取</button>
+      <button class="snap-btn" id="snap-btn">快照</button>
+      <button class="export-btn" id="export-btn">导出 PNG</button>
+      <button class="reset-btn" id="reset-btn">重置</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <div class="side" id="side"></div>
+    <div class="chart-area">
+      <div class="chart-wrap" id="wrap">
+        <svg id="chart"></svg>
+        <div class="tip" id="tip">
+          <div class="tip-yr" id="tipyr"></div>
+          <div id="tiprows"></div>
+        </div>
+      </div>
+      <div class="ms-bar" id="ms-bar"></div>
+      <div class="legend" id="legend"></div>
+      <div class="cross-note" id="cross-note"></div>
+    </div>
+  </div>
+</div>
+
+<!-- snapshot modal -->
+<div id="snap-overlay" class="snap-overlay">
+  <div class="snap-card">
+    <div class="snap-hdr">
+      年度快照
+      <button class="snap-close" id="snap-close">×</button>
+    </div>
+    <table class="snap-tbl" id="snap-tbl"></table>
+    <div class="snap-foot">数值含维度间影响关系 · 技能影响财富收益率 · 健康影响项目执行力</div>
+  </div>
+</div>
+
+<!-- event picker dialog -->
+<div id="ev-dialog" class="ev-dialog">
+  <div class="ev-dialog-title">第 <span id="ev-yr">?</span> 年 &nbsp;·&nbsp; 添加事件</div>
+  <div class="ev-grid" id="ev-grid"></div>
+  <button id="ev-cancel" class="ev-cancel">取消</button>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════
+//  DIMENSION DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+
+const DIMS = [
+  {
+    id: 'wealth', name: '财富', color: '#e0aa38',
+    enabled: true, open: true,
+    params: {
+      init:    { l: '当前净资产（万）', min:0,   max:500, step:5,   v:50,  fmt: v=>v+'万' },
+      monthly: { l: '月净储蓄（万）',   min:0,   max:15,  step:0.5, v:2,   fmt: v=>v+'万/月' },
+      rate:    { l: '年化收益率',       min:0,   max:20,  step:0.5, v:8,   fmt: v=>v+'%' },
+      igrow:   { l: '收入年增长率',     min:-5,  max:30,  step:1,   v:10,  fmt: v=>v+'%' },
+    },
+    compute(p, t) {
+      let W = p.init;
+      const r = p.rate / 100;
+      for (let i = 0; i < t; i++) {
+        const m = p.monthly * Math.pow(1 + p.igrow / 100, i);
+        W = W * (1 + r) + m * 12;
+      }
+      return Math.max(0, W);
+    },
+    normalize(raw, p) {
+      const cap = Math.max(p.init * 80, 3000, raw * 1.2);
+      return Math.min(100, (raw / cap) * 100);
+    },
+    display(raw) {
+      if (raw >= 10000) return (raw/10000).toFixed(1) + ' 亿';
+      if (raw >= 1000)  return (raw/1000).toFixed(2) + ' 千万';
+      return raw.toFixed(0) + ' 万';
+    },
+    milestones: [
+      { val:100,   label:'百万', dir:'up' },
+      { val:1000,  label:'千万', dir:'up' },
+      { val:10000, label:'亿',   dir:'up' },
+    ],
+  },
+
+  {
+    id: 'skill', name: '技能', color: '#30c0c0',
+    enabled: true, open: false,
+    params: {
+      cur:    { l: '当前水平',   min:1,  max:90,  step:1,  v:42, fmt: v=>v+'/100' },
+      rate:   { l: '学习强度',   min:1,  max:10,  step:1,  v:5,  fmt: v=>['慢','较慢','一般','较快','快','很快','极快','飞速','顶级','天才'][v-1] },
+      ceil:   { l: '领域天花板', min:60, max:100, step:5,  v:90, fmt: v=>v+'/100' },
+      breath: { l: '多元化系数', min:0,  max:100, step:10, v:30, fmt: v=>v+'%' },
+    },
+    compute(p, t) {
+      const L = p.ceil;
+      const k = p.rate * 0.17;
+      const safe = Math.max(0.5, Math.min(L - 0.1, p.cur));
+      const t0 = Math.log(L / safe - 1) / k;
+      const primary = L / (1 + Math.exp(-k * (t - t0)));
+      const bonus = (p.breath / 100) * 12 * (1 - Math.exp(-0.07 * t));
+      return Math.min(100, primary + bonus);
+    },
+    normalize(raw) { return Math.min(100, Math.max(0, raw)); },
+    display(raw) { return raw.toFixed(0) + '/100'; },
+    milestones: [
+      { val:70, label:'专业', dir:'up' },
+      { val:85, label:'专家', dir:'up' },
+      { val:95, label:'顶尖', dir:'up' },
+    ],
+  },
+
+  {
+    id: 'health', name: '健康', color: '#48c070',
+    enabled: true, open: false,
+    params: {
+      age:     { l: '当前年龄',         min:20, max:55, step:1,   v:28,  fmt: v=>v+'岁' },
+      habits:  { l: '生活习惯分',       min:1,  max:10, step:0.5, v:6.5, fmt: v=>v+'/10' },
+      exer:    { l: '运动频次（次/周）', min:0,  max:7,  step:0.5, v:3,   fmt: v=>v+'次' },
+      sleep:   { l: '睡眠质量',         min:1,  max:10, step:0.5, v:7,   fmt: v=>v+'/10' },
+    },
+    compute(p, t) {
+      const futAge = p.age + t;
+      const peak = Math.max(0, 100 - Math.max(0, 30 - p.age) * 1.2);
+      const natural = Math.max(10, peak - Math.max(0, futAge - 30) * 0.65);
+      const hs = (p.habits/10 * 0.4 + p.exer/7 * 0.35 + p.sleep/10 * 0.25);
+      const modifier  = (hs - 0.55) * 28;
+      const compound = t * (hs - 0.5) * 0.22;
+      return Math.max(5, Math.min(100, natural + modifier + compound));
+    },
+    normalize(raw) { return Math.min(100, Math.max(0, raw)); },
+    display(raw) { return raw.toFixed(0) + '/100'; },
+    milestones: [
+      { val:88, label:'活力', dir:'up' },
+      { val:70, label:'良好↓', dir:'down' },
+      { val:55, label:'注意⚠', dir:'down' },
+    ],
+  },
+
+  {
+    id: 'network', name: '人脉', color: '#9068e0',
+    enabled: true, open: false,
+    params: {
+      strong: { l: '核心关系（人）', min:1,  max:20,  step:1,   v:5,  fmt: v=>v+'人' },
+      medium: { l: '有效关系（人）', min:5,  max:150, step:5,   v:40, fmt: v=>v+'人' },
+      invest: { l: '经营投入',       min:1,  max:10,  step:0.5, v:5,  fmt: v=>v+'/10' },
+      qual:   { l: '质量 vs 数量',   min:0,  max:100, step:10,  v:70, fmt: v=>v+'% 质量' },
+    },
+    compute(p, t) {
+      const sr = 0.06 * (p.invest / 10);
+      const sv = p.strong * Math.pow(1 + sr, t) * 5;
+      const mr = 0.1 * (1 - p.qual/100) * (p.invest / 10);
+      const mv = p.medium * Math.pow(1 + mr, t);
+      return Math.min(900, sv + mv);
+    },
+    normalize(raw) { return Math.min(100, (raw / 900) * 100); },
+    display(raw) {
+      if (raw > 500) return '超级连接者';
+      if (raw > 250) return '深度影响者';
+      if (raw > 120) return '强节点';
+      return '网络值 ' + raw.toFixed(0);
+    },
+    milestones: [
+      { val:120, label:'强节点', dir:'up' },
+      { val:250, label:'影响者', dir:'up' },
+    ],
+  },
+
+  {
+    id: 'proj', name: '项目', color: '#d86050',
+    enabled: true, open: false,
+    params: {
+      bets:    { l: '年度押注数',   min:0,  max:10,  step:1,  v:3,  fmt: v=>v+'个/年' },
+      win:     { l: '成功率',       min:5,  max:80,  step:5,  v:25, fmt: v=>v+'%' },
+      lever:   { l: '成功杠杆',     min:1,  max:50,  step:1,  v:6,  fmt: v=>v+'x' },
+      reinv:   { l: '收益复投率',   min:0,  max:100, step:10, v:60, fmt: v=>v+'%' },
+    },
+    compute(p, t) {
+      let pf = 1.0;
+      const wr = p.win / 100;
+      const ri = p.reinv / 100;
+      for (let i = 0; i < t; i++) {
+        const ann = p.bets * wr * p.lever * 0.07 * pf;
+        pf += ann * ri;
+      }
+      return Math.min(3000, Math.max(1, pf));
+    },
+    normalize(raw) {
+      return Math.min(100, (Math.log10(raw) / Math.log10(3000)) * 100);
+    },
+    display(raw) { return raw.toFixed(1) + 'x 组合'; },
+    milestones: [
+      { val:10,   label:'10x',  dir:'up' },
+      { val:100,  label:'100x', dir:'up' },
+    ],
+  },
+];
+
+// capture defaults immediately after DIMS definition
+const DEFAULTS = {};
+for (const d of DIMS) {
+  DEFAULTS[d.id] = { en: d.enabled };
+  for (const [k, p] of Object.entries(d.params)) DEFAULTS[d.id][k] = p.v;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EVENT TYPES
+// ═══════════════════════════════════════════════════════════
+
+const EVENT_TYPES = [
+  {
+    id: 'job_change', label: '跳槽涨薪', icon: '💼',
+    effects: { wealth: { monthly: 1.5, igrow: 3 }, skill: { rate: 1 } },
+    desc: '收入跃升'
+  },
+  {
+    id: 'startup', label: '创业', icon: '🚀',
+    effects: { proj: { bets: 3, win: -5, reinv: 20 }, wealth: { monthly: -1 }, skill: { rate: 2 } },
+    desc: '孤注一掷'
+  },
+  {
+    id: 'marriage', label: '成家', icon: '💍',
+    effects: { health: { habits: 0.5, sleep: 0.5 }, network: { strong: 3, invest: 1 }, wealth: { monthly: -0.8 } },
+    desc: '多了彼此'
+  },
+  {
+    id: 'major_illness', label: '大病', icon: '🤒',
+    effects: { health: { habits: -2, exer: -3, sleep: -1 }, wealth: { monthly: -0.5 }, skill: { rate: -2 } },
+    desc: '身体警报'
+  },
+  {
+    id: 'deep_learning', label: '系统进修', icon: '📚',
+    effects: { skill: { rate: 3, ceil: 5, breath: 10 }, wealth: { monthly: -0.5 } },
+    desc: '技能飞跃'
+  },
+  {
+    id: 'fitness', label: '系统健身', icon: '💪',
+    effects: { health: { exer: 2, sleep: 0.5, habits: 0.8 } },
+    desc: '体能复利'
+  },
+  {
+    id: 'relocation', label: '移居游历', icon: '✈️',
+    effects: { network: { medium: 30, invest: 1 }, skill: { breath: 15 }, health: { habits: 0.3 } },
+    desc: '扩展视野'
+  },
+  {
+    id: 'windfall', label: '意外收益', icon: '📈',
+    effects: { wealth: { monthly: 3, rate: 1 } },
+    desc: '资产跃升'
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+//  PRESETS
+// ═══════════════════════════════════════════════════════════
+
+const PRESETS = {
+  conservative: {
+    wealth:  { init:80,  monthly:4,   rate:6,  igrow:5  },
+    skill:   { cur:45,  rate:4,  ceil:80, breath:20 },
+    health:  { age:28,  habits:8,   exer:5,  sleep:8.5 },
+    network: { strong:8, medium:50,  invest:7, qual:85 },
+    proj:    { bets:1,  win:50, lever:3, reinv:20 },
+  },
+  balanced: {
+    wealth:  { init:50,  monthly:2,   rate:8,  igrow:10 },
+    skill:   { cur:42,  rate:5,  ceil:90, breath:30 },
+    health:  { age:28,  habits:6.5, exer:3,  sleep:7   },
+    network: { strong:5, medium:40,  invest:5, qual:70 },
+    proj:    { bets:3,  win:25, lever:6, reinv:60 },
+  },
+  aggressive: {
+    wealth:  { init:20,  monthly:1.5, rate:12, igrow:20 },
+    skill:   { cur:38,  rate:9,  ceil:97, breath:50 },
+    health:  { age:28,  habits:4.5, exer:1.5, sleep:5.5 },
+    network: { strong:2, medium:80,  invest:3, qual:25 },
+    proj:    { bets:8,  win:15, lever:25, reinv:90 },
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+//  STATE & PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+
+const YEARS = 30, STEPS = 91;
+let events = [];
+let addEventMode = false;
+let evCounter = 0;
+let activePreset = null;
+
+function saveState() {
+  const s = {};
+  for (const d of DIMS) {
+    s[d.id] = { en: d.enabled };
+    for (const [k, p] of Object.entries(d.params)) s[d.id][k] = p.v;
+  }
+  try { localStorage.setItem('compound-life-v2', JSON.stringify(s)); } catch {}
+}
+
+function loadState() {
+  try {
+    const s = JSON.parse(localStorage.getItem('compound-life-v2') || '{}');
+    for (const d of DIMS) {
+      if (!s[d.id]) continue;
+      if (s[d.id].en !== undefined) d.enabled = s[d.id].en;
+      for (const k of Object.keys(d.params)) {
+        if (s[d.id][k] !== undefined) d.params[k].v = s[d.id][k];
+      }
+    }
+  } catch {}
+}
+
+function saveEvents() {
+  try { localStorage.setItem('compound-life-v2-events', JSON.stringify(events)); } catch {}
+}
+
+function loadEvents() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('compound-life-v2-events') || '[]');
+    events = Array.isArray(raw) ? raw : [];
+    // restore counter
+    for (const ev of events) {
+      const n = parseInt((ev.id || '').split('_')[1]) || 0;
+      if (n > evCounter) evCounter = n;
+    }
+  } catch { events = []; }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMPUTATION WITH EVENTS
+// ═══════════════════════════════════════════════════════════
+
+function pv(d) {
+  const p = {};
+  for (const [k, x] of Object.entries(d.params)) p[k] = x.v;
+  return p;
+}
+
+function applyEvents(baseP, dim, t) {
+  if (!events.length) return baseP;
+  const p = Object.assign({}, baseP);
+  for (const ev of events) {
+    if (ev.year > t) continue;
+    const fx = ev.effects[dim.id];
+    if (!fx) continue;
+    for (const [k, delta] of Object.entries(fx)) {
+      if (p[k] !== undefined) {
+        const spec = dim.params[k];
+        p[k] = Math.max(spec.min, Math.min(spec.max, p[k] + delta));
+      }
+    }
+  }
+  return p;
+}
+
+function curve(dim) {
+  const baseP = pv(dim);
+  const pts = [];
+  for (let i = 0; i < STEPS; i++) {
+    const t = (i / (STEPS - 1)) * YEARS;
+    const p = applyEvents(baseP, dim, t);
+    const raw  = dim.compute(p, t);
+    const norm = dim.normalize(isFinite(raw) ? raw : 0, p);
+    pts.push({ t, raw: isFinite(raw) ? raw : 0, norm: Math.max(0, Math.min(100, norm || 0)) });
+  }
+  return pts;
+}
+
+function allCurves() {
+  const c = {};
+  for (const d of DIMS) c[d.id] = curve(d);
+
+  const skillD  = DIMS.find(d => d.id === 'skill');
+  const healthD = DIMS.find(d => d.id === 'health');
+  const wealthD = DIMS.find(d => d.id === 'wealth');
+  const projD   = DIMS.find(d => d.id === 'proj');
+
+  // 技能 → 财富收益率（技能标准化值每超过40分，最多额外+4%年化）
+  if (skillD.enabled && wealthD.enabled) {
+    const baseP = pv(wealthD);
+    c.wealth = Array.from({ length: STEPS }, (_, i) => {
+      const t = (i / (STEPS - 1)) * YEARS;
+      const p = { ...applyEvents(baseP, wealthD, t) };
+      const skBonus = Math.max(0, (c.skill[i].norm - 40) / 100 * 4);
+      p.rate = Math.min(25, p.rate + skBonus);
+      const raw  = wealthD.compute(p, t);
+      const norm = wealthD.normalize(isFinite(raw) ? raw : 0, p);
+      return { t, raw: isFinite(raw) ? raw : 0, norm: Math.max(0, Math.min(100, norm || 0)) };
+    });
+  }
+
+  // 健康 → 项目执行力（健康每超过40分，项目成功杠杆最多+40%）
+  if (healthD.enabled && projD.enabled) {
+    const baseP = pv(projD);
+    c.proj = Array.from({ length: STEPS }, (_, i) => {
+      const t = (i / (STEPS - 1)) * YEARS;
+      const p = { ...applyEvents(baseP, projD, t) };
+      const hMult = 1 + Math.max(0, (c.health[i].norm - 40) / 100 * 0.4);
+      p.lever = Math.min(50, p.lever * hMult);
+      const raw  = projD.compute(p, t);
+      const norm = projD.normalize(isFinite(raw) ? raw : 0, p);
+      return { t, raw: isFinite(raw) ? raw : 0, norm: Math.max(0, Math.min(100, norm || 0)) };
+    });
+  }
+
+  return c;
+}
+
+function milestones(dim, pts) {
+  const ms = [];
+  for (const m of dim.milestones || []) {
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i-1], b = pts[i];
+      let frac = null;
+      if (m.dir === 'up'   && a.raw <= m.val && b.raw > m.val) frac = (m.val - a.raw) / (b.raw - a.raw);
+      if (m.dir === 'down' && a.raw >= m.val && b.raw < m.val) frac = (a.raw - m.val) / (a.raw - b.raw);
+      if (frac !== null) {
+        ms.push({
+          t:    a.t + frac * (b.t - a.t),
+          norm: a.norm + frac * (b.norm - a.norm),
+          label: m.label,
+        });
+      }
+    }
+  }
+  return ms;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SIDEBAR
+// ═══════════════════════════════════════════════════════════
+
+function buildSide() {
+  const el = document.getElementById('side');
+  el.innerHTML = DIMS.map(d => `
+    <div class="card ${d.open ? 'open':''}" data-id="${d.id}" data-on="${d.enabled}" style="--c:${d.color}">
+      <div class="card-head">
+        <div class="dot"></div>
+        <div class="card-name">${d.name}</div>
+        <div class="tog ${d.enabled?'on':''}" data-tog="${d.id}"></div>
+      </div>
+      <div class="card-body">
+        ${Object.entries(d.params).map(([k,p]) => `
+          <div class="srow" style="--c:${d.color}">
+            <div class="stlabel">
+              <span>${p.l}</span>
+              <span class="sv" id="sv-${d.id}-${k}">${p.fmt(p.v)}</span>
+            </div>
+            <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${p.v}"
+                   data-dim="${d.id}" data-pk="${k}" style="--c:${d.color}">
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('') + buildEvCardHTML();
+}
+
+function buildEvCardHTML() {
+  const sorted = [...events].sort((a,b) => a.year - b.year);
+  const hint = addEventMode
+    ? '<span style="font-size:9px;color:#8090d8">点击图表选年份</span>'
+    : '';
+  return `
+    <div class="card open" data-id="__events__" style="--c:#6070c0">
+      <div class="card-head">
+        <div class="dot"></div>
+        <div class="card-name">人生事件</div>
+        ${hint}
+        <button id="ev-add-btn" class="ev-add-btn ${addEventMode?'active':''}">+ 添加</button>
+      </div>
+      <div class="card-body" style="display:block">
+        ${sorted.length === 0
+          ? '<div class="ev-empty">暂无事件</div>'
+          : sorted.map(ev => `
+              <div class="ev-item">
+                <span class="ev-icon-sm">${ev.icon}</span>
+                <span class="ev-yr-tag">Y${ev.year}</span>
+                <span class="ev-lbl">${ev.label}</span>
+                <button class="ev-del" data-evid="${ev.id}">×</button>
+              </div>
+            `).join('')
+        }
+      </div>
+    </div>
+  `;
+}
+
+document.getElementById('side').addEventListener('click', e => {
+  // delete event
+  const delBtn = e.target.closest('.ev-del');
+  if (delBtn) {
+    events = events.filter(ev => ev.id !== delBtn.dataset.evid);
+    saveEvents();
+    buildSide();
+    buildMsBar();
+    render();
+    return;
+  }
+
+  // toggle add-event mode
+  if (e.target.closest('#ev-add-btn')) {
+    addEventMode = !addEventMode;
+    document.getElementById('wrap').style.cursor = addEventMode ? 'crosshair' : '';
+    buildSide();
+    return;
+  }
+
+  // toggle enabled
+  const tog = e.target.closest('[data-tog]');
+  if (tog) {
+    const d = DIMS.find(x => x.id === tog.dataset.tog);
+    d.enabled = !d.enabled;
+    const card = tog.closest('.card');
+    card.dataset.on = d.enabled;
+    tog.classList.toggle('on', d.enabled);
+    render(); buildLegend(); buildMsBar(); saveState(); return;
+  }
+
+  // toggle card open/close
+  const head = e.target.closest('.card-head');
+  if (head) {
+    const card = head.closest('.card');
+    const d = DIMS.find(x => x.id === card.dataset.id);
+    if (d) { d.open = !d.open; card.classList.toggle('open', d.open); }
+  }
+});
+
+document.getElementById('side').addEventListener('input', e => {
+  if (e.target.type !== 'range') return;
+  const { dim, pk } = e.target.dataset;
+  const d = DIMS.find(x => x.id === dim);
+  d.params[pk].v = parseFloat(e.target.value);
+  const sv = document.getElementById(`sv-${dim}-${pk}`);
+  if (sv) sv.textContent = d.params[pk].fmt(d.params[pk].v);
+  schedRender(); saveState();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  LEGEND
+// ═══════════════════════════════════════════════════════════
+
+function buildLegend() {
+  document.getElementById('legend').innerHTML = DIMS.map(d => `
+    <div class="leg ${d.enabled?'':'off'}" data-id="${d.id}">
+      <div class="leg-dot" style="background:${d.color};box-shadow:0 0 4px ${d.color}"></div>
+      ${d.name}
+    </div>
+  `).join('');
+  updateCrossNote();
+}
+
+function updateCrossNote() {
+  const skillD  = DIMS.find(d => d.id === 'skill');
+  const healthD = DIMS.find(d => d.id === 'health');
+  const wealthD = DIMS.find(d => d.id === 'wealth');
+  const projD   = DIMS.find(d => d.id === 'proj');
+  const notes = [];
+  if (skillD.enabled && wealthD.enabled)
+    notes.push(`<span style="color:${skillD.color}">技能</span> ↗ <span style="color:${wealthD.color}">财富</span>收益率`);
+  if (healthD.enabled && projD.enabled)
+    notes.push(`<span style="color:${healthD.color}">健康</span> ↗ <span style="color:${projD.color}">项目</span>执行力`);
+  const el = document.getElementById('cross-note');
+  if (el) el.innerHTML = notes.length ? notes.join('　·　') : '';
+}
+
+document.getElementById('legend').addEventListener('click', e => {
+  const leg = e.target.closest('.leg');
+  if (!leg) return;
+  const d = DIMS.find(x => x.id === leg.dataset.id);
+  d.enabled = !d.enabled;
+  buildLegend(); buildSide(); buildMsBar(); render(); saveState();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  MILESTONE BAR
+// ═══════════════════════════════════════════════════════════
+
+function buildMsBar() {
+  if (!cur) return;
+  const all = [];
+  for (const d of DIMS) {
+    if (!d.enabled) continue;
+    for (const m of milestones(d, cur[d.id])) {
+      if (m.t < 0.3 || m.t > YEARS - 0.3) continue;
+      all.push({ t: m.t, label: m.label, color: d.color, name: d.name });
+    }
+  }
+  all.sort((a, b) => a.t - b.t);
+
+  const el = document.getElementById('ms-bar');
+  if (!all.length) {
+    el.innerHTML = '<span class="ms-empty">暂无可见里程碑</span>';
+    return;
+  }
+  el.innerHTML = '<span class="ms-label">关键时刻</span>' + all.map(m =>
+    `<span class="ms-tag" style="border-color:${m.color};color:${m.color}">Y${Math.round(m.t)} ${m.name}·${m.label}</span>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHART
+// ═══════════════════════════════════════════════════════════
+
+const PAD = { t:18, r:18, b:28, l:32 };
+let hT = null, afId = null;
+let cur = null, tgt = null, aP = 1;
+
+function schedRender() {
+  tgt = allCurves();
+  if (aP >= 1) { aP = 0; if (!cur) { cur = tgt; aP = 1; } animate(); }
+}
+
+function render() { schedRender(); }
+
+function animate() {
+  if (afId) cancelAnimationFrame(afId);
+  const t0 = performance.now(), dur = 280;
+  const from = cur;
+  function tick(now) {
+    aP = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - aP, 3);
+    const interp = {};
+    for (const d of DIMS) {
+      interp[d.id] = from[d.id].map((pt, i) => {
+        const tp = tgt[d.id][i];
+        return { t: pt.t, raw: pt.raw + (tp.raw - pt.raw)*e, norm: pt.norm + (tp.norm - pt.norm)*e };
+      });
+    }
+    draw(interp);
+    if (aP < 1) afId = requestAnimationFrame(tick);
+    else { cur = tgt; buildMsBar(); }
+  }
+  afId = requestAnimationFrame(tick);
+}
+
+function svgEl(tag) { return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+function sa(el, obj) { for (const [k,v] of Object.entries(obj)) el.setAttribute(k,v); return el; }
+
+function draw(curves) {
+  const wrap = document.getElementById('wrap');
+  const svg  = document.getElementById('chart');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  if (W < 10 || H < 10) return;
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.innerHTML = '';
+
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+  const xp = t  => PAD.l + (t/YEARS) * cW;
+  const yp = n  => PAD.t + (1 - n/100) * cH;
+
+  // bg
+  svg.appendChild(sa(svgEl('rect'), { x:0, y:0, width:W, height:H, fill:'#06060f' }));
+
+  // grid
+  for (let n = 0; n <= 100; n += 25) {
+    svg.appendChild(sa(svgEl('line'), { x1:PAD.l, y1:yp(n), x2:W-PAD.r, y2:yp(n), stroke:'#111128', 'stroke-width':1 }));
+  }
+  for (let yr = 0; yr <= YEARS; yr += 5) {
+    const x = xp(yr);
+    svg.appendChild(sa(svgEl('line'), { x1:x, y1:PAD.t, x2:x, y2:H-PAD.b, stroke:'#111128', 'stroke-width':1 }));
+    const lbl = sa(svgEl('text'), { x, y:H-PAD.b+13, 'text-anchor':'middle', fill:'#2e2e58', 'font-size':9, 'font-family':'system-ui' });
+    lbl.textContent = yr===0 ? '今' : 'Y'+yr;
+    svg.appendChild(lbl);
+  }
+  for (let n = 25; n <= 100; n += 25) {
+    const lbl = sa(svgEl('text'), { x:PAD.l-5, y:yp(n)+3, 'text-anchor':'end', fill:'#252548', 'font-size':8.5, 'font-family':'system-ui' });
+    lbl.textContent = n;
+    svg.appendChild(lbl);
+  }
+
+  const defs = svgEl('defs');
+  svg.appendChild(defs);
+
+  const on = DIMS.filter(d => d.enabled);
+
+  // fills
+  for (const d of on) {
+    const pts = curves[d.id];
+    const gid = 'g-'+d.id;
+    const gr = svgEl('linearGradient');
+    sa(gr, { id:gid, x1:0, y1:0, x2:0, y2:1 });
+    const s1 = svgEl('stop'); sa(s1, { offset:'0%', 'stop-color':d.color, 'stop-opacity':0.12 });
+    const s2 = svgEl('stop'); sa(s2, { offset:'100%', 'stop-color':d.color, 'stop-opacity':0 });
+    gr.appendChild(s1); gr.appendChild(s2); defs.appendChild(gr);
+    const pd = pathD(pts, xp, yp);
+    svg.appendChild(sa(svgEl('path'), { d:`${pd} L${xp(YEARS)},${H-PAD.b} L${xp(0)},${H-PAD.b} Z`, fill:`url(#${gid})` }));
+  }
+
+  // glow
+  for (const d of on) {
+    const pd = pathD(curves[d.id], xp, yp);
+    svg.appendChild(sa(svgEl('path'), { d:pd, fill:'none', stroke:d.color, 'stroke-width':5, opacity:0.14 }));
+  }
+
+  // lines
+  for (const d of on) {
+    const pd = pathD(curves[d.id], xp, yp);
+    svg.appendChild(sa(svgEl('path'), { d:pd, fill:'none', stroke:d.color, 'stroke-width':1.5 }));
+  }
+
+  // milestone labels
+  for (const d of on) {
+    for (const m of milestones(d, curves[d.id])) {
+      if (m.t < 0.3 || m.t > YEARS - 0.3) continue;
+      const x = xp(m.t), y = yp(m.norm);
+      svg.appendChild(sa(svgEl('line'), { x1:x, y1:y-5, x2:x, y2:y+5, stroke:d.color, 'stroke-width':1, opacity:0.55 }));
+      const lbl = sa(svgEl('text'), { x, y:y-9, 'text-anchor':'middle', fill:d.color, 'font-size':8, 'font-family':'system-ui', opacity:0.75 });
+      lbl.textContent = `Y${m.t.toFixed(0)} ${m.label}`;
+      svg.appendChild(lbl);
+    }
+  }
+
+  // life event markers
+  for (const ev of events) {
+    if (ev.year < 0.1 || ev.year > YEARS - 0.1) continue;
+    const x = xp(ev.year), yAxis = H - PAD.b;
+    // vertical guide through chart
+    svg.appendChild(sa(svgEl('line'), {
+      x1:x, y1:PAD.t, x2:x, y2:yAxis,
+      stroke:'#5060a8', 'stroke-width':0.8,
+      'stroke-dasharray':'2,5', opacity:0.4
+    }));
+    // marker circle on axis
+    svg.appendChild(sa(svgEl('circle'), { cx:x, cy:yAxis, r:4, fill:'#6070c0', opacity:0.8 }));
+    // icon above axis
+    const iLbl = sa(svgEl('text'), {
+      x, y: yAxis-8, 'text-anchor':'middle', 'dominant-baseline':'auto',
+      'font-size':11, 'font-family':'system-ui', opacity:0.9
+    });
+    iLbl.textContent = ev.icon;
+    svg.appendChild(iLbl);
+  }
+
+  // hover line + dots
+  if (hT !== null) {
+    const x = xp(hT);
+    svg.appendChild(sa(svgEl('line'), { x1:x, y1:PAD.t, x2:x, y2:H-PAD.b, stroke:'#303060', 'stroke-width':1, 'stroke-dasharray':'3,3' }));
+    for (const d of on) {
+      const y = yAtT(curves[d.id], hT, yp);
+      svg.appendChild(sa(svgEl('circle'), { cx:x, cy:y, r:3.5, fill:d.color }));
+    }
+  }
+
+  // border
+  svg.appendChild(sa(svgEl('rect'), { x:PAD.l, y:PAD.t, width:cW, height:cH, fill:'none', stroke:'#191934', 'stroke-width':1 }));
+
+  // mouse overlay (hover + click for events)
+  const ov = sa(svgEl('rect'), { x:PAD.l, y:PAD.t, width:cW, height:cH, fill:'transparent', cursor: addEventMode ? 'crosshair' : 'default' });
+  ov.addEventListener('mousemove', ev => {
+    const rc = svg.getBoundingClientRect();
+    hT = Math.max(0, Math.min(YEARS, Math.round(((ev.clientX-rc.left-PAD.l)/cW*YEARS)*4)/4));
+    showTip(hT, curves);
+    draw(curves);
+  });
+  ov.addEventListener('mouseleave', () => { hT = null; hideTip(); draw(curves); });
+
+  ov.addEventListener('touchstart', ev => {
+    if (!addEventMode) ev.preventDefault();
+  }, { passive: false });
+
+  ov.addEventListener('touchmove', ev => {
+    ev.preventDefault();
+    const touch = ev.touches[0];
+    const rc = svg.getBoundingClientRect();
+    hT = Math.max(0, Math.min(YEARS, Math.round(((touch.clientX-rc.left-PAD.l)/cW*YEARS)*2)/2));
+    showTip(hT, curves);
+    draw(curves);
+  }, { passive: false });
+
+  ov.addEventListener('touchend', ev => {
+    if (addEventMode && ev.changedTouches.length) {
+      const touch = ev.changedTouches[0];
+      const rc = svg.getBoundingClientRect();
+      const clickedT = Math.max(1, Math.min(YEARS - 1,
+        Math.round(((touch.clientX - rc.left - PAD.l) / cW * YEARS))));
+      openEvDialog(clickedT, touch.clientX, touch.clientY);
+      ev.stopPropagation(); return;
+    }
+    hT = null; hideTip(); draw(curves);
+  });
+
+  ov.addEventListener('click', ev => {
+    if (!addEventMode) return;
+    const rc = svg.getBoundingClientRect();
+    const clickedT = Math.max(1, Math.min(YEARS - 1,
+      Math.round(((ev.clientX - rc.left - PAD.l) / cW * YEARS))));
+    openEvDialog(clickedT, ev.clientX, ev.clientY);
+    ev.stopPropagation();
+  });
+  svg.appendChild(ov);
+}
+
+function pathD(pts, xp, yp) {
+  if (!pts.length) return '';
+  let d = `M${xp(pts[0].t)},${yp(pts[0].norm)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i-1], b = pts[i];
+    const cx = (xp(a.t)+xp(b.t))/2;
+    d += ` C${cx},${yp(a.norm)} ${cx},${yp(b.norm)} ${xp(b.t)},${yp(b.norm)}`;
+  }
+  return d;
+}
+
+function yAtT(pts, t, yp) {
+  const idx = (t/YEARS)*(STEPS-1);
+  const lo = Math.floor(Math.max(0,idx)), hi = Math.min(STEPS-1, Math.ceil(idx));
+  const f = idx-lo;
+  return yp(pts[lo].norm*(1-f) + pts[hi].norm*f);
+}
+
+function rawAtT(pts, t) {
+  const idx = (t/YEARS)*(STEPS-1);
+  const lo = Math.floor(Math.max(0,idx)), hi = Math.min(STEPS-1, Math.ceil(idx));
+  const f = idx-lo;
+  return pts[lo].raw*(1-f) + pts[hi].raw*f;
+}
+
+function showTip(t, curves) {
+  document.getElementById('tipyr').textContent = `第 ${t.toFixed(t%1?1:0)} 年`;
+  document.getElementById('tiprows').innerHTML = DIMS.filter(d=>d.enabled).map(d => {
+    const raw = rawAtT(curves[d.id], t);
+    return `<div class="tip-row">
+      <div class="tip-dot" style="background:${d.color}"></div>
+      <span class="tip-nm">${d.name}</span>
+      <span class="tip-v">${d.display(raw)}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('tip').classList.add('show');
+}
+
+function hideTip() { document.getElementById('tip').classList.remove('show'); }
+
+// ═══════════════════════════════════════════════════════════
+//  EVENT DIALOG
+// ═══════════════════════════════════════════════════════════
+
+function buildEvGrid() {
+  document.getElementById('ev-grid').innerHTML = EVENT_TYPES.map(et => `
+    <button class="ev-type-btn" data-type="${et.id}">
+      <span class="ev-type-icon">${et.icon}</span>
+      <span class="ev-type-label">${et.label}</span>
+      <span class="ev-type-desc">${et.desc}</span>
+    </button>
+  `).join('');
+}
+
+let pendingYear = null;
+
+function openEvDialog(year, clientX, clientY) {
+  pendingYear = year;
+  document.getElementById('ev-yr').textContent = year;
+  const dialog = document.getElementById('ev-dialog');
+  const dW = 238;
+  let left = clientX - dW / 2;
+  let top  = clientY - 320;
+  if (top < 10) top = clientY + 20;
+  if (left < 10) left = 10;
+  if (left + dW > window.innerWidth - 10) left = window.innerWidth - dW - 10;
+  dialog.style.left = left + 'px';
+  dialog.style.top  = top  + 'px';
+  dialog.style.display = 'block';
+}
+
+function closeEvDialog() {
+  document.getElementById('ev-dialog').style.display = 'none';
+  pendingYear = null;
+  if (addEventMode) {
+    addEventMode = false;
+    document.getElementById('wrap').style.cursor = '';
+    buildSide();
+  }
+}
+
+function addEvent(year, typeId) {
+  const et = EVENT_TYPES.find(e => e.id === typeId);
+  if (!et) return;
+  events.push({
+    id: `ev_${++evCounter}_${year}`,
+    year,
+    typeId,
+    label: et.label,
+    icon:  et.icon,
+    effects: et.effects,
+  });
+  saveEvents();
+  document.getElementById('ev-dialog').style.display = 'none';
+  pendingYear = null;
+  addEventMode = false;
+  document.getElementById('wrap').style.cursor = '';
+  buildSide();
+  buildMsBar();
+  render();
+}
+
+document.getElementById('ev-grid').addEventListener('click', e => {
+  const btn = e.target.closest('[data-type]');
+  if (!btn || pendingYear === null) return;
+  addEvent(pendingYear, btn.dataset.type);
+});
+
+document.getElementById('ev-cancel').addEventListener('click', closeEvDialog);
+
+document.addEventListener('click', e => {
+  const dialog = document.getElementById('ev-dialog');
+  if (dialog.style.display === 'none') return;
+  if (!e.target.closest('#ev-dialog')) closeEvDialog();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  PRESETS & RESET
+// ═══════════════════════════════════════════════════════════
+
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  for (const d of DIMS) {
+    const pd = p[d.id];
+    if (!pd) continue;
+    for (const [k, v] of Object.entries(pd)) {
+      if (d.params[k] !== undefined) d.params[k].v = v;
+    }
+    d.enabled = true;
+  }
+  activePreset = key;
+  saveState();
+  buildSide();
+  buildLegend();
+  buildMsBar();
+  render();
+  // highlight active preset button
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.preset === key);
+  });
+}
+
+function resetAll() {
+  for (const d of DIMS) {
+    d.enabled = DEFAULTS[d.id].en;
+    for (const k of Object.keys(d.params)) d.params[k].v = DEFAULTS[d.id][k];
+  }
+  events = [];
+  activePreset = null;
+  saveState();
+  saveEvents();
+  document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+  buildSide();
+  buildLegend();
+  buildMsBar();
+  render();
+}
+
+document.querySelector('.header-actions').addEventListener('click', e => {
+  const btn = e.target.closest('[data-preset]');
+  if (btn) { applyPreset(btn.dataset.preset); return; }
+  if (e.target.closest('#reset-btn')) resetAll();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  EXPORT PNG
+// ═══════════════════════════════════════════════════════════
+
+function exportPNG() {
+  if (!cur) return;
+  const svg = document.getElementById('chart');
+  const W = parseInt(svg.getAttribute('width') || '800');
+  const H = parseInt(svg.getAttribute('height') || '500');
+  if (!W || !H) return;
+  const svgStr = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const img  = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width  = W * 2;
+    canvas.height = H * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+    ctx.fillStyle = '#06060f';
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, H);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = '万象复利.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, 'image/png');
+  };
+  img.onerror = () => URL.revokeObjectURL(url);
+  img.src = url;
+}
+
+document.getElementById('export-btn').addEventListener('click', exportPNG);
+
+// ═══════════════════════════════════════════════════════════
+//  SNAPSHOT MODAL
+// ═══════════════════════════════════════════════════════════
+
+const SNAP_YRS = [0, 5, 10, 20, 30];
+
+function buildSnapTable() {
+  if (!cur) return;
+  const hdr = `<tr><th>维度</th>${SNAP_YRS.map(y =>
+    `<th>${y === 0 ? '今年' : 'Y' + y}</th>`
+  ).join('')}</tr>`;
+  const rows = DIMS.filter(d => d.enabled).map(d => {
+    const cells = SNAP_YRS.map(y => {
+      const idx = Math.round((y / YEARS) * (STEPS - 1));
+      const raw = (cur[d.id][idx] || {}).raw || 0;
+      return `<td>${d.display(raw)}</td>`;
+    }).join('');
+    return `<tr>
+      <td><span class="snap-ddot" style="background:${d.color};box-shadow:0 0 4px ${d.color}"></span>${d.name}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+  document.getElementById('snap-tbl').innerHTML = hdr + rows;
+}
+
+document.getElementById('snap-btn').addEventListener('click', () => {
+  buildSnapTable();
+  document.getElementById('snap-overlay').classList.add('show');
+});
+
+document.getElementById('snap-close').addEventListener('click', () => {
+  document.getElementById('snap-overlay').classList.remove('show');
+});
+
+document.getElementById('snap-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('snap-overlay'))
+    document.getElementById('snap-overlay').classList.remove('show');
+});
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+
+loadState();
+loadEvents();
+buildSide();
+buildLegend();
+buildEvGrid();
+updateCrossNote();
+cur = allCurves(); tgt = cur;
+draw(cur);
+buildMsBar();
+
+new ResizeObserver(() => { if (cur) draw(cur); })
+  .observe(document.getElementById('wrap'));
+
+</script>
+</body>
+</html>

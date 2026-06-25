@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>沉 · No.011 · 夜行图鉴</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #050408;
+  overflow: hidden;
+  font-family: 'Georgia', 'Songti SC', 'SimSun', serif;
+}
+
+canvas { position: fixed; inset: 0; }
+
+#overlay {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(5, 4, 8, 0.94);
+  transition: opacity 0.9s ease;
+}
+#overlay.out { opacity: 0; pointer-events: none; }
+
+.panel {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  text-align: center;
+}
+
+.glyph {
+  font-size: 3.8rem; letter-spacing: 0.25em;
+  color: #5888b8;
+  text-shadow: 0 0 40px rgba(88, 136, 184, 0.35);
+}
+
+.no {
+  font-size: 0.65rem; letter-spacing: 0.3em;
+  color: #1a2434; font-family: 'Courier New', monospace;
+}
+
+.desc {
+  font-size: 0.82rem; letter-spacing: 0.1em; line-height: 2;
+  color: #2a3a50; max-width: 200px;
+}
+
+.wake-btn {
+  margin-top: 6px; padding: 9px 30px;
+  background: transparent; border: 1px solid #1e3048;
+  color: #38587a; font-size: 0.78rem; letter-spacing: 0.22em;
+  font-family: inherit; cursor: pointer;
+  transition: border-color 0.3s, color 0.3s;
+}
+.wake-btn:hover { border-color: #5888b8; color: #5888b8; }
+
+#state {
+  position: fixed; top: 28px; right: 34px; z-index: 5;
+  font-size: 0.62rem; letter-spacing: 0.22em;
+  color: #141820; font-family: 'Courier New', monospace;
+  transition: color 0.6s;
+}
+
+#ui {
+  position: fixed; bottom: 28px; left: 0; right: 0; z-index: 5;
+  display: flex; justify-content: space-between;
+  padding: 0 36px;
+  font-size: 0.62rem; letter-spacing: 0.2em;
+  color: #141820; font-family: 'Courier New', monospace;
+  pointer-events: none;
+}
+#ui a {
+  color: inherit; text-decoration: none;
+  pointer-events: all; transition: color 0.3s;
+}
+#ui a:hover { color: #38587a; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="overlay">
+  <div class="panel">
+    <div class="glyph">沉</div>
+    <div class="no">No.011 · 夜行图鉴</div>
+    <div class="desc" id="desc">只在静里现身<br>一出声，它就散</div>
+    <button class="wake-btn" id="btn">让它听</button>
+  </div>
+</div>
+
+<div id="state"></div>
+
+<div id="ui">
+  <a href="2026-06-22-tujian.html">← 图鉴</a>
+  <span>No.011 · 沉</span>
+</div>
+
+<script>
+'use strict';
+
+const cv    = document.getElementById('c');
+const ctx   = cv.getContext('2d');
+const overlay = document.getElementById('overlay');
+const btn   = document.getElementById('btn');
+const descEl  = document.getElementById('desc');
+const stateEl = document.getElementById('state');
+
+// ─── Sizing ─────────────────────────────────────────────────────────────────
+
+let VW, VH, DPR;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW  = window.innerWidth;
+  VH  = window.innerHeight;
+  cv.width  = VW * DPR;
+  cv.height = VH * DPR;
+  cv.style.width  = VW + 'px';
+  cv.style.height = VH + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  initParticles();
+}
+
+// ─── Lattice ─────────────────────────────────────────────────────────────────
+// 31-node 6-fold snowflake: 1 center + 6 arms × 5 nodes (inner/mid/tip + 2 branches)
+
+let R, CX, CY;
+let homePos = [];   // [{x, y}]
+let edges   = [];   // [[i,j], …]
+let parts   = [];   // [{x,y,vx,vy,phase}]
+
+function buildLattice() {
+  R  = Math.min(VW, VH) * 0.265;
+  CX = VW / 2;
+  CY = VH / 2;
+
+  homePos = [];
+  edges   = [];
+
+  homePos.push({ x: CX, y: CY }); // node 0 = center
+
+  for (let arm = 0; arm < 6; arm++) {
+    const a   = arm * Math.PI / 3 - Math.PI / 2; // first arm points up
+    const ca  = Math.cos(a);
+    const sa  = Math.sin(a);
+    const b   = 1 + arm * 5;
+
+    // b+0: inner  (R/3)
+    homePos.push({ x: CX + ca * R/3, y: CY + sa * R/3 });
+    // b+1: mid    (2R/3) – branching point
+    homePos.push({ x: CX + ca * R*2/3, y: CY + sa * R*2/3 });
+    // b+2: tip    (R)
+    homePos.push({ x: CX + ca * R, y: CY + sa * R });
+    // b+3: branch left  (from mid, arm angle − 45°)
+    const bLen = R * 0.23;
+    homePos.push({
+      x: CX + ca * R*2/3 + Math.cos(a - Math.PI/4) * bLen,
+      y: CY + sa * R*2/3 + Math.sin(a - Math.PI/4) * bLen
+    });
+    // b+4: branch right (from mid, arm angle + 45°)
+    homePos.push({
+      x: CX + ca * R*2/3 + Math.cos(a + Math.PI/4) * bLen,
+      y: CY + sa * R*2/3 + Math.sin(a + Math.PI/4) * bLen
+    });
+
+    edges.push([0,   b]);     // center → inner
+    edges.push([b,   b+1]);   // inner  → mid
+    edges.push([b+1, b+2]);   // mid    → tip
+    edges.push([b+1, b+3]);   // mid    → branch L
+    edges.push([b+1, b+4]);   // mid    → branch R
+  }
+}
+
+function initParticles() {
+  buildLattice();
+  const old = parts;
+  parts = homePos.map((h, i) => {
+    if (old[i]) {
+      return { x: old[i].x, y: old[i].y, vx: old[i].vx, vy: old[i].vy, phase: old[i].phase };
+    }
+    // Start scattered outward from center with some kinetic energy
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = R * (0.12 + Math.random() * 0.45);
+    return {
+      x: CX + Math.cos(angle) * dist,
+      y: CY + Math.sin(angle) * dist,
+      vx: Math.cos(angle) * (1.2 + Math.random() * 2.2),
+      vy: Math.sin(angle) * (1.2 + Math.random() * 2.2),
+      phase: Math.random() * Math.PI * 2
+    };
+  });
+}
+
+resize();
+window.addEventListener('resize', resize);
+
+// ─── Audio ────────────────────────────────────────────────────────────────────
+
+let analyser     = null;
+let audioData    = null;
+let smoothRMS    = 0;
+let lastMoveTime = 0;   // for mouse fallback: performance.now() of last pointer move
+
+function getRawRMS() {
+  if (analyser) {
+    analyser.getByteTimeDomainData(audioData);
+    let s = 0;
+    for (let i = 0; i < audioData.length; i++) {
+      const v = (audioData[i] - 128) / 128;
+      s += v * v;
+    }
+    return Math.sqrt(s / audioData.length);
+  }
+  // Mouse/touch fallback: movement = "sound", stillness = silence
+  const elapsed = (performance.now() - lastMoveTime) / 1000;
+  if (elapsed < 0.25) return 0.12;
+  if (elapsed < 1.8)  return Math.max(0, 0.12 - (elapsed - 0.25) * 0.078);
+  return 0;
+}
+
+btn.addEventListener('click', async () => {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('no API');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const actx   = new (window.AudioContext || window.webkitAudioContext)();
+    const src    = actx.createMediaStreamSource(stream);
+    analyser     = actx.createAnalyser();
+    analyser.fftSize = 256;
+    audioData    = new Uint8Array(analyser.fftSize);
+    src.connect(analyser);
+  } catch (_) {
+    descEl.innerHTML  = '鼠标停下，它就来<br>动一动，它就散';
+    window.addEventListener('pointermove', () => { lastMoveTime = performance.now(); });
+    window.addEventListener('touchmove',   () => { lastMoveTime = performance.now(); });
+  }
+  overlay.classList.add('out');
+  setTimeout(() => { overlay.style.display = 'none'; }, 980);
+});
+
+// ─── Animation ───────────────────────────────────────────────────────────────
+
+let frameCount = 0;
+
+function draw() {
+  requestAnimationFrame(draw);
+  frameCount++;
+
+  // Audio
+  const raw = getRawRMS();
+  smoothRMS = smoothRMS * 0.80 + raw * 0.20;
+  const isSilent = smoothRMS < 0.022;
+
+  // State label (only after overlay is gone)
+  if (overlay.style.display === 'none') {
+    if (smoothRMS > 0.07) {
+      stateEl.style.color = '#4070a0';
+      stateEl.textContent = '扰';
+    } else if (isSilent) {
+      stateEl.style.color = '#1a2838';
+      stateEl.textContent = '静';
+    } else {
+      stateEl.style.color = '#1e2c3c';
+      stateEl.textContent = '…';
+    }
+  }
+
+  // Physics
+  const breathT = frameCount * 0.0075;
+
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    const h = homePos[i];
+
+    // Per-node breathing: slight phase offset makes crystal shimmer rather than pulse as one block
+    const breathScale = 1 + 0.022 * Math.sin(breathT + p.phase);
+    const hx = CX + (h.x - CX) * breathScale;
+    const hy = CY + (h.y - CY) * breathScale;
+
+    // Spring toward home
+    p.vx += (hx - p.x) * 0.032;
+    p.vy += (hy - p.y) * 0.032;
+
+    // Radial scatter force when loud
+    if (smoothRMS > 0.02) {
+      const dx = p.x - CX;
+      const dy = p.y - CY;
+      const d  = Math.sqrt(dx*dx + dy*dy) || 1;
+      const f  = (smoothRMS - 0.02) * 20;
+      p.vx += (dx / d) * f;
+      p.vy += (dy / d) * f;
+    }
+
+    // Damping
+    p.vx *= 0.83;
+    p.vy *= 0.83;
+
+    p.x += p.vx;
+    p.y += p.vy;
+  }
+
+  // Measure formation: how close are particles to their homes on average
+  let totalDist = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    const h = homePos[i];
+    totalDist += Math.sqrt((p.x - h.x)**2 + (p.y - h.y)**2);
+  }
+  const avgDist = totalDist / parts.length;
+  const formed  = Math.max(0, Math.min(1, 1 - avgDist / (R * 0.55)));
+
+  // ── Draw ────────────────────────────────────────────────────────────────────
+
+  // Trail: don't clear fully — scatter gets a smear effect
+  ctx.fillStyle = 'rgba(5, 4, 8, 0.22)';
+  ctx.fillRect(0, 0, VW, VH);
+
+  // Edges (crystal skeleton)
+  if (formed > 0.06) {
+    ctx.save();
+    ctx.lineWidth   = 0.65;
+    ctx.strokeStyle = `rgba(80, 126, 178, ${formed * 0.3})`;
+    ctx.beginPath();
+    for (const [a, b] of edges) {
+      ctx.moveTo(parts[a].x, parts[a].y);
+      ctx.lineTo(parts[b].x, parts[b].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Central glow (depth field)
+  if (formed > 0.2) {
+    const grd = ctx.createRadialGradient(CX, CY, 0, CX, CY, R * 0.6);
+    grd.addColorStop(0, `rgba(72, 112, 162, ${formed * 0.055})`);
+    grd.addColorStop(1, 'rgba(72, 112, 162, 0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, VW, VH);
+  }
+
+  // Nodes
+  ctx.save();
+  ctx.shadowBlur  = 11;
+  ctx.shadowColor = '#3a6898';
+  for (let i = 0; i < parts.length; i++) {
+    const p     = parts[i];
+    const r     = i === 0 ? 3.6 : 2.1;
+    const alpha = 0.32 + formed * 0.62;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(88, 138, 188, ${alpha})`;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+draw();
+</script>
+</body>
+</html>

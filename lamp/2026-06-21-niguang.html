@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>夜行图鉴 · No.002 · 匿光</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #020108; overflow: hidden; }
+canvas { position: fixed; top: 0; left: 0; cursor: none; }
+#label {
+  position: fixed;
+  top: 24px;
+  left: 30px;
+  color: rgba(150, 130, 200, 0.22);
+  font: 11px/1 'Georgia', serif;
+  letter-spacing: 0.22em;
+  pointer-events: none;
+  user-select: none;
+}
+#hint {
+  position: fixed;
+  bottom: 28px;
+  width: 100%;
+  text-align: center;
+  color: rgba(150, 130, 200, 0.22);
+  font: 12px/1 'Georgia', serif;
+  letter-spacing: 0.16em;
+  pointer-events: none;
+  user-select: none;
+  animation: fadeHint 2.5s 5s forwards ease-in;
+}
+@keyframes fadeHint { to { opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="label">夜行图鉴 · No.002 · 匿光</div>
+<canvas id="c"></canvas>
+<div id="hint">移动时留光 · 点击使它吐出</div>
+
+<script>
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+
+let W, H;
+function resize() {
+  W = cvs.width = window.innerWidth;
+  H = cvs.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const cx = () => W / 2;
+const cy = () => H / 2;
+const R = 80;
+
+let stored = 0;
+let pulses = [];
+let particles = [];
+
+let mx = -1000, my = -1000;
+let prevMx = -1000, prevMy = -1000;
+let lastSpawn = 0;
+let curX = -1000, curY = -1000;
+
+document.addEventListener('mousemove', e => {
+  curX = e.clientX;
+  curY = e.clientY;
+  const now = performance.now();
+  const spd = Math.hypot(e.clientX - prevMx, e.clientY - prevMy);
+  if (spd > 4 && now - lastSpawn > 38) {
+    spawnLight(e.clientX + (Math.random() - 0.5) * 10, e.clientY + (Math.random() - 0.5) * 10);
+    if (spd > 14) {
+      spawnLight(e.clientX + (Math.random() - 0.5) * 16, e.clientY + (Math.random() - 0.5) * 16);
+    }
+    lastSpawn = now;
+  }
+  prevMx = e.clientX;
+  prevMy = e.clientY;
+  mx = e.clientX;
+  my = e.clientY;
+});
+
+document.addEventListener('click', () => {
+  if (stored > 0.04) burst();
+});
+
+function spawnLight(x, y) {
+  particles.push({
+    x, y,
+    vx: (Math.random() - 0.5) * 0.7,
+    vy: (Math.random() - 0.5) * 0.7,
+    life: 1,
+    decay: 0.004 + Math.random() * 0.004,
+    sz: 1.6 + Math.random() * 2,
+    hue: 210 + Math.random() * 75,
+    released: false,
+  });
+}
+
+function burst() {
+  const n = Math.round(28 + stored * 110);
+  const ox = cx(), oy = cy();
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 1.4 + Math.random() * 3.8;
+    particles.push({
+      x: ox + Math.cos(a) * R * (0.25 + Math.random() * 0.75),
+      y: oy + Math.sin(a) * R * (0.25 + Math.random() * 0.75),
+      vx: Math.cos(a + (Math.random() - 0.5) * 0.9) * sp,
+      vy: Math.sin(a + (Math.random() - 0.5) * 0.9) * sp,
+      life: 1,
+      decay: 0.007 + Math.random() * 0.007,
+      sz: 1.4 + Math.random() * 2.8,
+      hue: 195 + Math.random() * 100,
+      released: true,
+    });
+  }
+  pulses.push({ r: R * 0.7, alpha: 0.65, maxR: 320 });
+  stored = 0;
+}
+
+let time = 0;
+
+function drawCreature() {
+  const ox = cx(), oy = cy();
+
+  // Deep shadow aura
+  const shadow = ctx.createRadialGradient(ox, oy, R * 0.4, ox, oy, R * 3.0);
+  shadow.addColorStop(0, 'rgba(0,0,5,0.55)');
+  shadow.addColorStop(0.5, 'rgba(0,0,5,0.18)');
+  shadow.addColorStop(1, 'rgba(0,0,5,0)');
+  ctx.beginPath();
+  ctx.arc(ox, oy, R * 3.0, 0, Math.PI * 2);
+  ctx.fillStyle = shadow;
+  ctx.fill();
+
+  // Organic void body
+  ctx.beginPath();
+  const steps = 72;
+  for (let i = 0; i <= steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    const w = 1
+      + 0.042 * Math.sin(a * 3 + time * 0.27)
+      + 0.024 * Math.sin(a * 5 - time * 0.38)
+      + 0.014 * Math.sin(a * 8 + time * 0.21);
+    const px = ox + Math.cos(a) * R * w;
+    const py = oy + Math.sin(a) * R * w;
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+
+  const body = ctx.createRadialGradient(ox, oy, 0, ox, oy, R);
+  body.addColorStop(0, 'rgba(0,0,6,1)');
+  body.addColorStop(0.72, 'rgba(1,0,9,0.99)');
+  body.addColorStop(1, 'rgba(3,1,15,0.94)');
+  ctx.fillStyle = body;
+  ctx.fill();
+
+  // Edge light leak when filling up
+  if (stored > 0.12) {
+    const leak = (stored - 0.12) / 0.88;
+    const edgeGlow = ctx.createRadialGradient(ox, oy, R * 0.8, ox, oy, R * 1.28);
+    edgeGlow.addColorStop(0, 'rgba(85,55,180,0)');
+    edgeGlow.addColorStop(0.65, `rgba(105,70,200,${leak * 0.2})`);
+    edgeGlow.addColorStop(1, 'rgba(135,95,225,0)');
+    ctx.beginPath();
+    ctx.arc(ox, oy, R * 1.28, 0, Math.PI * 2);
+    ctx.fillStyle = edgeGlow;
+    ctx.fill();
+  }
+
+  // Thin storage arc
+  if (stored > 0.04) {
+    ctx.beginPath();
+    ctx.arc(ox, oy, R + 15, -Math.PI / 2, -Math.PI / 2 + stored * Math.PI * 2);
+    ctx.strokeStyle = `rgba(135, 95, 225, ${0.1 + stored * 0.2})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function drawPulses() {
+  const ox = cx(), oy = cy();
+  pulses = pulses.filter(p => p.alpha > 0.008);
+  for (const p of pulses) {
+    ctx.beginPath();
+    ctx.arc(ox, oy, p.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(155, 110, 255, ${p.alpha})`;
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    p.r += (p.maxR - R) * 0.04;
+    p.alpha *= 0.87;
+  }
+}
+
+function updateAndDrawParticles() {
+  const ox = cx(), oy = cy();
+  const toRemove = [];
+
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+
+    if (!p.released) {
+      const dx = ox - p.x;
+      const dy = oy - p.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < R * 0.85) {
+        stored = Math.min(1, stored + 0.014);
+        if (Math.random() < 0.35) {
+          pulses.push({ r: R * 0.5, alpha: 0.16, maxR: R * 1.1 });
+        }
+        toRemove.push(i);
+        continue;
+      }
+
+      const pull = dist < 190 ? 0.02 : 0.007;
+      p.vx += (dx / dist) * pull;
+      p.vy += (dy / dist) * pull;
+      p.vx += (Math.random() - 0.5) * 0.035;
+      p.vy += (Math.random() - 0.5) * 0.035;
+
+      const spd = Math.hypot(p.vx, p.vy);
+      if (spd > 2.4) { p.vx *= 2.4 / spd; p.vy *= 2.4 / spd; }
+    } else {
+      p.vx *= 0.972;
+      p.vy *= 0.972;
+    }
+
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= p.decay;
+
+    if (p.life <= 0) { toRemove.push(i); continue; }
+
+    const alpha = p.life * (p.released ? 0.88 : 0.62);
+    const sz = p.sz * (0.45 + p.life * 0.55);
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, sz, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${p.hue}, 72%, 70%, ${alpha})`;
+    ctx.fill();
+
+    const halo = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz * 3.8);
+    halo.addColorStop(0, `hsla(${p.hue}, 72%, 74%, ${alpha * 0.22})`);
+    halo.addColorStop(1, `hsla(${p.hue}, 72%, 74%, 0)`);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, sz * 3.8, 0, Math.PI * 2);
+    ctx.fillStyle = halo;
+    ctx.fill();
+  }
+
+  for (let i = toRemove.length - 1; i >= 0; i--) {
+    particles.splice(toRemove[i], 1);
+  }
+}
+
+function drawCursor() {
+  if (curX < -900) return;
+  ctx.beginPath();
+  ctx.arc(curX, curY, 2.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(192, 168, 248, 0.52)';
+  ctx.fill();
+  const cg = ctx.createRadialGradient(curX, curY, 0, curX, curY, 12);
+  cg.addColorStop(0, 'rgba(192,168,248,0.15)');
+  cg.addColorStop(1, 'rgba(192,168,248,0)');
+  ctx.beginPath();
+  ctx.arc(curX, curY, 12, 0, Math.PI * 2);
+  ctx.fillStyle = cg;
+  ctx.fill();
+}
+
+function loop() {
+  time += 0.016;
+  ctx.fillStyle = '#020108';
+  ctx.fillRect(0, 0, W, H);
+  drawCreature();
+  drawPulses();
+  updateAndDrawParticles();
+  drawCursor();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

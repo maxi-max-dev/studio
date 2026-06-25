@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>决策回溯仪</title>
+<style>
+/* ===== RESET ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+button { font: inherit; cursor: pointer; }
+
+/* ===== VARIABLES ===== */
+:root {
+  --bg:   #06060f;
+  --sf1:  #0c0c1e;
+  --sf2:  #101028;
+  --bd1:  #16163a;
+  --bd2:  #22224a;
+  --tx1:  #e4e5f0;
+  --tx2:  #b8b8d8;
+  --tx3:  #6060a0;
+  --tx4:  #3a3a60;
+
+  --career:        #3b82f6;
+  --money:         #e0aa38;
+  --education:     #2ac8c8;
+  --relationships: #d86050;
+  --creative:      #9068e0;
+  --lifestyle:     #48c070;
+  --health:        #f59e0b;
+
+  --r: 8px;
+  --rs: 4px;
+}
+
+/* ===== BASE ===== */
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--tx2);
+  font: 13px/1.6 -apple-system, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ===== LAYOUT ===== */
+#app {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  height: 100vh;
+}
+
+/* ===== SIDEBAR ===== */
+.sb {
+  background: var(--sf1);
+  border-right: 1px solid var(--bd1);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sb-logo {
+  padding: 18px 18px 16px;
+  border-bottom: 1px solid var(--bd1);
+}
+.sb-logo-main {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tx1);
+  letter-spacing: 0.3px;
+}
+.sb-logo-sub {
+  font-size: 10px;
+  color: var(--tx3);
+  margin-top: 2px;
+  letter-spacing: 0.4px;
+}
+
+/* nav */
+.sb-nav { padding: 10px 10px 0; }
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: none;
+  color: var(--tx3);
+  border-radius: var(--rs);
+  font-size: 13px;
+  text-align: left;
+  transition: background .14s, color .14s;
+}
+.nav-btn:hover { background: var(--sf2); color: var(--tx2); }
+.nav-btn.on { background: var(--bd2); color: var(--tx1); }
+.nav-btn .ni { font-size: 13px; width: 16px; text-align: center; opacity: .7; }
+
+/* section label */
+.sb-sec {
+  padding: 14px 18px 6px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--tx4);
+}
+
+/* category filter */
+.cat-list { padding: 0 10px; display: flex; flex-direction: column; gap: 1px; }
+.cat-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border: none;
+  background: none;
+  border-radius: var(--rs);
+  color: var(--tx3);
+  font-size: 12px;
+  transition: background .12s, color .12s;
+  text-align: left;
+}
+.cat-btn:hover { background: var(--sf2); color: var(--tx2); }
+.cat-btn.on { color: var(--tx1); }
+.cat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.cat-n { margin-left: auto; font-size: 10px; color: var(--tx4); }
+
+/* quick stats */
+.sb-stats {
+  margin: 12px 10px;
+  background: var(--bg);
+  border: 1px solid var(--bd1);
+  border-radius: var(--r);
+  padding: 10px 12px;
+}
+.sb-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--bd1);
+  font-size: 11px;
+}
+.sb-stat:last-child { border-bottom: none; }
+.sb-stat-l { color: var(--tx3); }
+.sb-stat-v { color: var(--tx1); font-weight: 600; }
+
+/* add button */
+.sb-add {
+  margin: 6px 10px 14px;
+  padding: 9px;
+  background: var(--career);
+  color: #fff;
+  border: none;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: auto;
+  transition: opacity .14s;
+}
+.sb-add:hover { opacity: .83; }
+
+/* ===== MAIN ===== */
+#main { overflow: auto; position: relative; }
+
+.vh {
+  padding: 22px 26px 14px;
+  border-bottom: 1px solid var(--bd1);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.vh-title { font-size: 15px; font-weight: 700; color: var(--tx1); }
+.vh-sub { font-size: 11px; color: var(--tx3); }
+
+/* ===== EMPTY ===== */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 55vh;
+  gap: 10px;
+  color: var(--tx3);
+}
+.empty-ic { font-size: 28px; }
+.empty-t { font-size: 14px; color: var(--tx2); font-weight: 600; }
+.empty-s { font-size: 12px; text-align: center; max-width: 280px; line-height: 1.6; }
+.empty-btn {
+  margin-top: 6px;
+  padding: 8px 18px;
+  background: var(--career);
+  color: #fff;
+  border: none;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 600;
+  transition: opacity .14s;
+}
+.empty-btn:hover { opacity: .83; }
+
+/* ===== LIST VIEW ===== */
+.list-wrap { padding: 18px 26px; }
+.list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.dc {
+  background: var(--sf1);
+  border: 1px solid var(--bd1);
+  border-radius: var(--r);
+  padding: 14px;
+  cursor: pointer;
+  position: relative;
+  transition: border-color .14s, background .14s;
+}
+.dc:hover { border-color: var(--bd2); background: var(--sf2); }
+
+.dc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.dc-title { font-size: 13px; font-weight: 600; color: var(--tx1); line-height: 1.4; flex: 1; }
+.dc-date { font-size: 10px; color: var(--tx3); white-space: nowrap; }
+
+.dc-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; }
+.cat-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px 2px 5px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.dc-ctx {
+  font-size: 11px;
+  color: var(--tx2);
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dc-scores {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--bd1);
+}
+.sc-item { display: flex; flex-direction: column; gap: 3px; }
+.sc-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .6px; color: var(--tx4); }
+.sc-dots { display: flex; gap: 2px; }
+.sc-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+.dc-acts {
+  position: absolute;
+  top: 10px; right: 10px;
+  display: none;
+  gap: 4px;
+}
+.dc:hover .dc-acts { display: flex; }
+.act-btn {
+  padding: 3px 7px;
+  background: var(--sf2);
+  border: 1px solid var(--bd2);
+  border-radius: var(--rs);
+  color: var(--tx3);
+  font-size: 10px;
+  transition: color .12s;
+}
+.act-btn:hover { color: var(--tx1); }
+.act-btn.del:hover { color: #ef4444; }
+
+/* ===== TIMELINE VIEW ===== */
+.tl-wrap {
+  height: calc(100vh - 70px);
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+.tl-wrap.drag { cursor: grabbing; }
+.tl-hint {
+  position: absolute;
+  top: 14px; right: 18px;
+  font-size: 10px;
+  color: var(--tx4);
+  pointer-events: none;
+}
+#tl-svg { width: 100%; height: 100%; display: block; }
+.tl-tip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--sf1);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r);
+  padding: 10px 13px;
+  max-width: 220px;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.tl-tip.show { opacity: 1; }
+.tl-tt-title { font-size: 13px; font-weight: 600; color: var(--tx1); margin-bottom: 3px; }
+.tl-tt-date { font-size: 10px; margin-bottom: 5px; }
+.tl-tt-text { font-size: 11px; color: var(--tx2); line-height: 1.5; }
+
+/* ===== PATTERNS VIEW ===== */
+.pt-wrap { padding: 20px 26px; }
+.pt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.pt-card {
+  background: var(--sf1);
+  border: 1px solid var(--bd1);
+  border-radius: var(--r);
+  padding: 18px;
+}
+.pt-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .9px;
+  color: var(--tx3);
+  margin-bottom: 14px;
+}
+.bar-chart { display: flex; flex-direction: column; gap: 9px; }
+.bar-row { display: flex; align-items: center; gap: 9px; }
+.bar-lbl { font-size: 11px; width: 44px; flex-shrink: 0; }
+.bar-track { flex: 1; height: 5px; background: var(--bd1); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width .35s; }
+.bar-val { font-size: 10px; color: var(--tx3); width: 36px; text-align: right; }
+.insight {
+  margin-top: 13px;
+  padding: 10px 11px;
+  background: var(--bg);
+  border: 1px solid var(--bd1);
+  border-radius: var(--rs);
+}
+.insight-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .6px; color: var(--tx4); margin-bottom: 4px; }
+.insight-txt { font-size: 11px; color: var(--tx2); line-height: 1.6; }
+.hl { font-weight: 700; }
+.kv-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; font-size: 12px; }
+.kv-k { color: var(--tx3); }
+.kv-v { color: var(--tx1); font-weight: 600; }
+
+/* ===== STORY VIEW ===== */
+.trait-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 13px 26px 11px;
+  border-bottom: 1px solid var(--bd1);
+}
+.trait-btn {
+  padding: 4px 11px;
+  border-radius: 100px;
+  border: 1px solid var(--bd2);
+  background: none;
+  color: var(--tx3);
+  font-size: 11px;
+  transition: all .12s;
+}
+.trait-btn:hover { color: var(--tx2); border-color: var(--tx3); }
+.trait-btn.on { background: var(--bd2); color: var(--tx1); border-color: var(--bd2); }
+
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  padding: 18px 26px;
+}
+.sc {
+  background: var(--sf1);
+  border: 1px solid var(--bd1);
+  border-radius: var(--r);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  transition: border-color .14s;
+}
+.sc:hover { border-color: var(--bd2); }
+.sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.sc-title { font-size: 13px; font-weight: 600; color: var(--tx1); flex: 1; line-height: 1.4; }
+.sc-date { font-size: 10px; color: var(--tx3); white-space: nowrap; }
+.sc-traits { display: flex; flex-wrap: wrap; gap: 4px; }
+.trait-tag {
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 9px;
+  font-weight: 600;
+  border: 1px solid var(--bd2);
+  color: var(--tx3);
+}
+.gen-btn {
+  padding: 6px 12px;
+  background: var(--sf2);
+  border: 1px solid var(--bd2);
+  border-radius: var(--rs);
+  color: var(--tx2);
+  font-size: 11px;
+  font-weight: 600;
+  transition: all .12s;
+  align-self: flex-start;
+}
+.gen-btn:hover { background: var(--bd2); color: var(--tx1); }
+
+/* story modal sections */
+.story-m-meta { font-size: 11px; color: var(--tx3); margin-top: 5px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.story-section { margin-bottom: 18px; }
+.story-section:last-of-type { margin-bottom: 0; }
+.story-sec-t {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .9px;
+  color: var(--tx3);
+  margin-bottom: 8px;
+}
+.story-text {
+  background: var(--bg);
+  border: 1px solid var(--bd1);
+  border-radius: var(--rs);
+  padding: 13px 14px;
+  font-size: 12px;
+  color: var(--tx2);
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: inherit;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.copy-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 7px;
+}
+.copy-btn {
+  padding: 5px 14px;
+  border-radius: var(--rs);
+  border: 1px solid var(--bd2);
+  background: none;
+  color: var(--tx3);
+  font-size: 11px;
+  transition: all .12s;
+}
+.copy-btn:hover { color: var(--tx1); border-color: var(--tx2); }
+
+/* ===== MODAL ===== */
+#ov {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,6,15,.82);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
+}
+#ov.hide { display: none; }
+
+#modal {
+  background: var(--sf1);
+  border: 1px solid var(--bd2);
+  border-radius: 12px;
+  width: min(680px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 26px;
+}
+.m-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.m-title { font-size: 15px; font-weight: 700; color: var(--tx1); }
+.m-x {
+  background: none;
+  border: none;
+  color: var(--tx3);
+  font-size: 20px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--rs);
+  transition: color .12s;
+}
+.m-x:hover { color: var(--tx1); }
+
+/* form */
+.f-sec { margin-bottom: 18px; }
+.f-sec-t {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .9px;
+  color: var(--tx3);
+  margin-bottom: 12px;
+}
+.f-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.f-field { display: flex; flex-direction: column; gap: 5px; }
+.f-field.full { grid-column: 1/-1; }
+label { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--tx3); }
+
+input[type="text"],
+input[type="date"],
+select,
+textarea {
+  background: var(--bg);
+  border: 1px solid var(--bd1);
+  border-radius: var(--rs);
+  color: var(--tx1);
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 9px;
+  outline: none;
+  transition: border-color .12s;
+  width: 100%;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--bd2); }
+textarea { resize: vertical; min-height: 64px; }
+select option { background: var(--sf1); }
+
+.rating-g { display: flex; gap: 5px; }
+.rb {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--bd1);
+  background: var(--bg);
+  color: var(--tx3);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+}
+.rb.on { background: var(--career); border-color: var(--career); color: #fff; }
+.rb:hover { border-color: var(--bd2); color: var(--tx2); }
+
+hr.fdiv { border: none; border-top: 1px solid var(--bd1); margin: 16px 0; }
+
+.m-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--bd1);
+}
+.btn { padding: 7px 18px; border-radius: var(--r); border: none; font: inherit; font-size: 13px; transition: opacity .12s; }
+.btn:hover { opacity: .82; }
+.btn-g { background: none; border: 1px solid var(--bd1); color: var(--tx2); }
+.btn-p { background: var(--career); color: #fff; font-weight: 600; }
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+
+/* ===== SIDEBAR ACTIONS ===== */
+.sb-actions { display: flex; gap: 5px; padding: 0 10px 8px; }
+.sa-btn {
+  flex: 1; padding: 6px 4px; background: none;
+  border: 1px solid var(--bd1); border-radius: var(--rs);
+  color: var(--tx3); font: inherit; font-size: 10px;
+  cursor: pointer; transition: all .12s; text-align: center;
+}
+.sa-btn:hover { background: var(--sf2); color: var(--tx2); border-color: var(--bd2); }
+
+/* ===== PRINT ===== */
+@media print {
+  body { overflow: visible; background: #fff; color: #111; }
+  .sb, #ov, .dc-acts, .sb-add, .sb-actions, .tl-hint { display: none !important; }
+  #app { display: block; }
+  #main { overflow: visible; }
+  .list-wrap { padding: 10px; }
+  .list-grid { grid-template-columns: repeat(2, 1fr); }
+  .dc { background: #f5f5f5; border: 1px solid #ddd; break-inside: avoid; page-break-inside: avoid; }
+  .dc-title { color: #111; }
+  .dc-ctx { color: #333; -webkit-line-clamp: unset; max-height: none; overflow: visible; }
+  .sc-lbl, .dc-date { color: #555; }
+  .vh { display: none; }
+}
+
+/* ===== CALIBRATION ===== */
+.cal-wrap { padding: 24px 26px; max-width: 640px; }
+.cal-card {
+  background: var(--sf1); border: 1px solid var(--bd1);
+  border-radius: var(--r); padding: 24px;
+}
+.cal-badge {
+  display: inline-block; padding: 2px 9px; background: var(--career);
+  color: #fff; border-radius: 100px; font-size: 10px; font-weight: 600;
+  letter-spacing: .5px; margin-bottom: 12px;
+}
+.cal-dtitle { font-size: 16px; font-weight: 700; color: var(--tx1); margin-bottom: 5px; line-height: 1.4; }
+.cal-dmeta { font-size: 11px; color: var(--tx3); margin-bottom: 16px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.cal-sec-t { font-size: 9px; text-transform: uppercase; letter-spacing: .9px; color: var(--tx3); margin-bottom: 7px; }
+.cal-text {
+  font-size: 12px; color: var(--tx2); line-height: 1.7; margin-bottom: 14px;
+  background: var(--bg); border: 1px solid var(--bd1); border-radius: var(--rs);
+  padding: 10px 12px; white-space: pre-wrap; word-break: break-word;
+}
+.cal-divider { border: none; border-top: 1px solid var(--bd1); margin: 18px 0; }
+.cal-q { font-size: 13px; font-weight: 600; color: var(--tx1); margin-bottom: 12px; }
+.cal-rating { display: flex; gap: 8px; margin-bottom: 18px; }
+.cal-rb {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 1.5px solid var(--bd1); background: var(--bg); color: var(--tx3);
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all .14s;
+}
+.cal-rb:hover { border-color: var(--bd2); color: var(--tx2); }
+.cal-rb.on { background: var(--career); border-color: var(--career); color: #fff; }
+.cal-submit {
+  padding: 9px 22px; background: var(--career); color: #fff; border: none;
+  border-radius: var(--r); font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; opacity: .4; transition: opacity .14s;
+}
+.cal-submit.ready { opacity: 1; }
+.cal-reveal { margin-top: 20px; padding: 16px; background: var(--bg); border: 1px solid var(--bd1); border-radius: var(--r); }
+.cal-reveal-scores { display: flex; gap: 10px; margin-bottom: 14px; }
+.cal-score-box {
+  flex: 1; text-align: center; padding: 12px 8px;
+  background: var(--sf1); border: 1px solid var(--bd1); border-radius: var(--rs);
+}
+.cal-score-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .7px; color: var(--tx4); margin-bottom: 6px; }
+.cal-score-val { font-size: 24px; font-weight: 700; color: var(--tx1); }
+.cal-score-unit { font-size: 12px; color: var(--tx3); }
+.cal-delta-txt {
+  font-size: 12px; color: var(--tx2); margin-bottom: 14px; padding: 9px 11px;
+  border-radius: var(--rs); border: 1px solid var(--bd1); background: var(--sf2); line-height: 1.6;
+}
+.cal-next {
+  margin-top: 14px; padding: 8px 20px; background: none; border: 1px solid var(--bd2);
+  color: var(--tx2); border-radius: var(--r); font: inherit; font-size: 13px; cursor: pointer; transition: all .14s;
+}
+.cal-next:hover { background: var(--sf2); color: var(--tx1); }
+.cal-history { margin-top: 18px; background: var(--sf1); border: 1px solid var(--bd1); border-radius: var(--r); padding: 14px 16px; }
+.cal-hist-t { font-size: 9px; text-transform: uppercase; letter-spacing: .9px; color: var(--tx3); margin-bottom: 10px; }
+.cal-hist-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--bd1); font-size: 11px; }
+.cal-hist-row:last-child { border-bottom: none; }
+.cal-hist-title { flex: 1; color: var(--tx2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-hist-g { color: var(--tx3); }
+.cal-hist-a { color: var(--tx1); font-weight: 600; }
+.cal-hist-d { font-size: 10px; padding: 1px 7px; border-radius: 100px; font-weight: 600; }
+
+/* ===== COMPARE VIEW ===== */
+.cmp-wrap { padding: 20px 26px; }
+.cmp-selectors {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 16px;
+  background: var(--sf1); border: 1px solid var(--bd1);
+  border-radius: var(--r); padding: 16px 18px; margin-bottom: 14px;
+}
+.cmp-sel-card { display: flex; flex-direction: column; gap: 7px; }
+.cmp-sel-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .8px; color: var(--tx3); }
+.cmp-preview { font-size: 11px; color: var(--tx2); margin-top: 1px; }
+.cmp-vs {
+  font-size: 11px; font-weight: 700; color: var(--tx4);
+  background: var(--bg); border: 1px solid var(--bd1);
+  border-radius: 100px; padding: 3px 10px; white-space: nowrap;
+}
+.cmp-table { display: flex; flex-direction: column; gap: 2px; }
+.cmp-row {
+  display: grid; grid-template-columns: 100px 1fr 1fr;
+  gap: 12px; padding: 10px 12px; border-radius: var(--rs);
+  background: var(--sf1); border: 1px solid transparent;
+  font-size: 12px; align-items: start;
+}
+.cmp-row.diff { background: var(--sf2); border-color: var(--bd1); }
+.cmp-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .6px; color: var(--tx3); padding-top: 2px; }
+.cmp-val { color: var(--tx2); line-height: 1.55; }
+.cmp-val.multi { white-space: pre-wrap; word-break: break-word; }
+.cmp-val.mt { color: var(--tx4); }
+
+/* ===== MOBILE BAR ===== */
+.mb-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 48px;
+  background: var(--sf1); border-bottom: 1px solid var(--bd1);
+  display: none; align-items: center; padding: 0 14px; gap: 12px;
+  z-index: 98;
+}
+.mb-ham {
+  background: none; border: none; color: var(--tx2);
+  font-size: 18px; padding: 4px 8px; border-radius: var(--rs);
+  line-height: 1; transition: background .12s;
+}
+.mb-ham:hover { background: var(--sf2); }
+.mb-title { font-size: 14px; font-weight: 700; color: var(--tx1); }
+
+.sb-overlay {
+  position: fixed; inset: 0; background: rgba(6,6,15,.65);
+  z-index: 99; display: none;
+}
+.sb-overlay.show { display: block; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  body { overflow: auto; }
+  html, body { height: auto; min-height: 100%; }
+  #app { grid-template-columns: 1fr; min-height: 100vh; height: auto; }
+  .sb {
+    position: fixed; top: 0; left: 0; width: 260px; height: 100vh;
+    z-index: 100; transform: translateX(-100%);
+    transition: transform .22s ease;
+    box-shadow: 4px 0 24px rgba(0,0,15,.5);
+  }
+  .sb.open { transform: translateX(0); }
+  #main { overflow: visible; padding-top: 48px; }
+  .mb-bar { display: flex; }
+  .tl-wrap { height: calc(100svh - 120px); }
+  .list-grid { grid-template-columns: 1fr !important; }
+  .story-grid { grid-template-columns: 1fr !important; }
+  .pt-grid { grid-template-columns: 1fr !important; }
+  .f-grid { grid-template-columns: 1fr !important; }
+  .f-field.full { grid-column: unset !important; }
+  .cmp-wrap { padding: 12px 14px; }
+  .cmp-selectors { grid-template-columns: 1fr; }
+  .cmp-vs { text-align: center; }
+  .cmp-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cmp-lbl { grid-column: 1/-1; }
+  .list-wrap { padding: 12px 14px; }
+  .pt-wrap { padding: 14px; }
+  .vh { padding: 12px 16px 10px; }
+  .trait-row { padding: 10px 14px 9px; }
+  .story-grid { padding: 12px 14px; }
+  .cal-wrap { padding: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div id="sb-overlay" class="sb-overlay" onclick="closeSidebar()"></div>
+<div id="mb-bar" class="mb-bar">
+  <button class="mb-ham" onclick="toggleSidebar()">☰</button>
+  <span class="mb-title">决策回溯仪</span>
+</div>
+
+<div id="app">
+  <aside class="sb">
+    <div class="sb-logo">
+      <div class="sb-logo-main">决策回溯仪</div>
+      <div class="sb-logo-sub">Decision Ledger</div>
+    </div>
+    <nav class="sb-nav" id="nav">
+      <button class="nav-btn on" data-v="timeline">
+        <span class="ni">◎</span>时间线
+      </button>
+      <button class="nav-btn" data-v="list">
+        <span class="ni">≡</span>清单
+      </button>
+      <button class="nav-btn" data-v="patterns">
+        <span class="ni">∿</span>规律
+      </button>
+      <button class="nav-btn" data-v="story">
+        <span class="ni">✦</span>故事
+      </button>
+      <button class="nav-btn" data-v="calibration">
+        <span class="ni">⊛</span>校准
+      </button>
+      <button class="nav-btn" data-v="compare">
+        <span class="ni">⇔</span>对比
+      </button>
+    </nav>
+    <div class="sb-sec">分类</div>
+    <div class="cat-list" id="cat-list"></div>
+    <div class="sb-stats" id="sb-stats"></div>
+    <div class="sb-actions">
+      <button class="sa-btn" onclick="exportJSON()">↓ 备份</button>
+      <button class="sa-btn" onclick="triggerImport()">↑ 导入</button>
+      <button class="sa-btn" onclick="printPage()">⎙ 打印</button>
+    </div>
+    <button class="sb-add" id="btn-add">＋ 记录决策</button>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<div id="ov" class="hide">
+  <div id="modal"></div>
+</div>
+
+<script>
+/* ============================================================
+   DATA
+============================================================ */
+const CATS = {
+  career:        { zh: '职业', c: '#3b82f6' },
+  money:         { zh: '财务', c: '#e0aa38' },
+  education:     { zh: '教育', c: '#2ac8c8' },
+  relationships: { zh: '关系', c: '#d86050' },
+  creative:      { zh: '创作', c: '#9068e0' },
+  lifestyle:     { zh: '生活', c: '#48c070' },
+  health:        { zh: '健康', c: '#f59e0b' },
+};
+
+const TRAITS = ['勇气', '独立判断', '快速适应', '长期思考', '接受损失'];
+
+const SK = 'decision-ledger-v1';
+
+let S = {
+  decisions: [],
+  view: 'timeline',
+  cat: null,
+  trait: null,
+  editId: null,
+  compareA: null,
+  compareB: null,
+};
+
+let tlS = { off: 0, sc: 1, drag: false, dx: 0, doff: 0 };
+let calS = { current: null, phase: 'guess', userGuess: 0, history: [] };
+
+function loadData() {
+  try {
+    const r = localStorage.getItem(SK);
+    if (r) S.decisions = JSON.parse(r);
+  } catch(e) {}
+}
+
+function saveData() {
+  localStorage.setItem(SK, JSON.stringify(S.decisions));
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${y}·${+m}·${+day}`;
+}
+
+function fmtDateLong(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return `${y}年${+m}月${+day}日`;
+}
+
+function filtered() {
+  let ds = [...S.decisions];
+  if (S.cat) ds = ds.filter(d => d.category === S.cat);
+  return ds.sort((a, b) => a.date < b.date ? 1 : -1);
+}
+
+function e(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ============================================================
+   RENDER CORE
+============================================================ */
+function render() {
+  renderSidebar();
+  const m = document.getElementById('main');
+  if (S.view === 'timeline') renderTimeline(m);
+  else if (S.view === 'list') renderList(m);
+  else if (S.view === 'story') renderStory(m);
+  else if (S.view === 'calibration') renderCalibration(m);
+  else if (S.view === 'compare') renderCompare(m);
+  else renderPatterns(m);
+}
+
+function renderSidebar() {
+  const cc = {};
+  S.decisions.forEach(d => { cc[d.category] = (cc[d.category]||0)+1; });
+
+  document.getElementById('cat-list').innerHTML =
+    Object.entries(CATS).map(([k,v]) => `
+      <button class="cat-btn${S.cat===k?' on':''}" onclick="setCat('${k}')"
+        style="${S.cat===k?`color:${v.c}`:''}">
+        <span class="cat-dot" style="background:${S.cat===k?v.c:v.c+'44'}"></span>
+        ${v.zh}
+        <span class="cat-n">${cc[k]||0}</span>
+      </button>
+    `).join('');
+
+  const all = S.decisions;
+  const outs = all.filter(d => d.outcome_score > 0).map(d => d.outcome_score);
+  const avgOut = outs.length ? (outs.reduce((a,b)=>a+b,0)/outs.length).toFixed(1) : '—';
+  const diffs = all.filter(d => d.difficulty > 0).map(d => d.difficulty);
+  const avgDiff = diffs.length ? (diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1) : '—';
+
+  document.getElementById('sb-stats').innerHTML = `
+    <div class="sb-stat"><span class="sb-stat-l">总计</span><span class="sb-stat-v">${all.length} 条</span></div>
+    <div class="sb-stat"><span class="sb-stat-l">平均结果</span><span class="sb-stat-v">${avgOut === 'NaN' ? '—' : avgOut}/5</span></div>
+    <div class="sb-stat"><span class="sb-stat-l">平均难度</span><span class="sb-stat-v">${avgDiff === 'NaN' ? '—' : avgDiff}/5</span></div>
+  `;
+
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === S.view));
+}
+
+/* ============================================================
+   LIST VIEW
+============================================================ */
+function renderList(m) {
+  const ds = filtered();
+  if (!ds.length) {
+    m.innerHTML = `
+      <div class="vh"><span class="vh-title">清单</span><span class="vh-sub">${S.decisions.length} 条记录</span></div>
+      <div class="empty">
+        <div class="empty-ic">📋</div>
+        <div class="empty-t">${S.cat ? `「${CATS[S.cat].zh}」暂无决策` : '还没有记录'}</div>
+        <div class="empty-s">把你人生中一次难忘的选择记录下来，哪怕结果并不完美</div>
+        ${!S.cat ? `<button class="empty-btn" onclick="openModal()">＋ 记录第一条</button>` : ''}
+      </div>`;
+    return;
+  }
+  m.innerHTML = `
+    <div class="vh">
+      <span class="vh-title">清单</span>
+      <span class="vh-sub">${ds.length} 条${S.cat?` · ${CATS[S.cat].zh}`:''}</span>
+    </div>
+    <div class="list-wrap"><div class="list-grid">${ds.map(cardHTML).join('')}</div></div>`;
+}
+
+function dots(n, color) {
+  return [1,2,3,4,5].map(i =>
+    `<span class="sc-dot" style="background:${i<=n ? color : 'var(--bd2)'}"></span>`
+  ).join('');
+}
+
+function cardHTML(d) {
+  const cat = CATS[d.category] || CATS.career;
+  return `
+    <div class="dc" onclick="openModal('${d.id}')">
+      <div class="dc-acts" onclick="event.stopPropagation()">
+        <button class="act-btn" onclick="copyCard('${d.id}',this)">复制</button>
+        <button class="act-btn del" onclick="delDecision('${d.id}')">删除</button>
+      </div>
+      <div class="dc-top">
+        <div class="dc-title">${e(d.title)}</div>
+        <div class="dc-date">${fmtDate(d.date)}</div>
+      </div>
+      <div class="dc-meta">
+        <span class="cat-tag" style="background:${cat.c}1a;color:${cat.c}">
+          <span style="width:5px;height:5px;border-radius:50%;background:${cat.c};display:inline-block"></span>
+          ${cat.zh}
+        </span>
+        ${d.choice ? `<span style="font-size:10px;color:var(--tx3)">→ ${e(d.choice.length>18?d.choice.slice(0,17)+'…':d.choice)}</span>` : ''}
+      </div>
+      <div class="dc-ctx">${e(d.context || d.reasoning || '')}</div>
+      <div class="dc-scores">
+        <div class="sc-item"><div class="sc-lbl">难度</div><div class="sc-dots">${dots(d.difficulty||0,'#6060a0')}</div></div>
+        <div class="sc-item"><div class="sc-lbl">结果</div><div class="sc-dots">${dots(d.outcome_score||0,cat.c)}</div></div>
+        ${d.regret ? `<div class="sc-item"><div class="sc-lbl">后悔</div><div class="sc-dots">${dots(d.regret,'#ef4444')}</div></div>` : ''}
+      </div>
+    </div>`;
+}
+
+/* ============================================================
+   TIMELINE VIEW
+============================================================ */
+function renderTimeline(m) {
+  const ds = filtered().sort((a,b) => a.date < b.date ? -1 : 1);
+  if (!ds.length) {
+    m.innerHTML = `
+      <div class="vh"><span class="vh-title">时间线</span></div>
+      <div class="empty">
+        <div class="empty-ic">◎</div>
+        <div class="empty-t">时间线是空的</div>
+        <div class="empty-s">你的每一条决策都会出现在这里，按时间排列</div>
+        <button class="empty-btn" onclick="openModal()">＋ 记录第一条</button>
+      </div>`;
+    return;
+  }
+  m.innerHTML = `
+    <div class="vh"><span class="vh-title">时间线</span><span class="vh-sub">${ds.length} 条 · 拖拽平移，滚轮缩放</span></div>
+    <div class="tl-wrap" id="tl-wrap">
+      <svg id="tl-svg"></svg>
+      <div class="tl-tip" id="tl-tip"></div>
+      <div class="tl-hint">滚轮 · 放大缩小</div>
+    </div>`;
+  drawTL(ds);
+  bindTL(ds);
+}
+
+function drawTL(ds) {
+  const svg = document.getElementById('tl-svg');
+  if (!svg) return;
+  const W = svg.clientWidth || (window.innerWidth - 216);
+  const H = svg.clientHeight || (window.innerHeight - 70);
+  const CY = Math.round(H * 0.52);
+
+  const t0 = new Date(ds[0].date).getTime();
+  const t1 = new Date(ds[ds.length-1].date).getTime();
+  const span = Math.max(t1 - t0, 86400000 * 365);
+  const tMin = t0 - span * 0.14;
+  const tMax = t1 + span * 0.14;
+
+  const xOf = t => ((t - tMin) / (tMax - tMin) * W * tlS.sc) + tlS.off;
+
+  // year ticks
+  const y0 = new Date(tMin).getFullYear();
+  const y1 = new Date(tMax).getFullYear() + 1;
+  let ticks = '';
+  for (let y = y0; y <= y1; y++) {
+    const x = xOf(new Date(y + '-01-01').getTime());
+    if (x < -30 || x > W + 30) continue;
+    ticks += `<line x1="${x}" y1="${CY-5}" x2="${x}" y2="${CY+5}" stroke="#16163a" stroke-width="1.5"/>
+      <text x="${x}" y="${CY+19}" text-anchor="middle" fill="#3a3a60" font-size="10">${y}</text>`;
+  }
+
+  // nodes — track placed label x positions to prevent collision
+  let nodes = '';
+  const placedLabels = [];
+  ds.forEach((d, i) => {
+    const x = xOf(new Date(d.date).getTime());
+    if (x < -40 || x > W + 40) return;
+    const cat = CATS[d.category] || CATS.career;
+    const up = i % 2 === 0;
+    const stem = 44 + (i % 4) * 10;
+    const ly = up ? CY - stem : CY + stem;
+    const lbl = d.title.length > 12 ? d.title.slice(0,11)+'…' : d.title;
+
+    const tooClose = placedLabels.some(px => Math.abs(x - px) < 55);
+    if (!tooClose) placedLabels.push(x);
+
+    nodes += `
+      <line x1="${x}" y1="${CY}" x2="${x}" y2="${ly}" stroke="${cat.c}33" stroke-width="1" stroke-dasharray="3,3"/>
+      <circle cx="${x}" cy="${CY}" r="7" fill="${cat.c}" class="tl-nd" data-id="${d.id}" style="cursor:pointer"/>
+      <circle cx="${x}" cy="${CY}" r="10" fill="transparent" stroke="${cat.c}44" stroke-width="2"/>
+      ${!tooClose ? `<text x="${x}" y="${up ? ly-7 : ly+14}" text-anchor="middle"
+        fill="#b8b8d8" font-size="11" pointer-events="none">${e(lbl)}</text>` : ''}`;
+  });
+
+  // today
+  const today = new Date('2026-06-25').getTime();
+  const tx = xOf(today);
+  let todayLine = '';
+  if (tx > 0 && tx < W) {
+    todayLine = `
+      <line x1="${tx}" y1="${CY-72}" x2="${tx}" y2="${CY+72}" stroke="#22c55e33" stroke-width="1.5" stroke-dasharray="5,4"/>
+      <text x="${tx}" y="${CY-77}" text-anchor="middle" fill="#22c55e99" font-size="9" letter-spacing=".5">今天</text>`;
+  }
+
+  svg.innerHTML = `
+    <defs><clipPath id="cc"><rect x="0" y="0" width="${W}" height="${H}"/></clipPath></defs>
+    <g clip-path="url(#cc)">
+      <line x1="0" y1="${CY}" x2="${W}" y2="${CY}" stroke="#16163a" stroke-width="1.5"/>
+      ${ticks}${todayLine}${nodes}
+    </g>`;
+
+  const tip = document.getElementById('tl-tip');
+  svg.querySelectorAll('.tl-nd').forEach(nd => {
+    nd.addEventListener('click', () => openModal(nd.dataset.id));
+    nd.addEventListener('mouseenter', ev => {
+      const d = S.decisions.find(x => x.id === nd.dataset.id);
+      if (!d) return;
+      const cat = CATS[d.category] || CATS.career;
+      tip.innerHTML = `
+        <div class="tl-tt-title">${e(d.title)}</div>
+        <div class="tl-tt-date" style="color:${cat.c}">${fmtDateLong(d.date)} · ${cat.zh}</div>
+        <div class="tl-tt-text">${e((d.context || d.reasoning || '').slice(0,80))}${(d.context||d.reasoning||'').length>80?'…':''}</div>`;
+      const rect = svg.getBoundingClientRect();
+      let lx = parseFloat(nd.getAttribute('cx')) + rect.left + 14;
+      let ly = parseFloat(nd.getAttribute('cy')) + rect.top - 24;
+      if (lx + 222 > window.innerWidth) lx -= 236;
+      if (ly < 8) ly = 8;
+      tip.style.left = lx + 'px';
+      tip.style.top = ly + 'px';
+      tip.classList.add('show');
+    });
+    nd.addEventListener('mouseleave', () => tip.classList.remove('show'));
+  });
+}
+
+function bindTL(ds) {
+  const wrap = document.getElementById('tl-wrap');
+  if (!wrap) return;
+
+  wrap.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    const f = ev.deltaY > 0 ? 0.84 : 1.19;
+    const mx = ev.clientX - wrap.getBoundingClientRect().left;
+    tlS.off = mx - (mx - tlS.off) * f;
+    tlS.sc = Math.max(0.25, Math.min(25, tlS.sc * f));
+    drawTL(ds);
+  }, { passive: false });
+
+  wrap.addEventListener('mousedown', ev => {
+    tlS.drag = true; tlS.dx = ev.clientX; tlS.doff = tlS.off;
+    wrap.classList.add('drag');
+  });
+
+  const onMove = ev => {
+    if (!tlS.drag) return;
+    tlS.off = tlS.doff + (ev.clientX - tlS.dx);
+    drawTL(ds);
+  };
+  const onUp = () => {
+    tlS.drag = false;
+    const w = document.getElementById('tl-wrap');
+    if (w) w.classList.remove('drag');
+  };
+
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
+
+/* ============================================================
+   PATTERNS VIEW
+============================================================ */
+function renderPatterns(m) {
+  const all = S.decisions;
+  if (all.length < 2) {
+    m.innerHTML = `
+      <div class="vh"><span class="vh-title">规律</span></div>
+      <div class="empty">
+        <div class="empty-ic">∿</div>
+        <div class="empty-t">记录更多决策来发现规律</div>
+        <div class="empty-s">至少 2 条决策可以开始分析，越多越准确</div>
+      </div>`;
+    return;
+  }
+
+  const bycat = {};
+  Object.keys(CATS).forEach(k => { bycat[k] = { n: 0, out: [], diff: [], reg: [] }; });
+  all.forEach(d => {
+    const b = bycat[d.category];
+    if (!b) return;
+    b.n++;
+    if (d.outcome_score > 0) b.out.push(d.outcome_score);
+    if (d.difficulty > 0) b.diff.push(d.difficulty);
+    if (d.regret > 0) b.reg.push(d.regret);
+  });
+
+  const avg = arr => arr.length ? (arr.reduce((a,b)=>a+b,0)/arr.length) : null;
+  const maxN = Math.max(...Object.values(bycat).map(b => b.n), 1);
+
+  const ratedCats = Object.entries(bycat)
+    .filter(([,b]) => b.out.length > 0)
+    .map(([k,b]) => ({ k, a: avg(b.out) }))
+    .sort((a,b) => b.a - a.a);
+
+  const bestCat = ratedCats[0];
+  const worstCat = ratedCats[ratedCats.length-1];
+  const topCat = Object.entries(bycat).sort((a,b) => b[1].n - a[1].n)[0];
+
+  const allOuts = all.filter(d => d.outcome_score > 0).map(d => d.outcome_score);
+  const globalAvgOut = avg(allOuts);
+
+  const hdhg = all.filter(d => d.difficulty >= 4 && d.outcome_score >= 4);
+  const hdlg = all.filter(d => d.difficulty >= 4 && d.outcome_score <= 2);
+  const ldhg = all.filter(d => d.difficulty <= 2 && d.outcome_score >= 4);
+
+  const bestD = [...all].filter(d => d.outcome_score > 0).sort((a,b) => b.outcome_score - a.outcome_score)[0];
+  const mostReg = [...all].filter(d => d.regret > 0).sort((a,b) => b.regret - a.regret)[0];
+
+  const catBars = Object.entries(bycat)
+    .filter(([,b]) => b.n > 0)
+    .sort((a,b) => b[1].n - a[1].n)
+    .map(([k,b]) => {
+      const a = avg(b.out);
+      return `<div class="bar-row">
+        <span class="bar-lbl" style="color:${CATS[k].c}">${CATS[k].zh}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${b.n/maxN*100}%;background:${CATS[k].c}77"></div></div>
+        <span class="bar-val">${b.n}${a ? ` · ${a.toFixed(1)}` : ''}</span>
+      </div>`;
+    }).join('');
+
+  // annual frequency
+  const byYear = {};
+  all.forEach(d => {
+    if (!d.date) return;
+    const y = d.date.slice(0, 4);
+    byYear[y] = (byYear[y] || 0) + 1;
+  });
+  const years = Object.keys(byYear).sort();
+  const maxY = years.length ? Math.max(...years.map(y => byYear[y])) : 1;
+  const yearBars = years.map(y => `
+    <div class="bar-row">
+      <span class="bar-lbl">${y}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${byYear[y]/maxY*100}%;background:#6060a077"></div></div>
+      <span class="bar-val">${byYear[y]}</span>
+    </div>`).join('');
+
+  m.innerHTML = `
+    <div class="vh"><span class="vh-title">规律</span><span class="vh-sub">${all.length} 条决策的模式</span></div>
+    <div class="pt-wrap"><div class="pt-grid">
+
+      <div class="pt-card">
+        <div class="pt-title">分类分布 · 数量 · 平均结果</div>
+        <div class="bar-chart">${catBars}</div>
+        ${bestCat && worstCat && bestCat.k !== worstCat.k ? `
+        <div class="insight">
+          <div class="insight-lbl">你的决策优势区</div>
+          <div class="insight-txt">
+            <span class="hl" style="color:${CATS[bestCat.k].c}">${CATS[bestCat.k].zh}</span> 类平均结果最好（${bestCat.a.toFixed(1)}/5），
+            <span class="hl" style="color:${CATS[worstCat.k].c}">${CATS[worstCat.k].zh}</span> 类最低（${worstCat.a.toFixed(1)}/5）
+          </div>
+        </div>` : ''}
+      </div>
+
+      <div class="pt-card">
+        <div class="pt-title">决策指纹</div>
+        ${topCat[1].n > 0 ? `<div class="kv-row"><span class="kv-k">最常决策</span><span class="kv-v" style="color:${CATS[topCat[0]].c}">${CATS[topCat[0]].zh} · ${topCat[1].n}次</span></div>` : ''}
+        ${globalAvgOut ? `<div class="kv-row"><span class="kv-k">总体结果均值</span><span class="kv-v">${globalAvgOut.toFixed(1)} / 5</span></div>` : ''}
+        ${hdhg.length ? `<div class="insight"><div class="insight-lbl">高难 → 好结果</div><div class="insight-txt"><span class="hl">${hdhg.length}次</span>高难度决策取得好结果，压力下的判断靠得住。</div></div>` : ''}
+        ${hdlg.length ? `<div class="insight" style="margin-top:8px"><div class="insight-lbl">高难 → 差结果</div><div class="insight-txt"><span class="hl">${hdlg.length}次</span>高难度决策结果不理想，这几条值得深挖。</div></div>` : ''}
+        ${ldhg.length ? `<div class="insight" style="margin-top:8px"><div class="insight-lbl">轻松 → 好结果</div><div class="insight-txt"><span class="hl">${ldhg.length}次</span>不费力的决策反而效果好，说明某些领域本能很准。</div></div>` : ''}
+      </div>
+
+      ${years.length > 1 ? `<div class="pt-card">
+        <div class="pt-title">年度频率</div>
+        <div class="bar-chart">${yearBars}</div>
+        <div class="insight">
+          <div class="insight-lbl">活跃年份</div>
+          <div class="insight-txt">
+            ${years.sort((a,b) => byYear[b]-byYear[a]).slice(0,2).map(y => `<span class="hl">${y}</span>（${byYear[y]}条）`).join('、')} 是决策最密集的年份
+          </div>
+        </div>
+      </div>` : ''}
+
+      ${bestD ? `<div class="pt-card">
+        <div class="pt-title">结果最好的决策</div>
+        <div style="font-size:14px;font-weight:700;color:var(--tx1);margin-bottom:5px">${e(bestD.title)}</div>
+        <div style="font-size:10px;color:${CATS[bestD.category]?.c||'#3b82f6'};margin-bottom:10px">${fmtDateLong(bestD.date)} · ${CATS[bestD.category]?.zh||''} · ${bestD.outcome_score}/5</div>
+        <div style="font-size:11px;color:var(--tx2);line-height:1.6">${e((bestD.outcome_note || bestD.learnings || '（无备注）').slice(0,120))}${(bestD.outcome_note||bestD.learnings||'').length>120?'…':''}</div>
+      </div>` : ''}
+
+      ${mostReg ? `<div class="pt-card">
+        <div class="pt-title">后悔程度最高</div>
+        <div style="font-size:14px;font-weight:700;color:var(--tx1);margin-bottom:5px">${e(mostReg.title)}</div>
+        <div style="font-size:10px;color:${CATS[mostReg.category]?.c||'#d86050'};margin-bottom:10px">${fmtDateLong(mostReg.date)} · 后悔 ${mostReg.regret}/5</div>
+        ${mostReg.wonder ? `<div class="insight"><div class="insight-lbl">还在想</div><div class="insight-txt">${e(mostReg.wonder.slice(0,100))}${mostReg.wonder.length>100?'…':''}</div></div>` : `<div style="font-size:11px;color:var(--tx2)">${e((mostReg.learnings||'').slice(0,100))}</div>`}
+      </div>` : ''}
+
+    </div></div>`;
+}
+
+/* ============================================================
+   STORY VIEW — trait detection + STAR generation
+============================================================ */
+function traitOf(d) {
+  const t = [];
+  if ((d.difficulty||0) >= 4) t.push('勇气');
+  if ((d.options||'').split('\n').filter(s => s.trim()).length >= 3) t.push('独立判断');
+  if ((d.regret||0) <= 1 && (d.outcome_score||0) >= 4) t.push('快速适应');
+  if (['education','career','money'].includes(d.category)) t.push('长期思考');
+  if ((d.regret||0) >= 3) t.push('接受损失');
+  return t;
+}
+
+function lim(s, n) {
+  const t = (s||'').trim();
+  return t.length > n ? t.slice(0, n) + '…' : t;
+}
+
+function starFull(d) {
+  const opts = (d.options||'').trim();
+  const optLines = opts
+    ? opts.split('\n').filter(Boolean).map((o,i) => `${i+1}. ${o.trim()}`).join('\n')
+    : '（未填写）';
+  const parts = [
+    '【背景 Situation】',
+    (d.context||'（未填写）').trim(),
+    '',
+    '【挑战 Task】',
+    '曾考虑的路：',
+    optLines,
+    '',
+    '【行动 Action】',
+    `选择了：${(d.choice||'（未记录）').trim()}。`,
+  ];
+  if ((d.reasoning||'').trim()) {
+    parts.push('');
+    parts.push((d.reasoning).trim());
+  }
+  parts.push('', '【结果 Result】', (d.outcome_note||'（未填写）').trim());
+  parts.push('', '【反思 Reflection】', (d.learnings||'（未填写）').trim());
+  return parts.join('\n');
+}
+
+function star100(d) {
+  const ctx    = lim(d.context,   60);
+  const ch     = lim(d.choice,    30);
+  const why    = lim(d.reasoning, 50);
+  const res    = lim(d.outcome_note, 60);
+  const learn  = lim(d.learnings, 40);
+  let s = '';
+  if (ctx) s += `当时${ctx}，`;
+  s += `我选择了${ch || d.title}`;
+  if (why) s += `，因为${why}`;
+  s += '。';
+  if (res) s += `最终${res}。`;
+  if (learn) s += `这让我意识到：${learn}。`;
+  return s || `（${d.title}——请先完善决策内容，再来提取故事）`;
+}
+
+function renderStory(m) {
+  let ds = filtered();
+  const all = S.decisions;
+
+  // trait counts across all decisions
+  const traitCounts = {};
+  TRAITS.forEach(t => { traitCounts[t] = 0; });
+  all.forEach(d => {
+    traitOf(d).forEach(t => { if (traitCounts[t] !== undefined) traitCounts[t]++; });
+  });
+
+  // apply trait filter to display list
+  if (S.trait) ds = ds.filter(d => traitOf(d).includes(S.trait));
+
+  const traitBtns = `
+    <button class="trait-btn${!S.trait?' on':''}" onclick="setTrait(null)">全部 ${filtered().length}</button>
+    ${TRAITS.map(t => `
+      <button class="trait-btn${S.trait===t?' on':''}" onclick="setTrait('${t}')">
+        ${t} ${traitCounts[t]||0}
+      </button>`).join('')}`;
+
+  if (!all.length) {
+    m.innerHTML = `
+      <div class="vh"><span class="vh-title">故事</span><span class="vh-sub">面试素材提取</span></div>
+      <div class="empty">
+        <div class="empty-ic">✦</div>
+        <div class="empty-t">还没有可以提取的故事</div>
+        <div class="empty-s">先记录几条决策，再来这里把它们转化成面试故事</div>
+        <button class="empty-btn" onclick="openModal()">＋ 记录第一条</button>
+      </div>`;
+    return;
+  }
+
+  const cards = ds.length ? ds.map(d => {
+    const cat = CATS[d.category] || CATS.career;
+    const traits = traitOf(d);
+    return `
+      <div class="sc">
+        <div class="sc-head">
+          <div class="sc-title">${e(d.title)}</div>
+          <div class="sc-date">${fmtDate(d.date)}</div>
+        </div>
+        <div>
+          <span class="cat-tag" style="background:${cat.c}1a;color:${cat.c}">
+            <span style="width:5px;height:5px;border-radius:50%;background:${cat.c};display:inline-block"></span>
+            ${cat.zh}
+          </span>
+        </div>
+        ${traits.length ? `<div class="sc-traits">${traits.map(t => `<span class="trait-tag">${t}</span>`).join('')}</div>` : `<div style="font-size:10px;color:var(--tx4)">暂无特质标签</div>`}
+        <button class="gen-btn" onclick="openStory('${d.id}')">生成故事 →</button>
+      </div>`;
+  }).join('') : `
+    <div style="grid-column:1/-1;text-align:center;padding:40px 0;color:var(--tx3);font-size:12px">
+      没有符合「${S.trait}」特质的决策——试试调低筛选，或记录更多高难度/多选项的决策
+    </div>`;
+
+  m.innerHTML = `
+    <div class="vh">
+      <span class="vh-title">故事</span>
+      <span class="vh-sub">面试素材提取 · ${ds.length} 条</span>
+    </div>
+    <div class="trait-row">${traitBtns}</div>
+    <div class="story-grid">${cards}</div>`;
+}
+
+function openStory(id) {
+  const d = S.decisions.find(x => x.id === id);
+  if (!d) return;
+  const cat = CATS[d.category] || CATS.career;
+  const traits = traitOf(d);
+  const full100 = star100(d);
+  const fullStar = starFull(d);
+
+  document.getElementById('modal').innerHTML = `
+    <div class="m-head" style="align-items:flex-start;margin-bottom:18px">
+      <div>
+        <div class="m-title">${e(d.title)}</div>
+        <div class="story-m-meta">
+          <span style="color:${cat.c}">${fmtDateLong(d.date)} · ${cat.zh}</span>
+          ${traits.map(t => `<span class="trait-tag">${t}</span>`).join('')}
+        </div>
+      </div>
+      <button class="m-x" onclick="closeModal()">×</button>
+    </div>
+
+    <div class="story-section">
+      <div class="story-sec-t">100字精简版</div>
+      <div class="story-text" id="st-100">${e(full100)}</div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyStory('st-100', this)">复制</button>
+      </div>
+    </div>
+
+    <hr class="fdiv">
+
+    <div class="story-section">
+      <div class="story-sec-t">完整 STAR 版</div>
+      <div class="story-text" id="st-full">${e(fullStar)}</div>
+      <div class="copy-row">
+        <button class="copy-btn" onclick="copyStory('st-full', this)">复制</button>
+      </div>
+    </div>`;
+
+  document.getElementById('ov').classList.remove('hide');
+}
+
+function copyStory(elId, btn) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const text = el.textContent || el.innerText;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ 已复制';
+      setTimeout(() => btn.textContent = '复制', 1800);
+    }).catch(() => fallbackCopy(text, btn));
+  } else {
+    fallbackCopy(text, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  btn.textContent = '✓ 已复制';
+  setTimeout(() => btn.textContent = '复制', 1800);
+}
+
+/* ============================================================
+   EXPORT
+============================================================ */
+function exportJSON() {
+  if (!S.decisions.length) { alert('还没有任何决策记录'); return; }
+  const blob = new Blob([JSON.stringify(S.decisions, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const ts = new Date().toISOString().slice(0, 10);
+  a.download = `decision-ledger-${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function printPage() {
+  const prev = S.view;
+  S.cat = null;
+  S.view = 'list';
+  render();
+  setTimeout(() => {
+    window.print();
+    S.view = prev;
+    render();
+  }, 80);
+}
+
+function copyCard(id, btn) {
+  const d = S.decisions.find(x => x.id === id);
+  if (!d) return;
+  const cat = CATS[d.category] || CATS.career;
+  const lines = [`【${d.title}】${fmtDateLong(d.date)} · ${cat.zh}`, ''];
+  if (d.context) lines.push(`背景：${d.context}`);
+  if (d.options) lines.push(`选项：\n${d.options}`);
+  if (d.choice) lines.push(`选择：${d.choice}`);
+  if (d.reasoning) lines.push(`理由：${d.reasoning}`);
+  if (d.outcome_note) lines.push(`结果：${d.outcome_note}`);
+  if (d.outcome_score) lines.push(`结果评分：${d.outcome_score}/5`);
+  if (d.regret) lines.push(`后悔程度：${d.regret}/5`);
+  if (d.learnings) lines.push(`\n收获：${d.learnings}`);
+  if (d.wonder) lines.push(`仍在想：${d.wonder}`);
+  const text = lines.join('\n');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓';
+      setTimeout(() => btn.textContent = '复制', 1500);
+    }).catch(() => { copyFallback(text); btn.textContent = '✓'; setTimeout(() => btn.textContent = '复制', 1500); });
+  } else {
+    copyFallback(text);
+    btn.textContent = '✓';
+    setTimeout(() => btn.textContent = '复制', 1500);
+  }
+}
+
+function copyFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); } catch(err) {}
+  document.body.removeChild(ta);
+}
+
+/* ============================================================
+   CALIBRATION
+============================================================ */
+function calPick() {
+  const eligible = S.decisions.filter(d => d.outcome_score > 0);
+  if (!eligible.length) return null;
+  const seen = new Set(calS.history.map(h => h.id));
+  const fresh = eligible.filter(d => !seen.has(d.id));
+  const pool = fresh.length ? fresh : eligible;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function renderCalibration(m) {
+  const eligible = S.decisions.filter(d => d.outcome_score > 0);
+
+  if (eligible.length < 2) {
+    m.innerHTML = `
+      <div class="vh"><span class="vh-title">校准测试</span><span class="vh-sub">检验你的自我认知</span></div>
+      <div class="empty">
+        <div class="empty-ic">⊛</div>
+        <div class="empty-t">需要更多记录</div>
+        <div class="empty-s">记录至少 2 条有结果评分的决策，才能开始校准测试</div>
+      </div>`;
+    return;
+  }
+
+  if (!calS.current) {
+    calS.current = calPick();
+    calS.phase = 'guess';
+    calS.userGuess = 0;
+  }
+
+  const d = calS.current;
+  if (!d) {
+    m.innerHTML = `<div class="vh"><span class="vh-title">校准测试</span></div>
+      <div class="empty"><div class="empty-t">暂无题目</div></div>`;
+    return;
+  }
+
+  const cat = CATS[d.category] || CATS.career;
+
+  // history panel
+  let histHTML = '';
+  if (calS.history.length > 0) {
+    const avgErr = (calS.history.reduce((s, h) => s + Math.abs(h.delta), 0) / calS.history.length).toFixed(1);
+    const rows = calS.history.map(h => {
+      const abs = Math.abs(h.delta);
+      const dc = abs === 0 ? '#48c070' : abs <= 1 ? '#e0aa38' : '#d86050';
+      return `<div class="cal-hist-row">
+        <span class="cal-hist-title">${e(h.title)}</span>
+        <span class="cal-hist-g">猜 ${h.guess}</span>
+        <span class="cal-hist-a">实 ${h.actual}</span>
+        <span class="cal-hist-d" style="background:${dc}22;color:${dc}">${h.delta > 0 ? '+' : ''}${h.delta}</span>
+      </div>`;
+    }).join('');
+    histHTML = `<div class="cal-history">
+      <div class="cal-hist-t">本次会话 · ${calS.history.length} 题 · 平均偏差 ${avgErr}</div>
+      ${rows}
+    </div>`;
+  }
+
+  let mainHTML = '';
+
+  if (calS.phase === 'guess') {
+    const n = calS.history.length + 1;
+    const rbs = [1,2,3,4,5].map(i =>
+      `<button class="cal-rb${calS.userGuess===i?' on':''}" onclick="calSetGuess(${i})">${i}</button>`
+    ).join('');
+    mainHTML = `
+      <div class="cal-card">
+        <div class="cal-badge">第 ${n} 题</div>
+        <div class="cal-dtitle">${e(d.title)}</div>
+        <div class="cal-dmeta">
+          <span style="color:${cat.c}">${fmtDateLong(d.date)}</span>
+          <span class="cat-tag" style="background:${cat.c}1a;color:${cat.c}">
+            <span style="width:5px;height:5px;border-radius:50%;background:${cat.c};display:inline-block"></span>
+            ${cat.zh}
+          </span>
+        </div>
+        ${d.context ? `<div class="cal-sec-t">背景情况</div><div class="cal-text">${e(d.context)}</div>` : ''}
+        ${d.options ? `<div class="cal-sec-t">考虑过的选项</div><div class="cal-text">${e(d.options)}</div>` : ''}
+        ${d.choice ? `<div class="cal-sec-t">最终选择</div><div class="cal-text">${e(d.choice)}</div>` : ''}
+        ${d.reasoning ? `<div class="cal-sec-t">当时的理由</div><div class="cal-text">${e(d.reasoning)}</div>` : ''}
+        <hr class="cal-divider">
+        <div class="cal-q">你猜这个决策的结果如何？（1=很差　5=很好）</div>
+        <div class="cal-rating">${rbs}</div>
+        <button class="cal-submit${calS.userGuess > 0 ? ' ready' : ''}" onclick="calSubmit()">揭晓答案 →</button>
+      </div>`;
+  } else {
+    const delta = calS.userGuess - d.outcome_score;
+    const absDelta = Math.abs(delta);
+    const dc = absDelta === 0 ? '#48c070' : absDelta <= 1 ? '#e0aa38' : '#d86050';
+    const comment = absDelta === 0
+      ? '完全准确——你对这个决策结果的认知很清晰。'
+      : delta > 0
+        ? `高估了 ${absDelta} 分——当时比实际结果更乐观。`
+        : `低估了 ${absDelta} 分——实际结果比你预期的要好。`;
+    mainHTML = `
+      <div class="cal-card">
+        <div class="cal-badge">第 ${calS.history.length} 题 · 揭晓</div>
+        <div class="cal-dtitle">${e(d.title)}</div>
+        <div class="cal-dmeta" style="margin-bottom:18px">
+          <span style="color:${cat.c}">${fmtDateLong(d.date)}</span>
+          <span class="cat-tag" style="background:${cat.c}1a;color:${cat.c}">
+            <span style="width:5px;height:5px;border-radius:50%;background:${cat.c};display:inline-block"></span>
+            ${cat.zh}
+          </span>
+        </div>
+        <div class="cal-reveal">
+          <div class="cal-reveal-scores">
+            <div class="cal-score-box">
+              <div class="cal-score-lbl">你的猜测</div>
+              <div class="cal-score-val">${calS.userGuess}<span class="cal-score-unit">/5</span></div>
+            </div>
+            <div class="cal-score-box" style="border-color:${cat.c}55">
+              <div class="cal-score-lbl">实际结果</div>
+              <div class="cal-score-val" style="color:${cat.c}">${d.outcome_score}<span class="cal-score-unit">/5</span></div>
+            </div>
+            <div class="cal-score-box" style="border-color:${dc}55">
+              <div class="cal-score-lbl">偏差</div>
+              <div class="cal-score-val" style="color:${dc}">${delta > 0 ? '+' : ''}${delta}</div>
+            </div>
+          </div>
+          <div class="cal-delta-txt">${comment}</div>
+          ${d.outcome_note ? `<div class="cal-sec-t">实际发生了什么</div><div class="cal-text">${e(d.outcome_note)}</div>` : ''}
+          ${d.learnings ? `<div class="cal-sec-t">收获</div><div class="cal-text">${e(d.learnings)}</div>` : ''}
+        </div>
+        <button class="cal-next" onclick="calNext()">下一题 →</button>
+      </div>`;
+  }
+
+  m.innerHTML = `
+    <div class="vh">
+      <span class="vh-title">校准测试</span>
+      <span class="vh-sub">检验你的自我认知 · ${calS.history.length} 题完成</span>
+    </div>
+    <div class="cal-wrap">
+      ${mainHTML}
+      ${histHTML}
+    </div>`;
+}
+
+function calSetGuess(n) {
+  calS.userGuess = n;
+  document.querySelectorAll('.cal-rb').forEach((b, i) => b.classList.toggle('on', i + 1 === n));
+  const sub = document.querySelector('.cal-submit');
+  if (sub) sub.classList.add('ready');
+}
+
+function calSubmit() {
+  if (!calS.userGuess) return;
+  const d = calS.current;
+  if (!d) return;
+  calS.history.push({
+    id: d.id, title: d.title,
+    guess: calS.userGuess, actual: d.outcome_score,
+    delta: calS.userGuess - d.outcome_score,
+  });
+  calS.phase = 'reveal';
+  renderCalibration(document.getElementById('main'));
+}
+
+function calNext() {
+  calS.current = null;
+  calS.phase = 'guess';
+  calS.userGuess = 0;
+  renderCalibration(document.getElementById('main'));
+}
+
+/* ============================================================
+   MODAL — edit/create
+============================================================ */
+const TODAY = '2026-06-25';
+
+function openModal(id) {
+  S.editId = id || null;
+  const d = id ? S.decisions.find(x => x.id === id) : null;
+
+  function rg(gid, val) {
+    return `<div class="rating-g" id="${gid}" data-v="${val||0}">
+      ${[1,2,3,4,5].map(i =>
+        `<button class="rb${(val||0)>=i?' on':''}" data-n="${i}"
+          onclick="setR('${gid}',${i})">${i}</button>`
+      ).join('')}
+    </div>`;
+  }
+
+  document.getElementById('modal').innerHTML = `
+    <div class="m-head">
+      <div class="m-title">${d ? '编辑决策' : '记录一条决策'}</div>
+      <button class="m-x" onclick="closeModal()">×</button>
+    </div>
+
+    <div class="f-sec">
+      <div class="f-sec-t">基本信息</div>
+      <div class="f-grid">
+        <div class="f-field full">
+          <label>决策标题 *</label>
+          <input type="text" id="fi-title" placeholder="用一句话概括这个决策" value="${e(d?.title||'')}">
+        </div>
+        <div class="f-field">
+          <label>日期 *</label>
+          <input type="date" id="fi-date" value="${d?.date||TODAY}">
+        </div>
+        <div class="f-field">
+          <label>分类 *</label>
+          <select id="fi-cat">
+            ${Object.entries(CATS).map(([k,v]) =>
+              `<option value="${k}"${d?.category===k?' selected':''}>${v.zh}</option>`
+            ).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <hr class="fdiv">
+
+    <div class="f-sec">
+      <div class="f-sec-t">当时的处境</div>
+      <div class="f-grid">
+        <div class="f-field full">
+          <label>背景情况</label>
+          <textarea id="fi-ctx" placeholder="当时面对什么处境？有什么压力、机会或约束？">${e(d?.context||'')}</textarea>
+        </div>
+        <div class="f-field full">
+          <label>考虑过的选项</label>
+          <textarea id="fi-opts" placeholder="你有哪些选择？一行一个">${e(d?.options||'')}</textarea>
+        </div>
+        <div class="f-field full">
+          <label>最终选择了什么</label>
+          <input type="text" id="fi-choice" placeholder="你选了哪条路" value="${e(d?.choice||'')}">
+        </div>
+        <div class="f-field full">
+          <label>当时的理由</label>
+          <textarea id="fi-reason" placeholder="当时的逻辑是什么？最吸引你的是什么？">${e(d?.reasoning||'')}</textarea>
+        </div>
+        <div class="f-field">
+          <label>决策难度（1-5）</label>
+          ${rg('rg-diff', d?.difficulty)}
+        </div>
+      </div>
+    </div>
+
+    <hr class="fdiv">
+
+    <div class="f-sec">
+      <div class="f-sec-t">事后回看</div>
+      <div class="f-grid">
+        <div class="f-field full">
+          <label>实际发生了什么</label>
+          <textarea id="fi-outnote" placeholder="结果怎样？和预期有什么不同？">${e(d?.outcome_note||'')}</textarea>
+        </div>
+        <div class="f-field full">
+          <label>你学到了什么</label>
+          <textarea id="fi-learn" placeholder="这次决策改变了你对什么的看法？">${e(d?.learnings||'')}</textarea>
+        </div>
+        <div class="f-field full">
+          <label>还在想的那条路</label>
+          <textarea id="fi-wonder" placeholder="如果当初选了另一条路，你觉得会怎样？">${e(d?.wonder||'')}</textarea>
+        </div>
+        <div class="f-field">
+          <label>结果评分（1=很差 5=很好）</label>
+          ${rg('rg-out', d?.outcome_score)}
+        </div>
+        <div class="f-field">
+          <label>后悔程度（1=无 5=极后悔）</label>
+          ${rg('rg-reg', d?.regret)}
+        </div>
+      </div>
+    </div>
+
+    <div class="m-foot">
+      <button class="btn btn-g" onclick="closeModal()">取消</button>
+      <button class="btn btn-p" onclick="submitModal()">${d ? '保存修改' : '记录这条决策'}</button>
+    </div>`;
+
+  document.getElementById('ov').classList.remove('hide');
+}
+
+function closeModal() {
+  document.getElementById('ov').classList.add('hide');
+  S.editId = null;
+}
+
+function setR(gid, n) {
+  const g = document.getElementById(gid);
+  if (!g) return;
+  g.dataset.v = n;
+  g.querySelectorAll('.rb').forEach(b => b.classList.toggle('on', +b.dataset.n <= n));
+}
+
+function gv(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function gr(gid) { const g = document.getElementById(gid); return g ? +g.dataset.v || 0 : 0; }
+
+function submitModal() {
+  const title = gv('fi-title');
+  const date = gv('fi-date');
+  const category = gv('fi-cat');
+  if (!title || !date || !category) { alert('请填写标题、日期和分类'); return; }
+
+  const now = new Date().toISOString();
+  const patch = {
+    title, date, category,
+    context: gv('fi-ctx'),
+    options: gv('fi-opts'),
+    choice: gv('fi-choice'),
+    reasoning: gv('fi-reason'),
+    difficulty: gr('rg-diff'),
+    outcome_score: gr('rg-out'),
+    outcome_note: gv('fi-outnote'),
+    learnings: gv('fi-learn'),
+    wonder: gv('fi-wonder'),
+    regret: gr('rg-reg'),
+    updated_at: now,
+  };
+
+  if (S.editId) {
+    const i = S.decisions.findIndex(d => d.id === S.editId);
+    if (i >= 0) S.decisions[i] = { ...S.decisions[i], ...patch };
+  } else {
+    S.decisions.push({ id: uid(), created_at: now, ...patch });
+  }
+
+  saveData();
+  closeModal();
+  tlS = { off: 0, sc: 1, drag: false, dx: 0, doff: 0 };
+  render();
+}
+
+function delDecision(id) {
+  if (!confirm('确定删除这条决策记录？此操作不可撤销。')) return;
+  S.decisions = S.decisions.filter(d => d.id !== id);
+  saveData();
+  render();
+}
+
+/* ============================================================
+   COMPARE VIEW
+============================================================ */
+function renderCompare(m) {
+  const all = [...S.decisions].sort((a,b) => a.date < b.date ? 1 : -1);
+  if (all.length < 2) {
+    m.innerHTML = `
+      <div class="vh"><span class="vh-title">对比</span></div>
+      <div class="empty">
+        <div class="empty-ic">⇔</div>
+        <div class="empty-t">需要至少 2 条决策</div>
+        <div class="empty-s">记录更多决策，再来并排对比任意两条</div>
+        <button class="empty-btn" onclick="openModal()">＋ 记录第一条</button>
+      </div>`;
+    return;
+  }
+
+  const mkOpts = sel => `<option value="">— 选择 —</option>` +
+    all.map(d => {
+      const t = d.title.length > 26 ? d.title.slice(0,25)+'…' : d.title;
+      return `<option value="${d.id}"${d.id===sel?' selected':''}>${e(t)} · ${fmtDate(d.date)}</option>`;
+    }).join('');
+
+  const da = S.compareA ? S.decisions.find(d => d.id === S.compareA) : null;
+  const db = S.compareB ? S.decisions.find(d => d.id === S.compareB) : null;
+
+  const FIELDS = [
+    { k: 'category',      lbl: '分类',     fmt: v => CATS[v]?.zh || (v||'—') },
+    { k: 'date',          lbl: '日期',     fmt: fmtDateLong },
+    { k: 'context',       lbl: '背景',     multi: true },
+    { k: 'options',       lbl: '选项',     multi: true },
+    { k: 'choice',        lbl: '选择' },
+    { k: 'reasoning',     lbl: '理由',     multi: true },
+    { k: 'difficulty',    lbl: '难度',     fmt: v => v ? `${v} / 5` : '—' },
+    { k: 'outcome_note',  lbl: '结果',     multi: true },
+    { k: 'outcome_score', lbl: '结果评分', fmt: v => v ? `${v} / 5` : '—' },
+    { k: 'regret',        lbl: '后悔',     fmt: v => v ? `${v} / 5` : '—' },
+    { k: 'learnings',     lbl: '收获',     multi: true },
+    { k: 'wonder',        lbl: '仍在想',   multi: true },
+  ];
+
+  const hdrA = da ? `<div class="cmp-preview" style="color:${CATS[da.category]?.c}">${CATS[da.category]?.zh} · ${fmtDate(da.date)}</div>` : '';
+  const hdrB = db ? `<div class="cmp-preview" style="color:${CATS[db.category]?.c}">${CATS[db.category]?.zh} · ${fmtDate(db.date)}</div>` : '';
+
+  let tableHTML = '';
+  if (da && db) {
+    const rows = FIELDS.map(f => {
+      const va = da[f.k] || '';
+      const vb = db[f.k] || '';
+      const fa = f.fmt ? f.fmt(da[f.k]) : (String(va || '—'));
+      const fb = f.fmt ? f.fmt(db[f.k]) : (String(vb || '—'));
+      const diff = String(va) !== String(vb);
+      return `<div class="cmp-row${diff?' diff':''}">
+        <div class="cmp-lbl">${f.lbl}</div>
+        <div class="cmp-val${f.multi?' multi':''}${!va?' mt':''}">${e(fa)}</div>
+        <div class="cmp-val${f.multi?' multi':''}${!vb?' mt':''}">${e(fb)}</div>
+      </div>`;
+    }).join('');
+    tableHTML = `<div class="cmp-table">${rows}</div>`;
+  } else {
+    tableHTML = `<div style="padding:30px 0 10px;color:var(--tx3);font-size:12px">
+      ${da || db ? '再选一条决策来对比' : '选择两条决策来开始对比'}
+    </div>`;
+  }
+
+  m.innerHTML = `
+    <div class="vh"><span class="vh-title">对比</span><span class="vh-sub">并排比较任意两条决策</span></div>
+    <div class="cmp-wrap">
+      <div class="cmp-selectors">
+        <div class="cmp-sel-card">
+          <div class="cmp-sel-lbl">决策 A</div>
+          <select onchange="setCmpA(this.value)">${mkOpts(S.compareA)}</select>
+          ${hdrA}
+        </div>
+        <div class="cmp-vs">VS</div>
+        <div class="cmp-sel-card">
+          <div class="cmp-sel-lbl">决策 B</div>
+          <select onchange="setCmpB(this.value)">${mkOpts(S.compareB)}</select>
+          ${hdrB}
+        </div>
+      </div>
+      ${tableHTML}
+    </div>`;
+}
+
+function setCmpA(id) { S.compareA = id || null; renderCompare(document.getElementById('main')); }
+function setCmpB(id) { S.compareB = id || null; renderCompare(document.getElementById('main')); }
+
+/* ============================================================
+   IMPORT JSON
+============================================================ */
+function triggerImport() {
+  document.getElementById('import-input').click();
+}
+
+function importJSON() {
+  const input = document.getElementById('import-input');
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) throw new Error('not array');
+      const existing = new Set(S.decisions.map(d => d.id));
+      const fresh = data.filter(d => d && typeof d.id === 'string' && typeof d.title === 'string' && !existing.has(d.id));
+      if (!fresh.length) {
+        alert(`导入完成：0 条新增（${data.length} 条已全部存在或格式不对）`);
+      } else {
+        S.decisions.push(...fresh);
+        saveData();
+        render();
+        alert(`导入成功：新增 ${fresh.length} 条，跳过 ${data.length - fresh.length} 条`);
+      }
+    } catch(err) {
+      alert('导入失败：请选择本工具导出的 JSON 备份文件');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+/* ============================================================
+   MOBILE SIDEBAR
+============================================================ */
+function toggleSidebar() {
+  const sb = document.querySelector('.sb');
+  const ov = document.getElementById('sb-overlay');
+  const opening = !sb.classList.contains('open');
+  sb.classList.toggle('open', opening);
+  ov.classList.toggle('show', opening);
+}
+
+function closeSidebar() {
+  document.querySelector('.sb').classList.remove('open');
+  document.getElementById('sb-overlay').classList.remove('show');
+}
+
+/* ============================================================
+   EVENTS
+============================================================ */
+function setCat(k) {
+  S.cat = S.cat === k ? null : k;
+  render();
+}
+
+function setTrait(t) {
+  S.trait = S.trait === t ? null : t;
+  render();
+}
+
+document.getElementById('nav').addEventListener('click', ev => {
+  const b = ev.target.closest('.nav-btn');
+  if (!b) return;
+  S.view = b.dataset.v;
+  tlS = { off: 0, sc: 1, drag: false, dx: 0, doff: 0 };
+  closeSidebar();
+  render();
+});
+
+document.getElementById('btn-add').addEventListener('click', () => { closeSidebar(); openModal(); });
+
+document.getElementById('ov').addEventListener('click', ev => {
+  if (ev.target === document.getElementById('ov')) closeModal();
+});
+
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') closeModal();
+});
+
+/* ============================================================
+   BOOT
+============================================================ */
+loadData();
+render();
+</script>
+<input type="file" id="import-input" accept=".json" style="display:none" onchange="importJSON()">
+</body>
+</html>

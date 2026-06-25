@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夜行图鉴 · No.012 · 候</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #06060d;
+  --text-main: #aeaa96;
+  --text-dim: #5a5648;
+  --text-faint: #2e2c26;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: 'Georgia', 'Songti SC', serif;
+  overflow-x: hidden;
+}
+
+/* ── intro ────────────────────────────── */
+
+.intro {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1.6rem;
+  padding: 2rem;
+  position: relative;
+}
+
+.catalog-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.32em;
+  color: var(--text-faint);
+}
+
+.volume {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.divider {
+  width: 36px;
+  height: 1px;
+  background: #1e1c18;
+}
+
+.intro-hint {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  line-height: 2.2;
+}
+
+.arrow {
+  position: absolute;
+  bottom: 2.4rem;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  animation: sink 3.5s ease-in-out infinite;
+}
+
+@keyframes sink {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50%       { opacity: 0.65; transform: translateY(5px); }
+}
+
+/* ── creature ─────────────────────────── */
+
+.creature {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3.2rem;
+  padding: 4rem 2rem;
+}
+
+#canvas {
+  display: block;
+  width: 300px;
+  height: 300px;
+  max-width: 85vw;
+  max-height: 50vh;
+}
+
+.entry {
+  max-width: 36ch;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 1.8s ease 1.4s, transform 1.8s ease 1.4s;
+}
+
+.entry.live {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.c-name {
+  display: block;
+  font-size: 2rem;
+  font-weight: normal;
+  letter-spacing: 0.15em;
+  color: #cac6b2;
+  margin-bottom: 0.25rem;
+}
+
+.c-num {
+  display: block;
+  font-size: 0.63rem;
+  letter-spacing: 0.28em;
+  color: var(--text-faint);
+  margin-bottom: 0.25rem;
+}
+
+.c-tax {
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  padding-bottom: 1.3rem;
+  border-bottom: 1px solid #141418;
+  margin-bottom: 1.3rem;
+}
+
+.c-body {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 2.1;
+  margin-bottom: 0.7rem;
+}
+
+.c-note {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  line-height: 2;
+  font-style: italic;
+  border-top: 1px solid #141418;
+  padding-top: 1.2rem;
+  margin-top: 1rem;
+}
+</style>
+</head>
+<body>
+
+<section class="intro">
+  <span class="catalog-label">夜行图鉴</span>
+  <span class="volume">第十二卷</span>
+  <div class="divider"></div>
+  <p class="intro-hint">往下滚<br>你在等什么<br>它也在等你</p>
+  <div class="arrow">↓</div>
+</section>
+
+<section class="creature">
+  <canvas id="canvas"></canvas>
+
+  <div class="entry" id="entry">
+    <span class="c-name">候</span>
+    <span class="c-num">No.012</span>
+    <span class="c-tax">俗名：等候者 · 分布：每一处空处，以及空处和空处之间</span>
+    <p class="c-body">候不挑等的对象。<br>它等的是「有什么要来」这件事本身。</p>
+    <p class="c-body">你滚下来，它算是等到了。<br>你滚走，它就接着等下一个。<br>没有失望，没有欣喜——只是等。</p>
+    <p class="c-note">
+      有研究者曾尝试让候表现出期待或失落，<br>
+      但在记录设备面前，候只是展开，然后收回。<br>
+      也许等和期待之间，差着整整一颗心。
+    </p>
+  </div>
+</section>
+
+<script>
+(function () {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const S = 300;
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width  = S * DPR;
+  canvas.height = S * DPR;
+  ctx.scale(DPR, DPR);
+
+  const CX = S / 2, CY = S / 2;
+
+  // ── tendril data (fixed, no Math.random) ──────────────────
+  const NUM = 11;
+  const LENS       = [88, 100, 82, 97, 110, 79, 94, 106, 85, 98, 92];
+  const DRIFTS     = [0.18, -0.12, 0.22, -0.09, 0.16, -0.21, 0.11, -0.17, 0.24, -0.11, 0.14];
+  const SWAY_OFF   = [0, 1.3, 2.6, 3.9, 0.7, 2.0, 3.3, 0.4, 1.7, 3.0, 0.2];
+  const SWAY_RATE  = [0.38, 0.44, 0.35, 0.50, 0.41, 0.39, 0.47, 0.36, 0.43, 0.41, 0.48];
+
+  const tendrils = [];
+  for (let i = 0; i < NUM; i++) {
+    const angle = (i / NUM) * Math.PI * 2 - Math.PI / 2;
+    const len   = LENS[i];
+    const drift = DRIFTS[i];
+    const perp  = angle + Math.PI / 2;
+    const midR  = len * 0.52;
+    tendrils.push({
+      angle,
+      ctrlX: CX + Math.cos(angle) * midR + Math.cos(perp) * drift * len,
+      ctrlY: CY + Math.sin(angle) * midR + Math.sin(perp) * drift * len,
+      tipX:  CX + Math.cos(angle) * len,
+      tipY:  CY + Math.sin(angle) * len,
+      delay:    (i / (NUM - 1)) * 0.5,
+      swayOff:  SWAY_OFF[i],
+      swayRate: SWAY_RATE[i],
+    });
+  }
+
+  // ── state ─────────────────────────────────────────────────
+  let state    = 'waiting'; // waiting | waking | awake | sleeping
+  let progress = 0;
+  let gt       = 0;
+  let lastTs   = null;
+
+  const WAKE_SPEED  = 1 / 3.5;
+  const SLEEP_SPEED = 1 / 1.8;
+
+  // ── bezier ────────────────────────────────────────────────
+  function bPt(ax, ay, bx, by, cx, cy, t) {
+    const m = 1 - t;
+    return [m*m*ax + 2*m*t*bx + t*t*cx,
+            m*m*ay + 2*m*t*by + t*t*cy];
+  }
+
+  function drawTendril(td, tEnd, alpha, sx, sy) {
+    if (tEnd <= 0 || alpha <= 0) return;
+    const ex = td.tipX + sx, ey = td.tipY + sy;
+    const steps = Math.max(18, Math.ceil(tEnd * 50));
+
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    for (let s = 1; s <= steps; s++) {
+      const t = (s / steps) * tEnd;
+      const [px, py] = bPt(CX, CY, td.ctrlX, td.ctrlY, ex, ey, t);
+      ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = `rgba(195, 215, 240, ${alpha * 0.72})`;
+    ctx.lineWidth = 1.15;
+    ctx.shadowBlur = 13;
+    ctx.shadowColor = `rgba(155, 190, 230, ${alpha * 0.32})`;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // ── frame ─────────────────────────────────────────────────
+  function frame(ts) {
+    if (lastTs === null) lastTs = ts;
+    const dt = Math.min((ts - lastTs) / 1000, 0.05);
+    lastTs = ts;
+    gt += dt;
+
+    if (state === 'waking') {
+      progress = Math.min(progress + dt * WAKE_SPEED, 1);
+      if (progress >= 1) state = 'awake';
+    } else if (state === 'sleeping') {
+      progress = Math.max(progress - dt * SLEEP_SPEED, 0);
+      if (progress <= 0) state = 'waiting';
+    }
+
+    ctx.clearRect(0, 0, S, S);
+
+    // center glow — always present, brighter when awake
+    const gi = state === 'waiting'
+      ? 0.09 + 0.04 * Math.sin(gt * 1.1)
+      : 0.20 + 0.07 * Math.sin(gt * 0.75);
+
+    const grd = ctx.createRadialGradient(CX, CY, 0, CX, CY, 25);
+    grd.addColorStop(0,    `rgba(242, 232, 206, ${gi})`);
+    grd.addColorStop(0.45, `rgba(210, 190, 158, ${gi * 0.55})`);
+    grd.addColorStop(1,    'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(CX, CY, 25, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(CX, CY, 2.1, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(248, 240, 222, ${gi * 2.8})`;
+    ctx.fill();
+
+    // tendrils
+    if (progress > 0) {
+      for (const td of tendrils) {
+        const denom  = 1 - td.delay;
+        const localT = Math.min(Math.max((progress - td.delay) / denom, 0), 1);
+        if (localT <= 0) continue;
+
+        let sx = 0, sy = 0;
+        if (state === 'awake') {
+          const sway = 3.5 * Math.sin(gt * td.swayRate + td.swayOff);
+          const perp = td.angle + Math.PI / 2;
+          sx = Math.cos(perp) * sway;
+          sy = Math.sin(perp) * sway;
+        }
+
+        drawTendril(td, localT, localT, sx, sy);
+
+        // tip glow near full extension
+        if (localT > 0.87) {
+          const ta = (localT - 0.87) / 0.13;
+          const [tx, ty] = bPt(CX, CY, td.ctrlX, td.ctrlY, td.tipX + sx, td.tipY + sy, localT);
+          ctx.beginPath();
+          ctx.arc(tx, ty, 1.7, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(215, 232, 252, ${ta * 0.92})`;
+          ctx.shadowBlur = 11;
+          ctx.shadowColor = 'rgba(170, 205, 245, 0.75)';
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+
+  // ── observer ──────────────────────────────────────────────
+  const entryEl = document.getElementById('entry');
+
+  new IntersectionObserver(entries => {
+    for (const e of entries) {
+      if (e.isIntersecting) {
+        if (state === 'waiting' || state === 'sleeping') state = 'waking';
+        entryEl.classList.add('live');
+      } else {
+        if (state === 'waking' || state === 'awake') state = 'sleeping';
+        entryEl.classList.remove('live');
+      }
+    }
+  }, { threshold: 0.25 }).observe(canvas);
+
+})();
+</script>
+</body>
+</html>

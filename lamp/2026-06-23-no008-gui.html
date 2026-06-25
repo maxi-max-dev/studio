@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>晷 · No.008 · 夜行图鉴</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #050510;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Georgia', 'Noto Serif SC', serif;
+  overflow: hidden;
+}
+canvas { display: block; }
+.info {
+  margin-top: 1.8rem;
+  text-align: center;
+  max-width: 340px;
+  padding: 0 1.2rem;
+}
+.no {
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  color: #444466;
+  margin-bottom: 0.4rem;
+}
+.name {
+  font-size: 1.65rem;
+  letter-spacing: 0.42em;
+  color: #9090b8;
+  margin-bottom: 1rem;
+}
+.desc {
+  font-size: 0.82rem;
+  color: #55556a;
+  line-height: 1.88;
+}
+.tl {
+  margin-top: 0.9rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  color: #333350;
+}
+.back {
+  display: block;
+  margin-top: 2.2rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  color: #2a2a42;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+.back:hover { color: #6666aa; }
+</style>
+</head>
+<body>
+
+<canvas id="c" width="420" height="420"></canvas>
+
+<div class="info">
+  <div class="no">No.008</div>
+  <div class="name">晷</div>
+  <p class="desc">晷活在每一个「当下」里——打开它时，它已经知道时辰了。凌晨来，它只剩一圈内核，叶片蜷着几乎透明；正午来，它六圈全开旋转最快，仿佛要把所有光都卷进去。它不记得你来过，但它永远知道你是哪个时辰抵达的。</p>
+  <div class="tl" id="tl">—</div>
+</div>
+
+<a class="back" href="tujian.html">← 夜行图鉴</a>
+
+<script>
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+const S = 420, HC = S / 2;
+
+// ── Color keyframes [hour, hue, sat%, light%] ──────────────────────
+const CK = [
+  [ 0, 240, 45, 12],
+  [ 4, 235, 50,  8],
+  [ 5,  25, 65, 32],
+  [ 7,  36, 68, 56],
+  [10,  45, 62, 68],
+  [12,  50, 55, 75],
+  [15,  38, 66, 65],
+  [18, 305, 48, 45],
+  [21, 272, 52, 26],
+  [23, 250, 48, 14],
+  [24, 240, 45, 12],
+];
+
+function lerpColor(fh) {
+  for (let i = 0; i < CK.length - 1; i++) {
+    const [h0, hu0, s0, l0] = CK[i];
+    const [h1, hu1, s1, l1] = CK[i + 1];
+    if (fh >= h0 && fh < h1) {
+      const t = (fh - h0) / (h1 - h0);
+      let dh = hu1 - hu0;
+      if (dh > 180) dh -= 360;
+      if (dh < -180) dh += 360;
+      return {
+        hue: ((hu0 + dh * t) % 360 + 360) % 360,
+        sat: s0 + (s1 - s0) * t,
+        lit: l0 + (l1 - l0) * t,
+      };
+    }
+  }
+  return { hue: 240, sat: 45, lit: 12 };
+}
+
+// Layer opacity peaks at noon (6 layers visible), fades to 1 layer at midnight
+function layerAlpha(li, fh) {
+  const d = Math.min(Math.abs(fh - 12), 24 - Math.abs(fh - 12)) / 12;
+  const fl = 1 + 5 * Math.pow(1 - Math.pow(d, 0.55), 1.3);
+  return Math.max(0, Math.min(1, fl - li));
+}
+
+// Rotation speed in rad/sec: fast at noon, slow at midnight
+function rotSpd(fh) {
+  const d = Math.min(Math.abs(fh - 12), 24 - Math.abs(fh - 12)) / 12;
+  const fast = (Math.PI * 2) / 9;
+  const slow = (Math.PI * 2) / 80;
+  return fast + (slow - fast) * Math.pow(d, 1.2);
+}
+
+// Layers: petal count, orbit radius, half-width, half-length, rotation dir
+const LY = [
+  { n:  6, r:  45, w: 9, l: 23, d:  1 },
+  { n:  8, r:  77, w: 9, l: 21, d: -1 },
+  { n: 10, r: 108, w: 8, l: 20, d:  1 },
+  { n: 12, r: 137, w: 8, l: 18, d: -1 },
+  { n: 14, r: 164, w: 7, l: 17, d:  1 },
+  { n: 16, r: 189, w: 7, l: 15, d: -1 },
+];
+
+const angs = [0, 0, 0, 0, 0, 0];
+let lastTs = 0, bp = 0, lastMin = -1;
+
+function drawPetal(w, l) {
+  ctx.beginPath();
+  ctx.moveTo(0, -l);
+  ctx.bezierCurveTo( w, -l * 0.5,  w,  l * 0.12,  0,  l * 0.22);
+  ctx.bezierCurveTo(-w,  l * 0.12, -w, -l * 0.5,  0, -l);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function tick(ts) {
+  const dt = Math.min((ts - lastTs) / 1000, 0.05);
+  lastTs = ts;
+  bp += dt;
+
+  const now = new Date();
+  const fh = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  const spd = rotSpd(fh);
+  const col = lerpColor(fh);
+
+  // Advance rotation angles
+  for (let i = 0; i < 6; i++) {
+    angs[i] += LY[i].d * spd * (1 + i * 0.07) * dt;
+  }
+
+  // Update time label every minute
+  const m = now.getMinutes();
+  if (m !== lastMin) {
+    lastMin = m;
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    const h = now.getHours();
+    let ph = '深夜 · 它几乎睡着了';
+    if (h >= 5 && h < 6) ph = '黎明前 · 它骨架尚存';
+    else if (h >= 6 && h < 8) ph = '黎明 · 它开始苏醒';
+    else if (h >= 8 && h < 11) ph = '清晨 · 它在舒展';
+    else if (h >= 11 && h < 12) ph = '上午 · 它渐渐饱满';
+    else if (h >= 12 && h < 14) ph = '正午 · 它完全开放';
+    else if (h >= 14 && h < 17) ph = '下午 · 它仍在盛放';
+    else if (h >= 17 && h < 19) ph = '傍晚 · 它开始收拢';
+    else if (h >= 19 && h < 22) ph = '夜晚 · 它渐渐合上';
+    document.getElementById('tl').textContent = `${hh}:${mm}  ·  ${ph}`;
+  }
+
+  ctx.clearRect(0, 0, S, S);
+
+  // Radial background glow
+  const bg = ctx.createRadialGradient(HC, HC, 0, HC, HC, HC);
+  bg.addColorStop(0, `hsla(${col.hue},${col.sat}%,${col.lit * 0.28}%,0.75)`);
+  bg.addColorStop(1, 'hsla(0,0%,0%,0)');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, S, S);
+
+  // Draw layers outside-in so inner layers appear on top
+  for (let li = 5; li >= 0; li--) {
+    const a = layerAlpha(li, fh);
+    if (a < 0.005) continue;
+
+    const { n, r, w, l, d } = LY[li];
+    const hShift = li * 7;
+    const litShift = Math.min(col.lit + li * 4.5, 88);
+    ctx.fillStyle = `hsl(${(col.hue + hShift + 360) % 360},${col.sat}%,${litShift}%)`;
+
+    for (let pi = 0; pi < n; pi++) {
+      const ang = angs[li] + (Math.PI * 2 / n) * pi;
+      const bs = 1 + 0.038 * Math.sin(bp * 1.1 + li * 0.85 + pi * 0.38);
+
+      ctx.save();
+      ctx.globalAlpha = 0.58 * a;
+      ctx.translate(HC, HC);
+      ctx.rotate(ang);
+      ctx.translate(0, -r);
+      ctx.scale(bs, bs);
+      drawPetal(w, l);
+      ctx.restore();
+    }
+  }
+
+  // Nucleus glow
+  const nucR = 12 * (1 + 0.2 * Math.sin(bp * spd * 1.4));
+  const nucLit = Math.min(Math.max(col.lit * 1.4 + 20, 40), 90);
+  const ng = ctx.createRadialGradient(HC, HC, 0, HC, HC, nucR * 3.2);
+  ng.addColorStop(0, `hsla(${col.hue + 22},${col.sat + 8}%,${nucLit}%,0.95)`);
+  ng.addColorStop(0.4, `hsla(${col.hue},${col.sat}%,${col.lit}%,0.45)`);
+  ng.addColorStop(1, `hsla(${col.hue},${col.sat}%,${col.lit}%,0)`);
+  ctx.fillStyle = ng;
+  ctx.beginPath();
+  ctx.arc(HC, HC, nucR * 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  requestAnimationFrame(tick);
+}
+
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
