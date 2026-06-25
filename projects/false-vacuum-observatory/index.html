@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>虚空 — 假真空衰变观测站</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="universe"></canvas>
+
+  <div id="overlay">
+    <header>
+      <div id="title-block">
+        <div class="title-main">虚 空</div>
+        <div class="title-sub">假真空衰变观测站</div>
+      </div>
+      <div id="stats-block">
+        <div class="stat-row">
+          <span class="stat-label">世代</span>
+          <span class="stat-value" id="stat-gen">1</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">宇宙纪元</span>
+          <span class="stat-value" id="stat-age">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">假真空占比</span>
+          <span class="stat-value" id="stat-fvf">100.0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">活跃真空泡</span>
+          <span class="stat-value" id="stat-bubbles">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">状态</span>
+          <span class="stat-value" id="stat-status">亚稳态</span>
+        </div>
+      </div>
+    </header>
+
+    <div id="commentary-wrap">
+      <p id="commentary-text"></p>
+    </div>
+
+    <footer>
+      <div id="controls">
+        <button class="ctrl-btn" id="btn-pause">暂停</button>
+        <button class="ctrl-btn" id="btn-speed">1× 速</button>
+        <button class="ctrl-btn" id="btn-reset">重置</button>
+      </div>
+      <div id="hint">点击宇宙任意位置，手动引发核化</div>
+    </footer>
+  </div>
+
+  <script src="js/universe.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/commentary.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
