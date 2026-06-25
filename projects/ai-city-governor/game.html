@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 治城</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="game-shell">
+  <header class="game-header">
+    <span class="h-city" id="h-city">——</span>
+    <span class="h-sep">·</span>
+    <span class="h-period" id="h-period">2025 Q1</span>
+    <div class="h-progress">
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <span class="h-turn-label" id="h-turn-label">0 / 12</span>
+    </div>
+  </header>
+
+  <div class="game-body">
+    <!-- Indicators -->
+    <aside class="panel-indicators">
+      <div class="panel-title">城市指标</div>
+      <div id="indicators-list"></div>
+    </aside>
+
+    <!-- Decision -->
+    <main class="panel-decision" id="panel-decision">
+      <div id="decision-content"></div>
+      <div class="outcome-panel" id="outcome-panel">
+        <div class="outcome-title">结果</div>
+        <p class="outcome-text" id="outcome-text"></p>
+        <div class="parallel-box">
+          <div class="parallel-label">历史类比</div>
+          <p class="parallel-text" id="parallel-text"></p>
+        </div>
+        <button class="btn-next" id="btn-next">下一季度 →</button>
+      </div>
+    </main>
+
+    <!-- History -->
+    <aside class="panel-history">
+      <div class="panel-title">决策记录</div>
+      <div id="history-list">
+        <p class="history-empty">每作出一个决策，记录将在此显示。</p>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script>
+const OPT_COLORS = { A: '#3b82f6', B: '#8b5cf6', C: '#10b981', D: '#f59e0b' };
+
+let state;
+
+function init() {
+  const cityName = localStorage.getItem('ai_city_city_name');
+  if (!cityName) { window.location.href = 'index.html'; return; }
+
+  state = GameEngine.get();
+  if (!state || state.cityName !== cityName) {
+    state = GameEngine.start(cityName);
+  }
+
+  document.getElementById('h-city').textContent = state.cityName;
+  renderAll();
+}
+
+function renderAll() {
+  updateHeader();
+  renderIndicators(null);
+  renderHistory();
+  if (GameEngine.done(state)) {
+    window.location.href = 'report.html';
+    return;
+  }
+  renderDecision();
+}
+
+function updateHeader() {
+  const d = DECISIONS[Math.min(state.turn, DECISIONS.length - 1)];
+  document.getElementById('h-period').textContent = `${d.year} Q${d.quarter}`;
+  const pct = (state.turn / DECISIONS.length) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('h-turn-label').textContent = `${state.turn} / ${DECISIONS.length}`;
+}
+
+function renderIndicators(effects) {
+  const list = document.getElementById('indicators-list');
+
+  if (!list.children.length) {
+    list.innerHTML = INDICATORS.map(({ key, label, icon }) => {
+      const val = state.indicators[key];
+      const color = GameEngine.indicatorColor(val);
+      return `
+        <div class="ind-row" id="ind-${key}">
+          <div class="ind-top">
+            <span class="ind-name"><span class="ind-icon">${icon}</span>${label}</span>
+            <span class="ind-val" id="indv-${key}" style="color:${color}">${val}</span>
+          </div>
+          <div class="ind-bar-track">
+            <div class="ind-bar-fill" id="indb-${key}" style="width:${val}%;background:${color}"></div>
+          </div>
+          <div class="ind-delta" id="indd-${key}"></div>
+        </div>`;
+    }).join('');
+    return;
+  }
+
+  INDICATORS.forEach(({ key }) => {
+    const val = state.indicators[key];
+    const color = GameEngine.indicatorColor(val);
+    const delta = effects ? (effects[key] || 0) : null;
+
+    const valEl = document.getElementById(`indv-${key}`);
+    if (valEl.textContent !== String(val)) {
+      valEl.textContent = val;
+      valEl.style.color = color;
+      valEl.classList.remove('delta-flash');
+      void valEl.offsetWidth;
+      valEl.classList.add('delta-flash');
+    }
+
+    const barEl = document.getElementById(`indb-${key}`);
+    barEl.style.width = val + '%';
+    barEl.style.background = color;
+
+    const deltaEl = document.getElementById(`indd-${key}`);
+    if (delta !== null && delta !== 0) {
+      deltaEl.textContent = (delta > 0 ? '+' : '') + delta;
+      deltaEl.style.color = delta > 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      deltaEl.textContent = '';
+    }
+  });
+}
+
+function renderDecision() {
+  const d = DECISIONS[state.turn];
+  const content = document.getElementById('decision-content');
+
+  const opts = d.options.map(opt => {
+    const color = OPT_COLORS[opt.label];
+    const pills = INDICATORS.map(({ key, label }) => {
+      const v = opt.effects[key] || 0;
+      if (v === 0) return '';
+      const cls = v > 0 ? 'effect-pos' : 'effect-neg';
+      return `<span class="effect-pill ${cls}">${v > 0 ? '+' : ''}${v} ${label}</span>`;
+    }).join('');
+
+    return `
+      <button class="option-btn fade-up" data-label="${opt.label}"
+              style="--option-color:${color}"
+              onclick="choose('${opt.label}')">
+        <div class="option-header">
+          <span class="option-badge" style="background:${color}">${opt.label}</span>
+          <span class="option-text">${opt.text}</span>
+        </div>
+        <div class="option-desc">${opt.desc}</div>
+        <div class="option-effects-preview">${pills}</div>
+      </button>`;
+  }).join('');
+
+  content.innerHTML = `
+    <div class="decision-meta">
+      <span class="decision-year">${d.year} · Q${d.quarter}</span>
+      <span class="decision-num">第 ${d.id} / 12 项决策</span>
+    </div>
+    <h2 class="decision-title">${d.title}</h2>
+    <p class="decision-context">${d.context}</p>
+    <div class="options-label">选择你的应对方案</div>
+    ${opts}
+  `;
+
+  document.getElementById('outcome-panel').classList.remove('visible');
+}
+
+function choose(label) {
+  const d = DECISIONS[state.turn];
+  const opt = d.options.find(o => o.label === label);
+
+  document.querySelectorAll('.option-btn').forEach(btn => {
+    btn.disabled = true;
+    if (btn.dataset.label === label) {
+      btn.classList.add('selected');
+      btn.style.setProperty('--selected-color', OPT_COLORS[label]);
+    }
+  });
+
+  const prevInd = { ...state.indicators };
+  GameEngine.choose(state, label);
+
+  const effects = {};
+  INDICATORS.forEach(({ key }) => {
+    effects[key] = state.indicators[key] - prevInd[key];
+  });
+
+  renderIndicators(effects);
+  renderHistory();
+
+  const panel = document.getElementById('outcome-panel');
+  document.getElementById('outcome-text').textContent = opt.outcome;
+  document.getElementById('parallel-text').textContent = opt.parallel;
+  panel.classList.add('visible');
+
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (GameEngine.done(state)) {
+    window.location.href = 'report.html';
+  } else {
+    renderIndicators(null);
+    updateHeader();
+    renderDecision();
+    document.getElementById('panel-decision').scrollTo({ top: 0, behavior: 'smooth' });
+  }
+});
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!state.history.length) return;
+  list.innerHTML = [...state.history].reverse().map(h => {
+    const color = OPT_COLORS[h.label];
+    return `
+      <div class="history-item">
+        <div class="history-period">${h.year} Q${h.quarter}</div>
+        <div class="history-title">${h.title}</div>
+        <div class="history-choice" style="color:${color}">${h.label}. ${h.text}</div>
+      </div>`;
+  }).join('');
+}
+
+init();
+</script>
+</body>
+</html>

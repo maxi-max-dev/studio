@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 治城</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .glow-line {
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    height: 1px;
+    margin: 32px 0;
+    opacity: .3;
+  }
+  .scenario-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .scenario-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text3);
+  }
+  .scenario-dot {
+    background: var(--border2);
+    border-radius: 50%;
+    height: 5px;
+    width: 5px;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="landing">
+  <div class="landing-inner">
+    <div class="landing-badge">城市治理模拟 · 2025—2027</div>
+
+    <h1>AI <span>治</span>城</h1>
+
+    <p class="landing-sub">
+      你是市长。三年，十二个季度，每季度一个决策——关于你的城市如何与AI共存。<br>
+      没有正确答案，只有取舍。
+    </p>
+
+    <div class="landing-meta">
+      <div class="meta-item">
+        <span class="meta-label">决策轮数</span>
+        <span class="meta-value">12 个季度</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">核心指标</span>
+        <span class="meta-value">8 项城市指数</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">对标城市</span>
+        <span class="meta-value">新加坡、阿姆斯特丹、深圳等</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">时长</span>
+        <span class="meta-value">约 20 分钟</span>
+      </div>
+    </div>
+
+    <div class="glow-line"></div>
+
+    <div class="city-form">
+      <label for="city-input">给你的城市起一个名字</label>
+      <input
+        id="city-input"
+        type="text"
+        placeholder="如：新南市、碳山城、光合区……"
+        maxlength="16"
+        autocomplete="off"
+      >
+      <button class="btn-primary" id="start-btn" disabled>开始执政 →</button>
+    </div>
+
+    <div class="landing-indicators">
+      <span class="ind-chip">📈 经济活力</span>
+      <span class="ind-chip">⚖️ 公平指数</span>
+      <span class="ind-chip">🗽 公民自由</span>
+      <span class="ind-chip">🎨 文化活力</span>
+      <span class="ind-chip">👷 劳工福祉</span>
+      <span class="ind-chip">💡 创新力</span>
+      <span class="ind-chip">🤝 制度信任</span>
+      <span class="ind-chip">🌿 生态可持续</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const inp = document.getElementById('city-input');
+  const btn = document.getElementById('start-btn');
+
+  inp.addEventListener('input', () => {
+    btn.disabled = inp.value.trim().length < 2;
+  });
+
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !btn.disabled) start();
+  });
+
+  btn.addEventListener('click', start);
+
+  function start() {
+    const name = inp.value.trim();
+    if (name.length < 2) return;
+    localStorage.setItem('ai_city_city_name', name);
+    localStorage.removeItem('ai_city_v1');
+    window.location.href = 'game.html';
+  }
+
+  inp.focus();
+</script>
+</body>
+</html>

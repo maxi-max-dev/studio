@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 治城 · 执政报告</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .legacy-box {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 12px 12px 0;
+    margin-top: 24px;
+    padding: 20px 24px;
+  }
+  .legacy-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .legacy-text {
+    color: var(--text2);
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  .city-compare-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .city-compare-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .city-compare-card.is-closest {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+  .city-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .city-color-dot {
+    border-radius: 50%;
+    height: 8px;
+    width: 8px;
+    flex-shrink: 0;
+  }
+  .city-name-zh {
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .city-score-big {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .city-score-label {
+    font-size: 10px;
+    color: var(--text3);
+  }
+  .closest-badge {
+    display: inline-block;
+    background: rgba(59,130,246,.15);
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="report-shell">
+  <div class="report-eyebrow" id="report-eyebrow">执政报告 · 2025—2027</div>
+  <h1 class="report-title" id="report-title">——</h1>
+  <p class="report-score" id="report-score"></p>
+
+  <!-- Radar -->
+  <div class="section-header">城市雷达图</div>
+  <div class="radar-container">
+    <svg id="radar-svg" width="340" height="340" viewBox="0 0 340 340"></svg>
+    <div class="radar-legend" id="radar-legend"></div>
+  </div>
+
+  <!-- Indicator breakdown -->
+  <div class="section-header">指标详情</div>
+  <div class="ind-grid" id="ind-grid"></div>
+
+  <!-- Closest city -->
+  <div class="section-header">最接近的城市</div>
+  <div class="city-compare-grid" id="city-compare-grid"></div>
+
+  <!-- Legacy -->
+  <div class="section-header">你的执政遗产</div>
+  <div class="legacy-box">
+    <div class="legacy-label">历史评价</div>
+    <p class="legacy-text" id="legacy-text"></p>
+  </div>
+
+  <!-- Timeline -->
+  <div class="section-header">决策时间轴</div>
+  <div class="timeline" id="timeline"></div>
+
+  <div class="report-cta">
+    <button class="btn-restart" onclick="restart()">重新执政另一座城市</button>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script>
+const OPT_COLORS = { A: '#3b82f6', B: '#8b5cf6', C: '#10b981', D: '#f59e0b' };
+const CX = 170, CY = 170, MAX_R = 130;
+const N = INDICATORS.length;
+
+let state;
+
+function init() {
+  state = GameEngine.get();
+  if (!state || !GameEngine.done(state)) {
+    window.location.href = 'game.html';
+    return;
+  }
+
+  const score = GameEngine.overallScore(state);
+  const closest = GameEngine.closestCity(state);
+
+  document.getElementById('report-eyebrow').textContent = `${state.cityName} · 执政报告 · 2025—2027`;
+  document.getElementById('report-title').textContent = state.cityName;
+  document.getElementById('report-score').innerHTML =
+    `综合城市指数 <strong>${score}</strong> / 100`;
+
+  renderRadar(state, closest);
+  renderIndicatorGrid(state);
+  renderCityCompare(state, closest);
+  renderLegacy(state, score, closest);
+  renderTimeline(state);
+}
+
+// ── Radar ──────────────────────────────────────────────────────────────
+function polar(angle, r) {
+  const a = angle - Math.PI / 2;
+  return { x: CX + r * Math.cos(a), y: CY + r * Math.sin(a) };
+}
+
+function buildPath(vals) {
+  return INDICATORS.map(({ key }, i) => {
+    const angle = (2 * Math.PI * i) / N;
+    const r = (vals[key] / 100) * MAX_R;
+    const p = polar(angle, r);
+    return `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+  }).join(' ') + ' Z';
+}
+
+function renderRadar(state, closest) {
+  const svg = document.getElementById('radar-svg');
+  let html = '';
+
+  // Grid circles
+  [20, 40, 60, 80, 100].forEach(level => {
+    const r = (level / 100) * MAX_R;
+    html += `<circle cx="${CX}" cy="${CY}" r="${r}" fill="none" stroke="#1e2d4a" stroke-width="1"/>`;
+    if (level % 40 === 0) {
+      html += `<text x="${CX + 3}" y="${CY - r + 4}" fill="#556480" font-size="9">${level}</text>`;
+    }
+  });
+
+  // Axis lines + labels
+  INDICATORS.forEach(({ key, label, icon }, i) => {
+    const angle = (2 * Math.PI * i) / N;
+    const end = polar(angle, MAX_R + 8);
+    const labelPt = polar(angle, MAX_R + 26);
+    html += `<line x1="${CX}" y1="${CY}" x2="${end.x.toFixed(1)}" y2="${end.y.toFixed(1)}" stroke="#1e2d4a" stroke-width="1"/>`;
+    html += `<text x="${labelPt.x.toFixed(1)}" y="${labelPt.y.toFixed(1)}" fill="#8b9fc3" font-size="9.5" text-anchor="middle" dominant-baseline="middle">${icon} ${label}</text>`;
+  });
+
+  // Reference cities (faint)
+  REFERENCE_CITIES.forEach(city => {
+    html += `<path d="${buildPath(city.values)}" fill="${city.color}" fill-opacity="0.07" stroke="${city.color}" stroke-opacity="0.3" stroke-width="1"/>`;
+  });
+
+  // Player paths — fill and stroke separate for animation
+  const playerD = buildPath(state.indicators);
+  html += `<path id="player-fill" d="${playerD}" fill="#3b82f6" fill-opacity="0" stroke="none"/>`;
+  html += `<path id="player-stroke" d="${playerD}" fill="none" stroke="#3b82f6" stroke-width="2"/>`;
+
+  // Dots on player path (initially hidden)
+  INDICATORS.forEach(({ key }, i) => {
+    const angle = (2 * Math.PI * i) / N;
+    const r = (state.indicators[key] / 100) * MAX_R;
+    const p = polar(angle, r);
+    html += `<circle class="player-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="#3b82f6" opacity="0"/>`;
+  });
+
+  svg.innerHTML = html;
+
+  // Stroke draw animation
+  const strokePath = document.getElementById('player-stroke');
+  const pathLen = strokePath.getTotalLength();
+  strokePath.style.strokeDasharray = pathLen;
+  strokePath.style.strokeDashoffset = pathLen;
+  strokePath.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)';
+
+  const fillPath = document.getElementById('player-fill');
+  fillPath.style.transition = 'fill-opacity 0.5s ease 1s';
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      strokePath.style.strokeDashoffset = '0';
+      fillPath.style.fillOpacity = '0.18';
+      document.querySelectorAll('.player-dot').forEach((dot, i) => {
+        setTimeout(() => {
+          dot.style.transition = 'opacity 0.25s ease';
+          dot.style.opacity = '1';
+        }, 900 + i * 80);
+      });
+    });
+  });
+
+  // Legend
+  const legend = document.getElementById('radar-legend');
+  const playerScore = GameEngine.overallScore(state);
+  let legendHTML = `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#3b82f6"></div>
+      <span class="legend-name"><strong>${state.cityName}</strong> (${playerScore})</span>
+    </div>`;
+  REFERENCE_CITIES.forEach(city => {
+    const avg = Math.round(INDICATORS.reduce((a, { key }) => a + city.values[key], 0) / N);
+    const marker = city === closest ? ' ◀ 最近' : '';
+    legendHTML += `
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${city.color}"></div>
+        <span class="legend-name">${city.name_zh} (${avg})${marker}</span>
+      </div>`;
+  });
+  legend.innerHTML = legendHTML;
+}
+
+// ── Indicator grid ──────────────────────────────────────────────────────
+function renderIndicatorGrid(state) {
+  const grid = document.getElementById('ind-grid');
+  grid.innerHTML = INDICATORS.map(({ key, label, icon }, i) => {
+    const val = state.indicators[key];
+    const color = GameEngine.indicatorColor(val);
+    const status = GameEngine.indicatorLabel(val);
+    return `
+      <div class="ind-card fade-up" style="animation-delay:${(i * 0.06).toFixed(2)}s">
+        <div class="ind-card-top">
+          <span class="ind-card-name">${icon} ${label}</span>
+          <span class="ind-card-val" style="color:${color}">${val}</span>
+        </div>
+        <div class="ind-card-bar">
+          <div class="ind-card-fill" style="width:${val}%;background:${color}"></div>
+        </div>
+        <div class="ind-card-status" style="color:${color}">${status}</div>
+      </div>`;
+  }).join('');
+}
+
+// ── City compare ────────────────────────────────────────────────────────
+function renderCityCompare(state, closest) {
+  const grid = document.getElementById('city-compare-grid');
+  grid.innerHTML = REFERENCE_CITIES.map(city => {
+    const avg = Math.round(INDICATORS.reduce((a, { key }) => a + city.values[key], 0) / N);
+    const isClosest = city === closest;
+    return `
+      <div class="city-compare-card ${isClosest ? 'is-closest' : ''}">
+        <div class="city-name-row">
+          <div class="city-color-dot" style="background:${city.color}"></div>
+          <span class="city-name-zh">${city.name_zh}</span>
+        </div>
+        <div class="city-score-big" style="color:${city.color}">${avg}</div>
+        <div class="city-score-label">综合指数</div>
+        ${isClosest ? `<div class="closest-badge">最接近你的城市</div><p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.55">${city.desc}</p>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ── Legacy message ──────────────────────────────────────────────────────
+function renderLegacy(state, score, closest) {
+  const ind = state.indicators;
+  const lines = [];
+
+  // Dominant trait
+  const sorted = INDICATORS.slice().sort((a, b) => ind[b.key] - ind[a.key]);
+  const top = sorted[0];
+  const bottom = sorted[sorted.length - 1];
+
+  lines.push(`${state.cityName}的三年执政以${top.label}见长（${ind[top.key]}分），在AI时代的城市竞争中留下了鲜明的印记。`);
+
+  if (ind.lib < 40 && ind.eco > 65) {
+    lines.push('你选择了效率优先的路径——城市在经济和创新上快速崛起，但公民自由的收紧是一道隐患，它往往在下一代人的手中才显现代价。');
+  } else if (ind.eq > 65 && ind.tru > 65) {
+    lines.push('你构建了一座高信任、高公平的城市。这样的城市在危机中韧性最强，尽管它的经济增速可能不是最亮眼的。');
+  } else if (ind.inn > 70 && ind.wk < 40) {
+    lines.push('你的城市引领了技术浪潮，但工人的代价是真实的。历史会记得那些被快速转型抛在身后的人。');
+  } else if (ind.tru > 70) {
+    lines.push('制度信任是最难积累、最易毁损的资产。你选择了慢慢建造它，这将是你留给继任者最宝贵的遗产。');
+  } else {
+    lines.push('你在八个方向的拉力之间寻找平衡，每一个决策都是取舍的印记。没有完美的城市，只有诚实面对复杂性的领导者。');
+  }
+
+  lines.push(`与${closest.name_zh}最为相近的治理风格，说明你的城市走上了一条${closest.desc.slice(0, 30)}……的道路。`);
+
+  if (score >= 60) {
+    lines.push('综合指数显示，这座城市在AI时代的第一轮压力测试中，保持了相对的健康。下一个市长将站在你的肩膀上继续前行。');
+  } else {
+    lines.push('综合指数偏低意味着这座城市内部积累了不少矛盾。历史不会遗忘这三年，但它也总是给下一任领导人留有余地。');
+  }
+
+  document.getElementById('legacy-text').textContent = lines.join(' ');
+}
+
+// ── Timeline ────────────────────────────────────────────────────────────
+function renderTimeline(state) {
+  const tl = document.getElementById('timeline');
+  let prevYear = null;
+  tl.innerHTML = state.history.map(h => {
+    const color = OPT_COLORS[h.label];
+    const pills = INDICATORS.map(({ key, label }) => {
+      const v = h.effects[key] || 0;
+      if (v === 0) return '';
+      const cls = v > 0 ? 'effect-pos' : 'effect-neg';
+      return `<span class="effect-pill ${cls}">${v > 0 ? '+' : ''}${v} ${label}</span>`;
+    }).join('');
+
+    let yearDivider = '';
+    if (h.year !== prevYear) {
+      prevYear = h.year;
+      yearDivider = `<div class="tl-year-divider">${h.year}</div>`;
+    }
+
+    const outcomeSnip = h.outcome.length > 90 ? h.outcome.slice(0, 90) + '…' : h.outcome;
+
+    return yearDivider + `
+      <div class="tl-item">
+        <div class="tl-period">Q${h.quarter}</div>
+        <div>
+          <div class="tl-title">${h.title}</div>
+          <div class="tl-choice" style="color:${color}">${h.label}. ${h.text}</div>
+          <div class="tl-effects">${pills}</div>
+          <div class="tl-outcome">${outcomeSnip}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function restart() {
+  localStorage.removeItem('ai_city_v1');
+  localStorage.removeItem('ai_city_city_name');
+  window.location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>
