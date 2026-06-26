@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOMOS · 立法者</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+
+    <aside id="sidebar">
+      <div id="title-block">
+        <div id="emblem">⚖</div>
+        <h1>NOMOS</h1>
+        <p id="tagline">立法者</p>
+      </div>
+
+      <div id="year-row">
+        <span class="dim">Year</span>
+        <span id="year-val">0</span>
+      </div>
+
+      <div id="presets">
+        <button class="preset" data-preset="liberal">古典自由</button>
+        <button class="preset" data-preset="social">社会民主</button>
+        <button class="preset" data-preset="feudal">封建制</button>
+        <button class="preset" data-preset="planned">计划经济</button>
+      </div>
+
+      <div id="editor">
+
+        <div class="article">
+          <div class="art-title">第一条 · 税收</div>
+          <div class="ctrl">
+            <label>所得税率</label>
+            <div class="slider-row">
+              <input type="range" id="sl-tax" min="0" max="95" value="30" step="1">
+              <span class="val" id="v-tax">30%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="article">
+          <div class="art-title">第二条 · 再分配</div>
+          <div id="redist-group">
+            <button class="rb active" data-v="universal">全民基本收入</button>
+            <button class="rb" data-v="means_tested">定向扶贫</button>
+            <button class="rb" data-v="public_goods">公共建设</button>
+            <button class="rb" data-v="none">不再分配</button>
+          </div>
+        </div>
+
+        <div class="article">
+          <div class="art-title">第三条 · 财产</div>
+          <div class="ctrl">
+            <label>土地持有上限 <span class="dim">(0=不限)</span></label>
+            <div class="slider-row">
+              <input type="range" id="sl-land" min="0" max="60" value="20" step="1">
+              <span class="val" id="v-land">20格</span>
+            </div>
+          </div>
+          <div class="ctrl">
+            <label>遗产税率</label>
+            <div class="slider-row">
+              <input type="range" id="sl-inherit" min="0" max="100" value="50" step="1">
+              <span class="val" id="v-inherit">50%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="article">
+          <div class="art-title">第四条 · 商业</div>
+          <div class="ctrl">
+            <label>市场自由度</label>
+            <div class="slider-row">
+              <input type="range" id="sl-market" min="0" max="100" value="80" step="1">
+              <span class="val" id="v-market">80%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="run-row">
+        <button id="btn-run">▶ 开始</button>
+        <button id="btn-reset">↺ 重置</button>
+        <div id="speed-row">
+          <span class="dim" style="font-size:9px">速度</span>
+          <input type="range" id="sl-speed" min="1" max="15" value="4">
+        </div>
+      </div>
+
+      <div id="metrics">
+        <div class="met">
+          <span class="met-l">人口</span>
+          <span class="met-v" id="m-pop">—</span>
+        </div>
+        <div class="met">
+          <span class="met-l">基尼</span>
+          <span class="met-v" id="m-gini">—</span>
+        </div>
+        <div class="met">
+          <span class="met-l">均富</span>
+          <span class="met-v" id="m-wealth">—</span>
+        </div>
+        <div class="met">
+          <span class="met-l">国库</span>
+          <span class="met-v" id="m-treas">—</span>
+        </div>
+      </div>
+
+      <div id="legend">
+        <div class="leg-title dim">Agent 财富</div>
+        <div class="leg-row"><span class="dot" style="background:#c94c4c"></span><span>濒死 &lt;0</span></div>
+        <div class="leg-row"><span class="dot" style="background:#4a70b0"></span><span>贫穷 0–25</span></div>
+        <div class="leg-row"><span class="dot" style="background:#4aaf80"></span><span>中产 25–80</span></div>
+        <div class="leg-row"><span class="dot" style="background:#c9a84c"></span><span>富裕 80+</span></div>
+      </div>
+    </aside>
+
+    <main id="main">
+      <canvas id="sim-canvas" width="600" height="400"></canvas>
+
+      <div id="charts">
+        <div class="chart-box">
+          <div class="chart-lbl">人口</div>
+          <canvas class="ch" id="ch-pop" width="185" height="72"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-lbl">基尼系数（不平等）</div>
+          <canvas class="ch" id="ch-gini" width="185" height="72"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-lbl">平均财富</div>
+          <canvas class="ch" id="ch-wealth" width="185" height="72"></canvas>
+        </div>
+      </div>
+
+      <div id="dist-box">
+        <div class="chart-lbl">财富分布（十分位）</div>
+        <canvas id="ch-dist" width="590" height="54"></canvas>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="sim.js"></script>
+  <script src="render.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>
