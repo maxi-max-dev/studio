@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>信息场 · 注意力经济模拟器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ── 左侧策略面板 ── -->
+  <aside id="panel">
+    <div class="panel-header">
+      <h1>信息场</h1>
+      <p>注意力经济的物理模拟<br>配置策略 · 看注意力怎么流动</p>
+    </div>
+
+    <!-- 话题权重 -->
+    <div class="section">
+      <div class="section-label">话题权重</div>
+
+      <div class="topic-row">
+        <div class="topic-dot" style="background:var(--topic-tech)"></div>
+        <span class="topic-name">科技</span>
+        <input class="topic-slider" id="slider-tech" type="range" min="0" max="10" value="5">
+        <span class="topic-val" id="val-tech">5</span>
+      </div>
+
+      <div class="topic-row">
+        <div class="topic-dot" style="background:var(--topic-career)"></div>
+        <span class="topic-name">职场</span>
+        <input class="topic-slider" id="slider-career" type="range" min="0" max="10" value="5">
+        <span class="topic-val" id="val-career">5</span>
+      </div>
+
+      <div class="topic-row">
+        <div class="topic-dot" style="background:var(--topic-creative)"></div>
+        <span class="topic-name">创意</span>
+        <input class="topic-slider" id="slider-creative" type="range" min="0" max="10" value="5">
+        <span class="topic-val" id="val-creative">5</span>
+      </div>
+
+      <div class="topic-row">
+        <div class="topic-dot" style="background:var(--topic-life)"></div>
+        <span class="topic-name">生活</span>
+        <input class="topic-slider" id="slider-life" type="range" min="0" max="10" value="5">
+        <span class="topic-val" id="val-life">5</span>
+      </div>
+
+      <div class="topic-row">
+        <div class="topic-dot" style="background:var(--topic-emotion)"></div>
+        <span class="topic-name">情感</span>
+        <input class="topic-slider" id="slider-emotion" type="range" min="0" max="10" value="5">
+        <span class="topic-val" id="val-emotion">5</span>
+      </div>
+
+      <div class="topic-row">
+        <div class="topic-dot" style="background:var(--topic-game)"></div>
+        <span class="topic-name">游戏</span>
+        <input class="topic-slider" id="slider-game" type="range" min="0" max="10" value="5">
+        <span class="topic-val" id="val-game">5</span>
+      </div>
+    </div>
+
+    <!-- 发布频率 -->
+    <div class="section">
+      <div class="section-label">发布频率</div>
+      <div class="select-row">
+        <select id="freq-select">
+          <option value="low">低频（佛系）</option>
+          <option value="medium" selected>中频（稳定）</option>
+          <option value="high">高频（日更）</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 发布平台 -->
+    <div class="section">
+      <div class="section-label">发布平台</div>
+      <div class="btn-group">
+        <button class="platform-btn" data-platform="xiaohongshu">小红书</button>
+        <button class="platform-btn active" data-platform="jike">即刻</button>
+        <button class="platform-btn" data-platform="bilibili">哔哩</button>
+        <button class="platform-btn" data-platform="zhihu">知乎</button>
+      </div>
+    </div>
+
+    <!-- 控制 -->
+    <div class="controls">
+      <button class="btn btn-primary" id="btn-play">▶ 开始</button>
+      <button class="btn btn-secondary" id="btn-save">存档当前策略</button>
+      <button class="btn btn-danger" id="btn-reset">重置</button>
+    </div>
+
+    <!-- 实时统计 -->
+    <div class="section">
+      <div class="section-label">实时统计</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-val" id="stat-captured">0</div>
+          <div class="stat-label">已捕获</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-emitted">0</div>
+          <div class="stat-label">已发出</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-rate">—</div>
+          <div class="stat-label">捕获率</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" id="stat-top-topic" style="font-size:16px">—</div>
+          <div class="stat-label">最强话题</div>
+        </div>
+        <div class="stat-card stat-wide">
+          <div class="stat-fit-header">
+            <span class="stat-label" style="margin:0">平台契合度</span>
+            <span class="stat-val" id="stat-fit" style="font-size:18px">—</span>
+          </div>
+          <div class="fit-bar"><div class="fit-bar-fill" id="stat-fit-bar"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 策略对比存档 -->
+    <div class="section" style="border-bottom:none;flex:1">
+      <div class="section-label">策略存档</div>
+      <div class="snapshot-list" id="snapshot-list">
+        <div style="color:var(--text-muted);font-size:11px;text-align:center;padding:8px 0">暂无存档</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── 主画布 ── -->
+  <main id="canvas-wrap">
+    <canvas id="sim-canvas"></canvas>
+
+    <div id="speed-label">速度 1×</div>
+
+    <div id="hud">
+      <div class="hud-chip" id="hud-captured">捕获 <span>0</span></div>
+      <div class="hud-chip" id="hud-emitted">发出 <span>0</span></div>
+    </div>
+  </main>
+
+  <!-- ── 底栏 ── -->
+  <footer id="statusbar">
+    <div class="mini-bar-wrap">
+      <span class="mini-bar-label">话题权重</span>
+      <div class="mini-bars">
+        <div class="mini-bar-col">
+          <div class="mini-bar-fill" data-topic="tech"     style="background:var(--topic-tech);height:14px"></div>
+          <span class="mini-bar-tag">科</span>
+        </div>
+        <div class="mini-bar-col">
+          <div class="mini-bar-fill" data-topic="career"   style="background:var(--topic-career);height:14px"></div>
+          <span class="mini-bar-tag">职</span>
+        </div>
+        <div class="mini-bar-col">
+          <div class="mini-bar-fill" data-topic="creative" style="background:var(--topic-creative);height:14px"></div>
+          <span class="mini-bar-tag">创</span>
+        </div>
+        <div class="mini-bar-col">
+          <div class="mini-bar-fill" data-topic="life"     style="background:var(--topic-life);height:14px"></div>
+          <span class="mini-bar-tag">生</span>
+        </div>
+        <div class="mini-bar-col">
+          <div class="mini-bar-fill" data-topic="emotion"  style="background:var(--topic-emotion);height:14px"></div>
+          <span class="mini-bar-tag">情</span>
+        </div>
+        <div class="mini-bar-col">
+          <div class="mini-bar-fill" data-topic="game"     style="background:var(--topic-game);height:14px"></div>
+          <span class="mini-bar-tag">游</span>
+        </div>
+      </div>
+    </div>
+    <span class="status-msg" id="status-msg">调整策略后按▶开始模拟</span>
+  </footer>
+
+</div>
+
+<script src="simulator.js"></script>
+<script src="viz.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
