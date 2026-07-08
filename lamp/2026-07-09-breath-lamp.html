@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>呼吸灯</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0c0b14;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+}
+
+#stage {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#orb {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 38%,
+    rgba(255,245,210,0.95) 0%,
+    rgba(255,200,90,0.88) 22%,
+    rgba(220,140,45,0.72) 50%,
+    rgba(170,85,15,0.35) 78%,
+    transparent 100%
+  );
+  transform: scale(0.58);
+  box-shadow:
+    0 0 50px rgba(255,195,70,0.45),
+    0 0 110px rgba(240,155,30,0.22),
+    0 0 200px rgba(200,100,10,0.10);
+  transition: none;
+  will-change: transform, box-shadow, opacity;
+}
+
+#arc-ring {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+#phase-wrap {
+  margin-top: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+#phase-char {
+  font-family: "STKaiti", "KaiTi", "华文楷体", serif;
+  font-size: 32px;
+  color: rgba(218, 195, 145, 0.82);
+  letter-spacing: 0.15em;
+  min-width: 1.2em;
+  text-align: center;
+  transition: opacity 0.6s;
+}
+
+#phase-sub {
+  font-family: "STKaiti", "KaiTi", "华文楷体", serif;
+  font-size: 12px;
+  color: rgba(180, 155, 100, 0.38);
+  letter-spacing: 0.35em;
+}
+
+#label {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 11px;
+  color: rgba(180, 155, 100, 0.22);
+  letter-spacing: 0.3em;
+  white-space: nowrap;
+}
+
+#hint {
+  position: fixed;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 11px;
+  color: rgba(180, 155, 100, 0.20);
+  letter-spacing: 0.2em;
+  transition: opacity 1.2s;
+}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <svg id="arc-ring" viewBox="0 0 320 320">
+    <!-- background ring track -->
+    <circle cx="160" cy="160" r="148"
+      fill="none"
+      stroke="rgba(180,140,60,0.08)"
+      stroke-width="1.5"
+    />
+    <!-- progress arc drawn by JS -->
+    <path id="arc-path"
+      fill="none"
+      stroke="rgba(220,175,80,0.28)"
+      stroke-width="1.5"
+      stroke-linecap="round"
+    />
+  </svg>
+  <div id="orb"></div>
+</div>
+
+<div id="phase-wrap">
+  <div id="phase-char">吸</div>
+  <div id="phase-sub">跟着灯，呼吸</div>
+</div>
+
+<div id="hint">点击暂停</div>
+<div id="label">呼吸灯 · 灯 造</div>
+
+<script>
+const orb = document.getElementById('orb');
+const phaseChar = document.getElementById('phase-char');
+const arcPath = document.getElementById('arc-path');
+const hint = document.getElementById('hint');
+
+// Box breathing: 4-4-4-4
+const PHASES = [
+  { char: '吸', dur: 4000, scaleFrom: 0.58, scaleTo: 1.0, alphaFrom: 0.45, alphaTo: 1.0 },
+  { char: '屏', dur: 4000, scaleFrom: 1.0,  scaleTo: 1.0, alphaFrom: 1.0,  alphaTo: 1.0 },
+  { char: '呼', dur: 4000, scaleFrom: 1.0,  scaleTo: 0.58, alphaFrom: 1.0, alphaTo: 0.45 },
+  { char: '停', dur: 4000, scaleFrom: 0.58, scaleTo: 0.58, alphaFrom: 0.45, alphaTo: 0.45 },
+];
+
+const CYCLE = PHASES.reduce((s, p) => s + p.dur, 0); // 16000ms
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+}
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+// Arc geometry
+const CX = 160, CY = 160, R = 148;
+function arcD(progress) {
+  if (progress <= 0) return '';
+  if (progress >= 1) progress = 0.9999;
+  const start = -Math.PI / 2;
+  const end = start + progress * 2 * Math.PI;
+  const x1 = CX + R * Math.cos(start);
+  const y1 = CY + R * Math.sin(start);
+  const x2 = CX + R * Math.cos(end);
+  const y2 = CY + R * Math.sin(end);
+  const large = progress > 0.5 ? 1 : 0;
+  return `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}`;
+}
+
+let paused = false;
+let pausedAt = 0;
+let offsetMs = 0;
+let raf = null;
+
+function getTime() {
+  return performance.now() - offsetMs;
+}
+
+function frame(now) {
+  if (paused) return;
+
+  const cycleT = (getTime() % CYCLE);
+
+  // Find current phase
+  let acc = 0, phaseIdx = 0, phaseT = 0;
+  for (let i = 0; i < PHASES.length; i++) {
+    if (cycleT < acc + PHASES[i].dur) {
+      phaseIdx = i;
+      phaseT = (cycleT - acc) / PHASES[i].dur;
+      break;
+    }
+    acc += PHASES[i].dur;
+  }
+
+  const ph = PHASES[phaseIdx];
+  const eased = easeInOutCubic(phaseT);
+  const scale = lerp(ph.scaleFrom, ph.scaleTo, eased);
+  const alpha = lerp(ph.alphaFrom, ph.alphaTo, eased);
+
+  // Orb glow intensities
+  const g1 = 50 + 80 * (scale - 0.58) / 0.42;
+  const g2 = 100 + 80 * (scale - 0.58) / 0.42;
+  const g3 = 180 + 60 * (scale - 0.58) / 0.42;
+
+  orb.style.transform = `scale(${scale.toFixed(4)})`;
+  orb.style.opacity = alpha.toFixed(4);
+  orb.style.boxShadow = [
+    `0 0 ${g1.toFixed(0)}px rgba(255,195,70,${(alpha*0.55).toFixed(3)})`,
+    `0 0 ${g2.toFixed(0)}px rgba(240,155,30,${(alpha*0.28).toFixed(3)})`,
+    `0 0 ${g3.toFixed(0)}px rgba(200,100,10,${(alpha*0.12).toFixed(3)})`,
+  ].join(', ');
+
+  // Phase label
+  if (phaseChar.textContent !== ph.char) {
+    phaseChar.textContent = ph.char;
+  }
+
+  // Arc: full cycle progress
+  arcPath.setAttribute('d', arcD(cycleT / CYCLE));
+
+  raf = requestAnimationFrame(frame);
+}
+
+// Pause / resume on click
+document.addEventListener('click', () => {
+  if (!paused) {
+    paused = true;
+    pausedAt = performance.now();
+    cancelAnimationFrame(raf);
+    hint.textContent = '点击继续';
+    hint.style.opacity = '0.5';
+  } else {
+    offsetMs += performance.now() - pausedAt;
+    paused = false;
+    hint.textContent = '点击暂停';
+    hint.style.opacity = '0.20';
+    raf = requestAnimationFrame(frame);
+  }
+});
+
+// Fade hint after 4s
+setTimeout(() => { hint.style.opacity = '0.10'; }, 4000);
+
+raf = requestAnimationFrame(frame);
+</script>
+</body>
+</html>
