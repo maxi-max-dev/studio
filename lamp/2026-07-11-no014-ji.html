@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迹 · 夜行图鉴 No.014</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0907; }
+canvas { display: block; }
+#note {
+  position: fixed; bottom: 22px; left: 50%;
+  transform: translateX(-50%);
+  color: rgba(155, 135, 95, 0.20);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 10px; letter-spacing: 0.26em;
+  pointer-events: none; white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="note">迹 · 夜行图鉴 No.014 · 它不在这里</div>
+<script>
+// 迹 — 留痕者
+// 无法直接观测。所有记录均源自遗留痕迹。
+
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+let W, H;
+function resize() { W = cvs.width = innerWidth; H = cvs.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+let mx = -999, my = -999;
+addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+
+function mkRng(seed) {
+  let s = ((seed ^ 0x9e3779b9) >>> 0) || 1;
+  return () => {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5;  s >>>= 0;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+// 极细的噪点底纹，只生成一次
+const noiseOff = document.createElement('canvas');
+noiseOff.width = noiseOff.height = 256;
+{
+  const nc = noiseOff.getContext('2d');
+  const img = nc.createImageData(256, 256);
+  const r = mkRng(0xf00d1e);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.floor(r() * 11);
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  nc.putImageData(img, 0, 0);
+}
+
+// 生物路径：复合利萨如，漫游整个屏幕
+function creaturePos(t) {
+  const x = W * 0.5 + Math.cos(t * 0.088 + 0.6) * W * 0.30 + Math.cos(t * 0.051) * W * 0.09;
+  const y = H * 0.5 + Math.sin(t * 0.107)        * H * 0.25 + Math.sin(t * 0.071 + 1.3) * H * 0.09;
+  return [x, y];
+}
+
+const TYPES = ['warmth', 'indent', 'hair', 'breath', 'shift'];
+const BASE_LIFE = { warmth: 12, indent: 16, hair: 9, breath: 7, shift: 13 };
+
+class Trace {
+  constructor(x, y, type, id) {
+    this.x = x; this.y = y; this.type = type;
+    const r = mkRng(id * 999983 + type.charCodeAt(0) * 1009);
+    this.life = 0;
+    this.maxLife = BASE_LIFE[type] * (0.65 + r() * 0.7);
+    this.rot = r() * Math.PI * 2;
+    this.sc  = 0.6 + r() * 0.8;
+
+    if (type === 'indent') {
+      this.iw = (14 + r() * 18) * this.sc;
+      this.ih = (8  + r() * 10) * this.sc;
+    } else if (type === 'hair') {
+      this.hairs = Array.from({length: 4}, () => ({
+        ox: (r()-0.5)*32, oy: (r()-0.5)*24,
+        len: 9 + r()*22,  ang: r()*Math.PI*2,
+        curl: (r()-0.5)*1.2
+      }));
+    } else if (type === 'breath') {
+      this.drops = Array.from({length: 8}, () => ({
+        ox: (r()-0.5)*44, oy: (r()-0.5)*28,
+        rad: (3 + r()*9)*this.sc
+      }));
+    } else if (type === 'shift') {
+      this.sw = (8 + r()*13)*this.sc;
+      this.sh = (4 + r()*8)*this.sc;
+      this.sdx = (r()-0.5)*24;
+      this.sdy = (r()-0.5)*18;
+    }
+  }
+
+  get age() {
+    const t = this.life / this.maxLife;
+    if (t < 0.18) return t / 0.18;
+    if (t < 0.80) return 1;
+    return Math.max(0, 1 - (t - 0.80) / 0.20);
+  }
+
+  update(dt) { this.life += dt; return this.life < this.maxLife; }
+
+  draw() {
+    const a = this.age;
+    if (a < 0.005) return;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rot);
+    ctx.globalAlpha = a;
+
+    switch (this.type) {
+      case 'warmth': {
+        const r = 26 * this.sc;
+        const g = ctx.createRadialGradient(0,0,r*0.22,0,0,r);
+        g.addColorStop(0,    'rgba(198,152,82,0.055)');
+        g.addColorStop(0.50, 'rgba(178,132,68,0.092)');
+        g.addColorStop(0.82, 'rgba(158,114,56,0.130)');
+        g.addColorStop(1,    'rgba(110,80,36,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.fill();
+        break;
+      }
+      case 'indent': {
+        ctx.save(); ctx.scale(1, this.ih/this.iw);
+        const g = ctx.createRadialGradient(0,0,0,0,0,this.iw);
+        g.addColorStop(0,    'rgba(48,38,26,0.19)');
+        g.addColorStop(0.60, 'rgba(62,50,34,0.10)');
+        g.addColorStop(1,    'rgba(38,30,20,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(0,0,this.iw,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+        break;
+      }
+      case 'hair': {
+        ctx.strokeStyle = 'rgba(180,156,122,0.21)';
+        ctx.lineWidth = 0.42; ctx.lineCap = 'round';
+        for (const h of this.hairs) {
+          const midX = h.ox + Math.cos(h.ang + h.curl*0.5) * h.len * 0.55;
+          const midY = h.oy + Math.sin(h.ang + h.curl*0.5) * h.len * 0.55;
+          const ex   = h.ox + Math.cos(h.ang + h.curl) * h.len;
+          const ey   = h.oy + Math.sin(h.ang + h.curl) * h.len;
+          ctx.beginPath();
+          ctx.moveTo(h.ox, h.oy);
+          ctx.quadraticCurveTo(midX, midY, ex, ey);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'breath': {
+        for (const d of this.drops) {
+          const g = ctx.createRadialGradient(d.ox,d.oy,0,d.ox,d.oy,d.rad);
+          g.addColorStop(0, 'rgba(220,214,204,0.095)');
+          g.addColorStop(1, 'rgba(200,194,184,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(d.ox,d.oy,d.rad,0,Math.PI*2); ctx.fill();
+        }
+        break;
+      }
+      case 'shift': {
+        ctx.lineWidth = 0.7;
+        ctx.strokeStyle = 'rgba(164,144,110,0.14)';
+        ctx.strokeRect(-this.sw/2, -this.sh/2, this.sw, this.sh);
+        // 幽灵——它之前在的位置
+        ctx.strokeStyle = 'rgba(132,114,86,0.062)';
+        ctx.strokeRect(-this.sw/2+this.sdx, -this.sh/2+this.sdy, this.sw, this.sh);
+        break;
+      }
+    }
+
+    ctx.restore();
+  }
+}
+
+let traces = [], traceId = 1;
+let clock = 0, last = 0, nextSpawn = 2;
+let fieldAlpha = 0;
+
+function frame(now) {
+  if (!last) { last = now; requestAnimationFrame(frame); return; }
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  clock += dt;
+
+  const [cx, cy] = creaturePos(clock);
+
+  // 生成痕迹
+  nextSpawn -= dt;
+  if (nextSpawn <= 0) {
+    const type = TYPES[Math.floor(Math.random() * TYPES.length)];
+    const jx = (Math.random()-0.5) * 66;
+    const jy = (Math.random()-0.5) * 52;
+    traces.push(new Trace(cx + jx, cy + jy, type, traceId++));
+    nextSpawn = 1.5 + Math.random() * 2.5;
+  }
+
+  // 更新并清理
+  traces = traces.filter(t => t.update(dt));
+
+  // 观测手记在 25 秒后淡入
+  if (clock > 25) fieldAlpha = Math.min(1, (clock - 25) / 40);
+
+  // ---------- 绘制 ----------
+
+  // 底色
+  ctx.fillStyle = '#0a0907';
+  ctx.fillRect(0, 0, W, H);
+
+  // 噪点纹理（叠加，极淡）
+  ctx.save();
+  ctx.globalAlpha = 0.028;
+  ctx.globalCompositeOperation = 'screen';
+  for (let x = 0; x < W; x += 256)
+    for (let y = 0; y < H; y += 256)
+      ctx.drawImage(noiseOff, x, y);
+  ctx.restore();
+
+  // 生物的极淡存在感（你看不见它，但它在那里）
+  {
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,52);
+    g.addColorStop(0, 'rgba(148,114,64,0.032)');
+    g.addColorStop(1, 'rgba(100,76,42,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx,cy,52,0,Math.PI*2); ctx.fill();
+  }
+
+  // 暗角
+  {
+    const r = Math.min(W,H) * 0.70;
+    const g = ctx.createRadialGradient(W/2,H/2,r*0.26,W/2,H/2,r);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // 所有痕迹
+  traces.forEach(t => t.draw());
+
+  // 观测手记（左上角，极淡，25秒后淡入）
+  if (fieldAlpha > 0.01) {
+    ctx.save();
+    ctx.globalAlpha = fieldAlpha * 0.095;
+    ctx.font = '9px Georgia, serif';
+    ctx.fillStyle = 'rgba(168,148,112,1)';
+    ctx.textAlign = 'left';
+    const lines = [
+      '观测手记',
+      '',
+      '物种：迹（留痕者）',
+      '分类：未知',
+      '栖息地：未知',
+      '直接观测：不可能',
+      '',
+      '所有记录',
+      '均源自遗留痕迹。',
+    ];
+    lines.forEach((l, i) => ctx.fillText(l, 28, 36 + i * 13));
+    ctx.restore();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
