@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No.015 · 棱</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #06060d; overflow: hidden; }
+canvas { position: fixed; top: 0; left: 0; }
+
+#tag {
+  position: fixed;
+  bottom: 26px;
+  left: 26px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  color: rgba(115, 115, 185, 0.30);
+  letter-spacing: 0.09em;
+  line-height: 1.9;
+  pointer-events: none;
+  user-select: none;
+}
+
+#notes {
+  position: fixed;
+  top: 26px;
+  left: 26px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 10px;
+  color: rgba(115, 115, 185, 0);
+  letter-spacing: 0.07em;
+  line-height: 2.0;
+  white-space: pre;
+  pointer-events: none;
+  user-select: none;
+  transition: color 4.5s ease;
+}
+#notes.show { color: rgba(115, 115, 185, 0.16); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="tag">No.015 · 棱 · 折光者<br>你看到的，是它折弯的光</div>
+<div id="notes">观测手记
+
+物种：棱（折光者）
+分类：未知
+栖息地：未知
+直接观测：不可能
+折射率：1.47 ± 0.03（估算）
+
+所有可见信息
+均源于折射。
+本体不可观测。</div>
+
+<script>
+(function () {
+  'use strict';
+  const C = document.getElementById('c');
+  const ctx = C.getContext('2d');
+
+  let W = 0, H = 0, dots = [];
+  let paused = false, pauseX = 0, pauseY = 0, lastTs = 0;
+
+  const GRID  = 22;
+  const DOT_R = 1.3;
+  const SIGMA = 58;
+  const SIG2  = 2 * SIGMA * SIGMA;
+  const STR   = 2.8;
+  const CUT2  = (3.8 * SIGMA) ** 2;
+  const TAU   = Math.PI * 2;
+
+  // Four incommensurable periods → dense, non-repeating path
+  const T0 = 118000, T1 = 89000, T2 = 43000, T3 = 67000;
+  const PH0 = 0.6, PH1 = 1.15;
+
+  function buildDots() {
+    dots = [];
+    for (let ix = 0; ix * GRID <= W + GRID; ix++)
+      for (let iy = 0; iy * GRID <= H + GRID; iy++)
+        dots.push(ix * GRID, iy * GRID);
+  }
+
+  function resize() {
+    W = C.width  = window.innerWidth;
+    H = C.height = window.innerHeight;
+    buildDots();
+  }
+
+  function creaturePos(ts) {
+    return {
+      x: W / 2 + W * 0.34 * Math.sin(TAU * ts / T0) * Math.cos(TAU * ts / T2 + PH0),
+      y: H / 2 + H * 0.28 * Math.cos(TAU * ts / T1) * Math.sin(TAU * ts / T3 + PH1)
+    };
+  }
+
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    lastTs = ts;
+
+    const { x: cx, y: cy } = paused
+      ? { x: pauseX, y: pauseY }
+      : creaturePos(ts);
+
+    ctx.fillStyle = '#06060d';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = 'rgba(138, 138, 208, 0.40)';
+    ctx.beginPath();
+
+    const n = dots.length;
+    for (let i = 0; i < n; i += 2) {
+      const ox = dots[i], oy = dots[i + 1];
+      const dx = ox - cx, dy = oy - cy;
+      const r2 = dx * dx + dy * dy;
+
+      let ax = ox, ay = oy;
+      if (r2 > 0 && r2 < CUT2) {
+        const f = STR * Math.exp(-r2 / SIG2);
+        ax = ox + dx * f;
+        ay = oy + dy * f;
+      }
+
+      if (ax > -2 && ax < W + 2 && ay > -2 && ay < H + 2) {
+        ctx.moveTo(ax + DOT_R, ay);
+        ctx.arc(ax, ay, DOT_R, 0, TAU);
+      }
+    }
+    ctx.fill();
+  }
+
+  // Hidden: click to freeze the creature for careful observation
+  C.addEventListener('click', () => {
+    paused = !paused;
+    if (paused) {
+      const p = creaturePos(lastTs);
+      pauseX = p.x;
+      pauseY = p.y;
+    }
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(frame);
+
+  setTimeout(() => document.getElementById('notes').classList.add('show'), 28000);
+})();
+</script>
+</body>
+</html>
