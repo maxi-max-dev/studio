@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>夜行图鉴 No.018 · 磁</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #07060a; overflow: hidden; }
+canvas { display: block; cursor: default; }
+#desc {
+  position: fixed;
+  bottom: 112px; right: 26px;
+  max-width: 176px;
+  font: 10.5px/2.1 'Noto Serif SC','Songti SC',Georgia,serif;
+  color: rgba(215, 192, 152, 0.18);
+  text-align: right;
+  letter-spacing: 0.12em;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 3.5s ease;
+}
+#label {
+  position: fixed;
+  bottom: 26px; right: 26px;
+  font: 11px/2.2 'Noto Serif SC','Songti SC',Georgia,serif;
+  color: rgba(215, 192, 152, 0.3);
+  text-align: right;
+  letter-spacing: 0.2em;
+  pointer-events: none;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="desc">它的手臂从一极伸向另一极<br>无论两极被移到多远<br>手臂会弯曲、延伸<br>但绝不松开</div>
+<div id="label">夜行图鉴 No.018<br>磁<br>拖动磁极</div>
+<script>
+const C   = document.getElementById('c');
+const ctx = C.getContext('2d');
+const desc = document.getElementById('desc');
+let W, H;
+
+// Two poles: N (+1) and S (−1)
+const poles = [
+  { x: 0, y: 0, q:  1, bx: 0, by: 0 },
+  { x: 0, y: 0, q: -1, bx: 0, by: 0 },
+];
+let dragging   = null;
+let needsRedraw = true;
+let lines      = [];
+
+function resize() {
+  W = C.width  = window.innerWidth;
+  H = C.height = window.innerHeight;
+  poles[0].x = poles[0].bx = W * 0.36;
+  poles[0].y = poles[0].by = H * 0.50;
+  poles[1].x = poles[1].bx = W * 0.64;
+  poles[1].y = poles[1].by = H * 0.50;
+  needsRedraw = true;
+}
+
+function fieldAt(x, y) {
+  let fx = 0, fy = 0;
+  for (const p of poles) {
+    const dx = x - p.x, dy = y - p.y;
+    const r2 = dx * dx + dy * dy;
+    if (r2 < 36) continue;          // avoid singularity
+    const r  = Math.sqrt(r2);
+    const k  = p.q / (r2 * r);     // dipole falloff: 1/r²
+    fx += k * dx;
+    fy += k * dy;
+  }
+  return [fx, fy];
+}
+
+function traceLine(sx, sy) {
+  const pts = [[sx, sy]];
+  let x = sx, y = sy;
+  const Sx = poles[1].x, Sy = poles[1].y;  // S pole target
+  for (let i = 0; i < 2400; i++) {
+    const [fx, fy] = fieldAt(x, y);
+    const m = Math.sqrt(fx * fx + fy * fy);
+    if (m < 1e-11) break;
+    x += (fx / m) * 2.2;
+    y += (fy / m) * 2.2;
+    pts.push([x, y]);
+    // Terminate near S pole (12px)
+    const ddx = x - Sx, ddy = y - Sy;
+    if (ddx * ddx + ddy * ddy < 144) break;
+    // Terminate out of bounds
+    if (x < -280 || x > W + 280 || y < -280 || y > H + 280) break;
+  }
+  return pts;
+}
+
+function computeLines() {
+  lines = [];
+  const N  = poles[0];
+  const R0 = 20;
+  for (let i = 0; i < 80; i++) {
+    const a  = (i / 80) * Math.PI * 2;
+    lines.push(traceLine(N.x + Math.cos(a) * R0, N.y + Math.sin(a) * R0));
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#07060a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Field lines — thin, warm amber, low opacity
+  ctx.lineWidth    = 0.65;
+  ctx.strokeStyle  = 'rgba(218, 192, 142, 0.105)';
+  for (const pts of lines) {
+    if (pts.length < 2) continue;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let j = 1; j < pts.length; j++) ctx.lineTo(pts[j][0], pts[j][1]);
+    ctx.stroke();
+  }
+
+  // Pole glows + cores
+  for (const p of poles) {
+    const isN = p.q > 0;
+    const g   = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 58);
+    if (isN) {
+      g.addColorStop(0,    'rgba(255, 118, 55, 0.58)');
+      g.addColorStop(0.38, 'rgba(255,  90, 38, 0.19)');
+      g.addColorStop(1,    'rgba(255,  70, 28,  0)');
+    } else {
+      g.addColorStop(0,    'rgba( 88, 142, 255, 0.58)');
+      g.addColorStop(0.38, 'rgba( 60, 112, 255, 0.19)');
+      g.addColorStop(1,    'rgba( 42,  92, 255,  0)');
+    }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 58, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = isN ? 'rgba(255, 158, 98, 0.9)' : 'rgba(138, 182, 255, 0.9)';
+    ctx.fill();
+  }
+}
+
+// Animation loop — poles drift slowly in Lissajous pattern
+let t0 = null;
+function loop(ts) {
+  if (t0 === null) t0 = ts;
+  const t = ts - t0;
+
+  if (!dragging) {
+    const amp = Math.min(W, H) * 0.065;
+    const nx  = poles[0].bx + Math.cos(t * 0.000215) * amp * 0.68;
+    const ny  = poles[0].by + Math.sin(t * 0.000319) * amp * 0.68;
+    const sx  = poles[1].bx + Math.cos(t * 0.000258 + 1.41) * amp * 0.54;
+    const sy  = poles[1].by + Math.sin(t * 0.000189 + 2.88) * amp * 0.54;
+
+    const delta = Math.abs(nx - poles[0].x) + Math.abs(ny - poles[0].y)
+                + Math.abs(sx - poles[1].x) + Math.abs(sy - poles[1].y);
+    if (delta > 0.9) {
+      poles[0].x = nx; poles[0].y = ny;
+      poles[1].x = sx; poles[1].y = sy;
+      needsRedraw = true;
+    }
+  }
+
+  if (needsRedraw) {
+    computeLines();
+    draw();
+    needsRedraw = false;
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// Interaction
+function findPole(px, py) {
+  const R2 = 58 * 58;
+  for (const p of poles) {
+    const dx = px - p.x, dy = py - p.y;
+    if (dx * dx + dy * dy < R2) return p;
+  }
+  return null;
+}
+
+C.addEventListener('mousedown', e => {
+  dragging = findPole(e.clientX, e.clientY);
+  if (dragging) C.style.cursor = 'grabbing';
+});
+C.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  dragging.x = dragging.bx = e.clientX;
+  dragging.y = dragging.by = e.clientY;
+  needsRedraw = true;
+});
+C.addEventListener('mouseup', () => {
+  dragging = null;
+  C.style.cursor = 'default';
+});
+C.addEventListener('mouseleave', () => { dragging = null; });
+
+C.addEventListener('touchstart', e => {
+  e.preventDefault();
+  dragging = findPole(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+C.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!dragging) return;
+  dragging.x = dragging.bx = e.touches[0].clientX;
+  dragging.y = dragging.by = e.touches[0].clientY;
+  needsRedraw = true;
+}, { passive: false });
+C.addEventListener('touchend', () => { dragging = null; });
+
+window.addEventListener('resize', resize);
+
+resize();
+requestAnimationFrame(loop);
+setTimeout(() => { desc.style.opacity = '1'; }, 2200);
+</script>
+</body>
+</html>
