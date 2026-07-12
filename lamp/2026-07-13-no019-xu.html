@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>夜行图鉴 No.019 · 虚</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #05080d; overflow: hidden; }
+canvas { display: block; }
+#info {
+  position: fixed;
+  bottom: 26px;
+  right: 30px;
+  color: rgba(148, 178, 210, 0.18);
+  font-family: 'Noto Serif SC', 'Songti SC', 'Georgia', serif;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  pointer-events: none;
+  text-align: right;
+  line-height: 2.2;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info">夜行图鉴 No.019<br>虚</div>
+<script>
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+let W, H;
+
+function resize() {
+  W = cv.width = window.innerWidth;
+  H = cv.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); resetParticles(); });
+
+// ── 虚的状态 ────────────────────────────────────────────
+let voidX = W * 0.5, voidY = H * 0.5;
+let baseX = W * 0.5, baseY = H * 0.5;
+let driftMs = 0;
+let dragging = false, offX = 0, offY = 0;
+let prevVoidX = W * 0.5, prevVoidY = H * 0.5;
+let voidVelX = 0, voidVelY = 0;
+
+function voidR() {
+  return Math.min(W, H) * 0.11;
+}
+
+cv.addEventListener('pointerdown', e => {
+  const vr = voidR();
+  const dx = e.clientX - voidX, dy = e.clientY - voidY;
+  if (dx * dx + dy * dy < (vr * 2.2) * (vr * 2.2)) {
+    dragging = true;
+    offX = dx; offY = dy;
+    try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  voidX = e.clientX - offX;
+  voidY = e.clientY - offY;
+  baseX = voidX; baseY = voidY;
+  driftMs = 0;
+});
+cv.addEventListener('pointerup', () => { dragging = false; });
+
+// ── 粒子系统 ─────────────────────────────────────────────
+const N = 220;
+const TRAIL = 32;
+let parts = [];
+
+function resetParticles() {
+  parts = [];
+  for (let i = 0; i < N; i++) {
+    parts.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      vx: (Math.random() - 0.5) * 0.55,
+      vy: (Math.random() - 0.5) * 0.55,
+      trail: [],
+    });
+  }
+}
+resetParticles();
+
+// ── 主循环 ───────────────────────────────────────────────
+let prevT = 0;
+
+function tick(t) {
+  const raw = Math.min(t - prevT, 50);
+  prevT = t;
+  const dt = raw / 16.67;
+
+  // 虚的漂移
+  if (!dragging) {
+    driftMs += raw;
+    voidX = baseX + Math.sin(driftMs / 38000 * Math.PI * 2) * W * 0.16;
+    voidY = baseY + Math.cos(driftMs / 29000 * Math.PI * 2) * H * 0.13;
+  }
+
+  // 虚的瞬时速度（移动中额外推力）
+  voidVelX = voidX - prevVoidX;
+  voidVelY = voidY - prevVoidY;
+  prevVoidX = voidX;
+  prevVoidY = voidY;
+  const voidSpeed = Math.sqrt(voidVelX * voidVelX + voidVelY * voidVelY);
+
+  const vr = voidR();
+  const vr2 = vr * vr;
+  const INFLUENCE = vr * (2.5 + voidSpeed * 0.3);
+  const inf2 = INFLUENCE * INFLUENCE;
+
+  // 更新粒子
+  for (const p of parts) {
+    // 布朗运动
+    p.vx += (Math.random() - 0.5) * 0.015;
+    p.vy += (Math.random() - 0.5) * 0.015;
+
+    // 虚的排斥场
+    const dx = p.x - voidX;
+    const dy = p.y - voidY;
+    const r2 = dx * dx + dy * dy;
+
+    if (r2 < inf2 && r2 > 0.01) {
+      const r = Math.sqrt(r2);
+      const nx = dx / r, ny = dy / r;
+      const ratio = r / vr;
+      let str;
+      if (ratio < 1.0) {
+        // 内部：极强推力，确保空洞清空
+        str = 0.52 / Math.max(ratio * ratio, 0.05);
+      } else {
+        // 外侧：反立方衰减，形成柔和弯曲流线
+        str = 0.22 / (ratio * ratio * ratio);
+      }
+      str *= (1 + voidSpeed * 0.15);
+      p.vx += nx * str * dt;
+      p.vy += ny * str * dt;
+    }
+
+    // 确保虚内粒子有足够的逃逸速度
+    if (r2 < vr2 * 1.5 && r2 > 0.01) {
+      const r = Math.sqrt(r2);
+      const outNx = (p.x - voidX) / r;
+      const outNy = (p.y - voidY) / r;
+      const outSpeed = p.vx * outNx + p.vy * outNy;
+      const minEscape = 0.45;
+      if (outSpeed < minEscape) {
+        p.vx += outNx * (minEscape - outSpeed);
+        p.vy += outNy * (minEscape - outSpeed);
+      }
+    }
+
+    // 速度阻尼
+    p.vx *= 0.978;
+    p.vy *= 0.978;
+
+    // 速度上限
+    const sp2 = p.vx * p.vx + p.vy * p.vy;
+    if (sp2 > 2.8 * 2.8) {
+      const sp = Math.sqrt(sp2);
+      p.vx = p.vx / sp * 2.8;
+      p.vy = p.vy / sp * 2.8;
+    }
+
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    // 边界环绕（清除轨迹防止跳线）
+    let wrapped = false;
+    if (p.x < -20)    { p.x += W + 40; wrapped = true; }
+    if (p.x > W + 20) { p.x -= W + 40; wrapped = true; }
+    if (p.y < -20)    { p.y += H + 40; wrapped = true; }
+    if (p.y > H + 20) { p.y -= H + 40; wrapped = true; }
+    if (wrapped) p.trail = [];
+
+    p.trail.push({ x: p.x, y: p.y });
+    if (p.trail.length > TRAIL) p.trail.shift();
+  }
+
+  // ── 绘制 ──────────────────────────────────────────────
+
+  // 半透明覆盖（拖尾效果）
+  cx.fillStyle = 'rgba(5, 8, 13, 0.27)';
+  cx.fillRect(0, 0, W, H);
+
+  // 绘制粒子轨迹
+  for (const p of parts) {
+    const tr = p.trail;
+    if (tr.length < 3) continue;
+
+    const dx = p.x - voidX, dy = p.y - voidY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    // 越靠近虚的边界越亮（边界处最亮，内部和外部都暗）
+    const edgeDist = Math.abs(dist - voidR());
+    const edgeGlow = Math.max(0, 1 - edgeDist / (voidR() * 2));
+
+    const split = Math.floor(tr.length * 0.5);
+
+    // 旧半段（极淡）
+    if (split > 1) {
+      cx.beginPath();
+      cx.moveTo(tr[0].x, tr[0].y);
+      for (let i = 1; i < split; i++) cx.lineTo(tr[i].x, tr[i].y);
+      cx.strokeStyle = `rgba(140, 175, 215, ${0.02 + edgeGlow * 0.05})`;
+      cx.lineWidth = 0.6;
+      cx.stroke();
+    }
+
+    // 新半段（稍亮）
+    cx.beginPath();
+    cx.moveTo(tr[split].x, tr[split].y);
+    for (let i = split + 1; i < tr.length; i++) cx.lineTo(tr[i].x, tr[i].y);
+    cx.strokeStyle = `rgba(175, 208, 235, ${0.065 + edgeGlow * 0.24})`;
+    cx.lineWidth = 0.8;
+    cx.stroke();
+  }
+
+  requestAnimationFrame(tick);
+}
+
+requestAnimationFrame(t => { prevT = t; requestAnimationFrame(tick); });
+</script>
+</body>
+</html>
