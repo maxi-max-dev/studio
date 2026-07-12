@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>No.016 · 幽 · 夜行图鉴</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #05080f; overflow: hidden; }
+    canvas { display: block; }
+
+    .ui {
+      position: fixed;
+      pointer-events: none;
+      user-select: none;
+      font-family: 'Georgia', 'Times New Roman', serif;
+    }
+
+    #label {
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: rgba(188, 202, 232, 0.14);
+    }
+
+    #guide {
+      top: 36px;
+      left: 40px;
+      font-size: 10.5px;
+      line-height: 2.1;
+      letter-spacing: 0.06em;
+      white-space: pre;
+      color: rgba(188, 202, 232, 0);
+      transition: color 6s ease;
+    }
+    #guide.show { color: rgba(188, 202, 232, 0.085); }
+
+    #hint {
+      bottom: 28px;
+      right: 36px;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: rgba(188, 202, 232, 0.08);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div class="ui" id="label">No.016 · 幽</div>
+
+  <div class="ui" id="guide">观测手记
+
+物种：幽（残像者）
+分类：未知
+栖息地：未知
+直接观测：不可能
+
+幽的身体只存在于过去。
+此刻它所在的位置，
+没有任何物质。
+
+所有观测
+均依赖时间残像。</div>
+
+  <div class="ui" id="hint">点击 · 暂停</div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const hint = document.getElementById('hint');
+
+    let W, H;
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // ── creature path ──────────────────────────────────────────────────
+    // 4 sinusoids with incommensurable frequencies → path never repeats
+    const FX = [1.0, Math.PI / 1.7, Math.sqrt(2), Math.sqrt(3) + 0.1];
+    const FY = [0.73, 1.10, 0.91, 1.23];
+    const FA = [0.33, 0.15, 0.09, 0.05];
+
+    function getPos(t) {
+      const r = Math.min(W, H) * 0.27;
+      let x = 0, y = 0;
+      for (let i = 0; i < 4; i++) {
+        x += FA[i] * Math.sin(FX[i] * t);
+        y += FA[i] * Math.cos(FY[i] * t);
+      }
+      return [W * 0.5 + x * r, H * 0.5 + y * r];
+    }
+
+    // ── organic blob shape ────────────────────────────────────────────
+    // Polar formula: r(θ) = R₀ × (1 + harmonics that slowly morph with shapeT)
+    const BLOB_R = 34;
+
+    function drawBlob(bx, by, shapeT) {
+      const N = 64;
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const r = BLOB_R * (
+          1.000
+          + 0.230 * Math.sin( 3 * a + shapeT * 0.300)
+          + 0.110 * Math.cos( 5 * a + shapeT * 0.170)
+          + 0.055 * Math.sin( 7 * a - shapeT * 0.220)
+          + 0.027 * Math.cos(11 * a + shapeT * 0.091)
+        );
+        const px = bx + r * Math.cos(a);
+        const py = by + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    // ── echo trail ────────────────────────────────────────────────────
+    // trail[0] = most recent snapshot, trail[N-1] = oldest
+    const TRAIL_N  = 13;
+    const TRAIL_MS = 370; // ms between snapshots
+
+    let trail = [];
+
+    function echoAlpha(i) {
+      // Exponential decay: i=0 → ~20%, i=12 → ~0.8%
+      return 0.20 * Math.exp(-i * 0.28);
+    }
+
+    function echoColor(i) {
+      // Pale lavender-white (fresh) → pale cool-gray (old)
+      const f = i / (TRAIL_N - 1);
+      const r = Math.round(210 - f * 13);
+      const g = Math.round(216 - f * 15);
+      const b = Math.round(238 - f * 18);
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+
+    // Pre-populate so the trail is full from frame one
+    const T0 = 12.0;
+    for (let i = 1; i <= TRAIL_N; i++) {
+      const pt = T0 - i * TRAIL_MS / 1000;
+      const p  = getPos(pt);
+      trail.push({ x: p[0], y: p[1], st: pt });
+    }
+    // trail[0] = T0 - 0.37s (most recent past), trail[12] = T0 - 4.81s (oldest)
+
+    // ── animation state ───────────────────────────────────────────────
+    let t       = T0;
+    let paused  = false;
+    let lastMs  = performance.now();
+    let lastCap = performance.now();
+
+    setTimeout(function() {
+      document.getElementById('guide').classList.add('show');
+    }, 24000);
+
+    function frame(now) {
+      requestAnimationFrame(frame);
+
+      var dt = Math.min((now - lastMs) / 1000, 0.05);
+      lastMs = now;
+
+      if (!paused) {
+        t += dt * 0.37;
+
+        if (now - lastCap >= TRAIL_MS) {
+          var p = getPos(t);
+          trail.unshift({ x: p[0], y: p[1], st: t });
+          if (trail.length > TRAIL_N) trail.pop();
+          lastCap = now;
+        }
+      }
+
+      // Background
+      ctx.fillStyle = '#05080f';
+      ctx.fillRect(0, 0, W, H);
+
+      // Draw echoes oldest → newest (newest ends up on top)
+      ctx.shadowBlur  = 11;
+      ctx.shadowColor = 'rgba(160, 182, 228, 0.55)';
+
+      for (var i = trail.length - 1; i >= 0; i--) {
+        var e = trail[i];
+        ctx.save();
+        ctx.globalAlpha = echoAlpha(i);
+        drawBlob(e.x, e.y, e.st);
+        ctx.fillStyle = echoColor(i);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.shadowBlur = 0;
+    }
+
+    requestAnimationFrame(frame);
+
+    canvas.addEventListener('click', function() {
+      paused = !paused;
+      if (!paused) {
+        lastMs  = performance.now();
+        lastCap = performance.now() - TRAIL_MS;
+      }
+      hint.textContent = paused ? '点击 · 继续' : '点击 · 暂停';
+    });
+  </script>
+</body>
+</html>
