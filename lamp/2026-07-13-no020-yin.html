@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>No.020 · 印 · 夜行图鉴</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #101828;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  cursor: none;
+}
+canvas { display: block; }
+.ui {
+  position: fixed;
+  pointer-events: none;
+  user-select: none;
+  font-family: 'Hiragino Mincho ProN', 'Source Han Serif CN', 'Noto Serif CJK SC', 'SimSun', serif;
+  letter-spacing: 0.15em;
+  color: rgba(155, 145, 215, 0.26);
+}
+.series {
+  top: 2rem;
+  left: 2.5rem;
+  font-size: 0.68rem;
+}
+.creature {
+  bottom: 2.2rem;
+  right: 2.5rem;
+  font-size: 0.88rem;
+  text-align: right;
+  line-height: 2;
+}
+.creature-sub {
+  display: block;
+  font-size: 0.67rem;
+  letter-spacing: 0.07em;
+  opacity: 0.75;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="ui series">夜行图鉴 · No.020</div>
+<div class="ui creature">
+  印
+  <span class="creature-sub">你看见的是它留下的形状</span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const c = document.getElementById('c');
+  const g = c.getContext('2d');
+
+  let W, H;
+
+  // Pre-rendered vignette
+  const vc = document.createElement('canvas');
+  const vg = vc.getContext('2d');
+
+  function buildVignette() {
+    vc.width = W; vc.height = H;
+    const cx = W * 0.5, cy = H * 0.5;
+    const r = Math.hypot(W, H) * 0.58;
+    const gr = vg.createRadialGradient(cx, cy, r * 0.22, cx, cy, r);
+    gr.addColorStop(0, 'rgba(0,0,0,0)');
+    gr.addColorStop(1, 'rgba(0,0,0,0.5)');
+    vg.clearRect(0, 0, W, H);
+    vg.fillStyle = gr;
+    vg.fillRect(0, 0, W, H);
+  }
+
+  function resize() {
+    W = c.width = window.innerWidth;
+    H = c.height = window.innerHeight;
+    buildVignette();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ── State ─────────────────────────────────────────────────
+  // Each imprint: { x, y, r, age, maxAge }
+  const imprints = [];
+
+  let mx = 0, my = 0;
+  let down = false;
+  let px = 0, py = 0, pr = 0;
+
+  const R_TARGET = 48;
+  const R_GROW = 0.055;
+  const LIFE_BASE = 44000;
+  const LIFE_RAND = 24000;
+
+  // ── Input ─────────────────────────────────────────────────
+  function pressStart(x, y) {
+    down = true; px = x; py = y; pr = 6;
+  }
+  function pressMove(x, y) {
+    mx = x; my = y;
+    if (down) { px = x; py = y; }
+  }
+  function pressEnd() {
+    if (down && pr > 4) {
+      imprints.push({
+        x: px, y: py, r: pr,
+        age: 0,
+        maxAge: LIFE_BASE + Math.random() * LIFE_RAND
+      });
+    }
+    down = false; pr = 0;
+  }
+
+  c.addEventListener('mousedown',  e => pressStart(e.clientX, e.clientY));
+  c.addEventListener('mousemove',  e => pressMove(e.clientX, e.clientY));
+  c.addEventListener('mouseup',    pressEnd);
+  c.addEventListener('mouseleave', () => { mx = -9; my = -9; pressEnd(); });
+
+  c.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    pressStart(t.clientX, t.clientY);
+  }, { passive: false });
+  c.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    pressMove(t.clientX, t.clientY);
+  }, { passive: false });
+  c.addEventListener('touchend', e => {
+    e.preventDefault(); pressEnd();
+  }, { passive: false });
+
+  // ── Draw ──────────────────────────────────────────────────
+  function drawImprint(x, y, r, a) {
+    if (a <= 0.003 || r < 1) return;
+
+    // Rim halo — faint purple edge
+    const rimR = r * 1.30;
+    const rimGr = g.createRadialGradient(x, y, r * 0.72, x, y, rimR);
+    rimGr.addColorStop(0,    `rgba(52, 40, 108, ${a * 0.14})`);
+    rimGr.addColorStop(0.48, `rgba(44, 34,  94, ${a * 0.09})`);
+    rimGr.addColorStop(1,    `rgba(16, 24,  40, 0)`);
+    g.beginPath();
+    g.arc(x, y, rimR, 0, 6.2832);
+    g.fillStyle = rimGr;
+    g.fill();
+
+    // Dark bowl — the imprint cavity
+    const bGr = g.createRadialGradient(x, y, 0, x, y, r);
+    bGr.addColorStop(0,    `rgba(0, 0, 0, ${a * 0.94})`);
+    bGr.addColorStop(0.50, `rgba(0, 0, 1, ${a * 0.78})`);
+    bGr.addColorStop(0.80, `rgba(3, 4,10, ${a * 0.46})`);
+    bGr.addColorStop(1,    `rgba(16,24,40, 0)`);
+    g.beginPath();
+    g.arc(x, y, r, 0, 6.2832);
+    g.fillStyle = bGr;
+    g.fill();
+  }
+
+  // Hold full opacity for 72% of life, then fade
+  function computeAlpha(age, maxAge) {
+    const t = age / maxAge;
+    if (t < 0.72) return 1.0;
+    return Math.max(0, (1.0 - t) / 0.28);
+  }
+
+  // ── Loop ──────────────────────────────────────────────────
+  let lt = performance.now();
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(now - lt, 50);
+    lt = now;
+
+    // Grow active press
+    if (down) pr += (R_TARGET - pr) * R_GROW;
+
+    // Age and cull
+    for (let i = imprints.length - 1; i >= 0; i--) {
+      imprints[i].age += dt;
+      if (imprints[i].age >= imprints[i].maxAge) imprints.splice(i, 1);
+    }
+
+    // Background
+    g.fillStyle = '#101828';
+    g.fillRect(0, 0, W, H);
+
+    // Imprints — oldest first so newer sit on top
+    for (const im of imprints) {
+      drawImprint(im.x, im.y, im.r, computeAlpha(im.age, im.maxAge));
+    }
+
+    // Active press
+    if (down) drawImprint(px, py, pr, 0.90);
+
+    // Vignette
+    g.drawImage(vc, 0, 0);
+
+    // Cursor — tiny dot, hidden while pressing
+    if (!down && mx > 0) {
+      g.beginPath();
+      g.arc(mx, my, 2.5, 0, 6.2832);
+      g.fillStyle = 'rgba(155,140,220,0.20)';
+      g.fill();
+    }
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
