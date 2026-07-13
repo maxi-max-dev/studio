@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>凭存录</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #07090f;
+    --fg: #bcc8dc;
+    --dim: #38445a;
+    --faint: #0e1320;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    overflow: hidden;
+  }
+
+  canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 28px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .book {
+    max-width: 500px;
+    width: 100%;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    margin-bottom: 52px;
+    animation: rise 1.3s ease both;
+    animation-delay: 0.2s;
+  }
+
+  .cover-title {
+    font-family: 'Georgia', 'Noto Serif SC', '宋体', serif;
+    font-size: clamp(2.6rem, 9vw, 3.8rem);
+    font-weight: 400;
+    letter-spacing: 0.42em;
+    color: #dce4f0;
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+
+  .cover-sub {
+    font-family: monospace;
+    font-size: 0.63rem;
+    letter-spacing: 0.24em;
+    color: var(--dim);
+  }
+
+  .rule {
+    width: 28px;
+    height: 1px;
+    background: #1a2232;
+    margin: 42px 0;
+    animation: rise 0.9s ease both;
+    animation-delay: 0.7s;
+  }
+
+  /* ── Entries ── */
+  .entries { list-style: none; }
+
+  .entry {
+    display: grid;
+    grid-template-columns: 50px 2.8rem 1fr;
+    gap: 0 18px;
+    align-items: start;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--faint);
+    opacity: 0;
+    animation: rise 0.7s ease both;
+    transition: border-color 0.5s;
+  }
+
+  .entry:hover { border-color: #1c2a3e; }
+
+  .entry:nth-child(1) { animation-delay: 0.90s; }
+  .entry:nth-child(2) { animation-delay: 1.08s; }
+  .entry:nth-child(3) { animation-delay: 1.26s; }
+  .entry:nth-child(4) { animation-delay: 1.44s; }
+  .entry:nth-child(5) { animation-delay: 1.62s; }
+  .entry:nth-child(6) { animation-delay: 1.80s; }
+  .entry:nth-child(7) { animation-delay: 1.98s; }
+
+  .num {
+    font-family: monospace;
+    font-size: 0.57rem;
+    color: #222c3c;
+    letter-spacing: 0.06em;
+    padding-top: 5px;
+    line-height: 1;
+  }
+
+  .glyph {
+    font-family: 'Georgia', 'Noto Serif SC', '宋体', serif;
+    font-size: 1.75rem;
+    font-weight: 400;
+    color: #8898b8;
+    line-height: 1;
+    cursor: default;
+    display: inline-block;
+    transition: color 0.35s ease, transform 0.3s ease,
+                text-shadow 0.35s ease, filter 0.35s ease,
+                letter-spacing 0.3s ease, -webkit-text-stroke 0.01s;
+    transform-origin: center;
+    will-change: transform, filter;
+  }
+
+  .desc {
+    font-family: monospace;
+    font-size: 0.68rem;
+    color: #2e3a4e;
+    line-height: 1.8;
+    letter-spacing: 0.04em;
+    padding-top: 3px;
+    transition: color 0.4s;
+  }
+
+  .entry:hover .desc { color: #4a5870; }
+
+  /* ── Per-creature hover glyphs ── */
+
+  /* 迹 — warm trace */
+  .entry[data-k="ji"]:hover .glyph {
+    color: #c8b460;
+    text-shadow: -5px 0 10px rgba(200,174,80,0.22), 5px 0 5px rgba(200,174,80,0.1);
+  }
+
+  /* 棱 — chromatic split */
+  .entry[data-k="leng"]:hover .glyph {
+    color: #c0d4f4;
+    text-shadow:
+      1.5px 0 0 rgba(255,80,80,0.4),
+      -1.5px 0 0 rgba(60,200,255,0.4);
+  }
+
+  /* 幽 — blurred ghost */
+  .entry[data-k="you"]:hover .glyph {
+    color: #6878b0;
+    filter: blur(0.6px);
+    text-shadow: 0 0 20px rgba(90,120,220,0.5);
+  }
+
+  /* 叠 — interference double */
+  .entry[data-k="die"]:hover .glyph {
+    color: #78b898;
+    text-shadow: 3.5px 0 0 rgba(80,200,130,0.18), -3.5px 0 0 rgba(80,200,130,0.1);
+    letter-spacing: 0.3em;
+  }
+
+  /* 磁 — pulled aside */
+  .entry[data-k="ci"]:hover .glyph {
+    color: #a878cc;
+    transform: translateX(6px);
+    text-shadow: -5px 0 14px rgba(150,90,220,0.3);
+  }
+
+  /* 虚 — hollow */
+  .entry[data-k="xu"]:hover .glyph {
+    color: transparent;
+    -webkit-text-stroke: 0.7px #485870;
+    text-shadow: none;
+    filter: none;
+  }
+
+  /* 印 — pressed in */
+  .entry[data-k="yin"]:hover .glyph {
+    color: #505868;
+    transform: scale(0.86);
+    filter: brightness(0.65);
+    text-shadow: 0 4px 10px rgba(0,0,0,0.95);
+  }
+
+  /* ── Footer ── */
+  .coda {
+    margin-top: 46px;
+    animation: rise 0.9s ease both;
+    animation-delay: 2.3s;
+  }
+
+  .coda-line {
+    font-family: monospace;
+    font-size: 0.63rem;
+    color: #1c2838;
+    letter-spacing: 0.2em;
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<main>
+  <div class="book">
+
+    <header class="cover">
+      <h1 class="cover-title">凭存录</h1>
+      <p class="cover-sub">夜行图鉴 · 七种间接存在方式的观测记录</p>
+    </header>
+
+    <div class="rule"></div>
+
+    <ul class="entries">
+      <li class="entry" data-k="ji">
+        <span class="num">No.014</span>
+        <span class="glyph">迹</span>
+        <span class="desc">空间里的事后证明<br>见不到它，只见它去过哪</span>
+      </li>
+      <li class="entry" data-k="leng">
+        <span class="num">No.015</span>
+        <span class="glyph">棱</span>
+        <span class="desc">光绕过它弯折<br>你从扭曲的景里猜测它的形</span>
+      </li>
+      <li class="entry" data-k="you">
+        <span class="num">No.016</span>
+        <span class="glyph">幽</span>
+        <span class="desc">时间层面的残留<br>它不在了，影像还在</span>
+      </li>
+      <li class="entry" data-k="die">
+        <span class="num">No.017</span>
+        <span class="glyph">叠</span>
+        <span class="desc">两个振动源之间的干涉纹<br>关系本身是它的身体</span>
+      </li>
+      <li class="entry" data-k="ci">
+        <span class="num">No.018</span>
+        <span class="glyph">磁</span>
+        <span class="desc">永远伸向对方的弧臂<br>不握手，但从不放开</span>
+      </li>
+      <li class="entry" data-k="xu">
+        <span class="num">No.019</span>
+        <span class="glyph">虚</span>
+        <span class="desc">粒子不去的那个地方<br>空，就是它的轮廓</span>
+      </li>
+      <li class="entry" data-k="yin">
+        <span class="num">No.020</span>
+        <span class="glyph">印</span>
+        <span class="desc">材料记住了你施压的形<br>你就是那个看不见自己的施压者</span>
+      </li>
+    </ul>
+
+    <footer class="coda">
+      <p class="coda-line">它们共同的秘密：存在，但不可直视。</p>
+    </footer>
+
+  </div>
+</main>
+
+<script>
+// Seven barely-visible drifting lights — one per creature
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const PALETTES = [
+  [200, 174, 80],   // 迹  gold
+  [160, 190, 255],  // 棱  cool blue
+  [90,  110, 210],  // 幽  deep violet
+  [80,  200, 140],  // 叠  seafoam
+  [160, 90,  220],  // 磁  purple
+  [70,  100, 170],  // 虚  void blue
+  [75,  85,  115],  // 印  dark slate
+];
+
+const W = window.innerWidth;
+const H = window.innerHeight;
+
+const pts = PALETTES.map(([r, g, b], i) => ({
+  x: W * (0.15 + 0.7 * (i / 6)),
+  y: H * (0.2 + 0.6 * Math.sin(i * 1.3 + 1)),
+  vx: (i % 2 === 0 ? 1 : -1) * (0.12 + i * 0.018),
+  vy: (i % 3 === 0 ? 1 : -1) * (0.10 + i * 0.015),
+  r, g, b,
+  phase: i * 0.9,
+}));
+
+let t = 0;
+function tick() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  pts.forEach(p => {
+    p.x += p.vx + Math.sin(t * 0.28 + p.phase) * 0.05;
+    p.y += p.vy + Math.cos(t * 0.22 + p.phase) * 0.05;
+
+    if (p.x < -20) p.x = canvas.width + 20;
+    else if (p.x > canvas.width + 20) p.x = -20;
+    if (p.y < -20) p.y = canvas.height + 20;
+    else if (p.y > canvas.height + 20) p.y = -20;
+
+    const alpha = 0.05 + 0.03 * Math.sin(t * 0.4 + p.phase);
+    const rad = 90 + 30 * Math.sin(t * 0.2 + p.phase);
+
+    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
+    g.addColorStop(0, `rgba(${p.r},${p.g},${p.b},${alpha})`);
+    g.addColorStop(1, `rgba(${p.r},${p.g},${p.b},0)`);
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
+    ctx.fillStyle = g;
+    ctx.fill();
+  });
+
+  t += 0.016;
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>
