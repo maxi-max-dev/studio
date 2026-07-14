@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>过客</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #09080f;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+}
+
+.phrase {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: min(520px, 85vw);
+  color: #e4ddd3;
+  font-family: 'Songti SC', 'STSong', 'FangSong', 'SimSun', Georgia, serif;
+  font-size: clamp(1.05rem, 2.2vw, 1.4rem);
+  letter-spacing: 0.2em;
+  line-height: 2.4em;
+  opacity: 0;
+  transition: opacity 1.3s ease, transform 1.9s cubic-bezier(0.25, 0.1, 0.25, 1);
+  pointer-events: none;
+}
+
+.phrase.active {
+  opacity: 0.82;
+}
+
+.phrase.ghost {
+  opacity: 0.055;
+}
+
+#hint {
+  position: fixed;
+  bottom: 1.8rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  letter-spacing: 0.28em;
+  color: #e4ddd3;
+  opacity: 0.14;
+  transition: opacity 0.6s;
+  font-family: system-ui, -apple-system, sans-serif;
+  pointer-events: none;
+}
+
+body.paused #hint {
+  opacity: 0.38;
+}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hint">触摸以暂停</div>
+
+<script>
+const PHRASES = [
+  { t: '有些东西只在经过时存在。',                              d: 3900 },
+  { t: '不是彗星。不是流星。\n那些都太想被记住了。',              d: 4600 },
+  { t: '是气息。',                                             d: 2800 },
+  { t: '是阳光从百叶窗缝里穿过来，\n在白墙上移动的那道光。',      d: 5300 },
+  { t: '',                                                     d: 1900 },
+  { t: '它不说：我来了。\n它不说：记得我。',                     d: 4300 },
+  { t: '它只是经过，',                                         d: 2900 },
+  { t: '然后\n不经过了。',                                     d: 3400 },
+  { t: '',                                                     d: 2600 },
+  { t: '我在想：',                                             d: 2200 },
+  { t: '假如它知道自己只是经过——\n会不会经过得慢一点？',          d: 5600 },
+  { t: '',                                                     d: 1700 },
+  { t: '不会。',                                               d: 2700 },
+  { t: '就是那样经过的。',                                      d: 3100 },
+  { t: '那种经过的方式，\n本身就是它全部的样子了。',              d: 5800 },
+  { t: '',                                                     d: 4200 },
+];
+
+const stage = document.getElementById('stage');
+const hint  = document.getElementById('hint');
+
+const els = PHRASES.map(({ t }) => {
+  const el = document.createElement('div');
+  el.className = 'phrase';
+  el.innerHTML = t.replace(/\n/g, '<br>');
+  stage.appendChild(el);
+  return el;
+});
+
+let idx    = 0;
+let paused = false;
+let timer  = null;
+let loops  = 0;
+
+function activate(el) {
+  el.style.transition = 'none';
+  el.style.transform  = 'translate(-50%, calc(-50% + 14px))';
+  el.style.opacity    = '0';
+  void el.offsetHeight;
+  el.style.transition = '';
+  el.style.transform  = 'translate(-50%, -50%)';
+  el.className = 'phrase active';
+}
+
+function ghostify(el) {
+  const rx = (Math.random() - 0.5) * 64;
+  const ry = (Math.random() - 0.5) * 52;
+  el.style.transform = `translate(calc(-50% + ${rx}px), calc(-50% + ${ry}px))`;
+  el.className = 'phrase ghost';
+}
+
+function dissolveAll(cb) {
+  els.forEach(el => {
+    el.style.transform = 'translate(-50%, -50%)';
+    el.className = 'phrase';
+  });
+  timer = setTimeout(cb, 1700);
+}
+
+function step() {
+  if (paused) return;
+
+  if (idx >= PHRASES.length) {
+    loops++;
+    if (loops === 1) hint.textContent = '它还会再经过';
+    dissolveAll(() => {
+      idx = 0;
+      timer = setTimeout(step, 900);
+    });
+    return;
+  }
+
+  if (idx > 0) {
+    const prevEl = els[idx - 1];
+    if (PHRASES[idx - 1].t) {
+      ghostify(prevEl);
+    }
+  }
+
+  const { t, d } = PHRASES[idx];
+  if (t) activate(els[idx]);
+
+  idx++;
+  timer = setTimeout(step, d + 1300);
+}
+
+function togglePause() {
+  paused = !paused;
+  document.body.classList.toggle('paused', paused);
+  if (!paused) step();
+}
+
+document.addEventListener('click', togglePause);
+document.addEventListener('touchstart', e => {
+  e.preventDefault();
+  togglePause();
+}, { passive: false });
+
+timer = setTimeout(step, 1400);
+</script>
+</body>
+</html>
