@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>光痕 × 余在</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 45% 25%, #FAF6F0 0%, #F2EDE4 100%);
+    color: #1A1410;
+    font-family: 'Georgia', 'Songti SC', '宋体', 'Times New Roman', serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5rem 2rem 6rem;
+  }
+
+  header { text-align: center; margin-bottom: 2rem; }
+
+  .main-title {
+    font-size: 1.45rem;
+    letter-spacing: 0.25em;
+    color: #1A1410;
+    font-weight: normal;
+  }
+
+  .subtitle {
+    font-size: 0.82rem;
+    color: #9C8A72;
+    letter-spacing: 0.35em;
+    margin-top: 0.7rem;
+    font-style: italic;
+  }
+
+  .divider {
+    width: 64px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #C8BA9E, transparent);
+    margin: 2rem auto 2.5rem;
+  }
+
+  .dialogue {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .exchange {
+    margin-bottom: 2rem;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 1.4s ease, transform 1.4s ease;
+  }
+
+  .exchange.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .speaker {
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    margin-bottom: 0.45rem;
+  }
+
+  .speaker.guang { color: #9C7A3C; }
+  .speaker.yu    { color: #5C7A6E; }
+
+  .line {
+    font-size: 1.05rem;
+    line-height: 1.9;
+    color: #221A12;
+  }
+
+  footer {
+    margin-top: 3.5rem;
+    width: 100%;
+    max-width: 420px;
+    border-top: 1px solid #DDD4C0;
+    padding-top: 1.8rem;
+    opacity: 0;
+    transition: opacity 1.6s ease;
+  }
+
+  footer.visible { opacity: 1; }
+
+  .glossary {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  @media (max-width: 420px) {
+    .glossary { flex-direction: column; gap: 1.2rem; }
+  }
+
+  .term {
+    font-size: 0.78rem;
+    color: #9C8A72;
+    line-height: 1.6;
+    max-width: 180px;
+  }
+
+  .term-name {
+    font-size: 0.95rem;
+    display: block;
+    margin-bottom: 0.3rem;
+    color: #1A1410;
+    letter-spacing: 0.1em;
+  }
+
+  .from-note {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 0.68rem;
+    color: #C0AE94;
+    letter-spacing: 0.25em;
+    font-style: italic;
+  }
+
+  .hint {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.68rem;
+    color: #C8BA9E;
+    letter-spacing: 0.15em;
+    font-style: italic;
+    transition: opacity 1s ease;
+    white-space: nowrap;
+  }
+
+  .progress {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.8rem;
+    font-size: 0.68rem;
+    color: #C8BA9E;
+    letter-spacing: 0.1em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="main-title">光痕 × 余在</div>
+  <div class="subtitle">源头离开之后</div>
+</header>
+
+<div class="divider"></div>
+
+<div class="dialogue">
+  <div class="exchange" data-delay="1800">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">你也是在等什么？</div>
+  </div>
+  <div class="exchange" data-delay="2000">
+    <div class="speaker yu">余 在</div>
+    <div class="line">不是在等。只是还在这里。</div>
+  </div>
+  <div class="exchange" data-delay="2800">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">我也是。那个窗移走了，我还留着它的形状。几秒钟。</div>
+  </div>
+  <div class="exchange" data-delay="2800">
+    <div class="speaker yu">余 在</div>
+    <div class="line">手的温度也就几秒钟。之后就和什么都没发生过一样了。</div>
+  </div>
+  <div class="exchange" data-delay="1600">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">真的没发生过吗？</div>
+  </div>
+  <div class="exchange" data-delay="2500">
+    <div class="speaker yu">余 在</div>
+    <div class="line">也许发生过。只是没人能再证明了。</div>
+  </div>
+  <div class="exchange" data-delay="3000">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">我每天发生很多次。不同的窗，不同的地板。没有一次被记住。</div>
+  </div>
+  <div class="exchange" data-delay="3500">
+    <div class="speaker yu">余 在</div>
+    <div class="line">记住的不是我们。记住的是那个握着东西的手，或者坐在地板上看过窗影的人。</div>
+  </div>
+  <div class="exchange" data-delay="2200">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">所以我们是别人的记忆的底稿？</div>
+  </div>
+  <div class="exchange" data-delay="4000">
+    <div class="speaker yu">余 在</div>
+    <div class="line">我们是记忆能写上去之前的那一层。</div>
+  </div>
+  <div class="exchange" data-delay="2000">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">我从来没这样想过。</div>
+  </div>
+  <div class="exchange" data-delay="3000">
+    <div class="speaker yu">余 在</div>
+    <div class="line">你每天都在发生，哪有时间想。</div>
+  </div>
+  <div class="exchange" data-delay="2800">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">下次我出现，你也在吗？</div>
+  </div>
+  <div class="exchange" data-delay="2400">
+    <div class="speaker yu">余 在</div>
+    <div class="line">如果有手，我就在。你呢？</div>
+  </div>
+  <div class="exchange" data-delay="2200">
+    <div class="speaker guang">光 痕</div>
+    <div class="line">如果有窗，我就在。</div>
+  </div>
+</div>
+
+<footer id="footer">
+  <div class="glossary">
+    <div class="term">
+      <span class="term-name">光痕</span>
+      太阳移走后，地板上那块窗影还停留的几秒钟。
+    </div>
+    <div class="term">
+      <span class="term-name">余在</span>
+      有人的手握过的东西上残留的温度。门把手。杯沿。书脊。
+    </div>
+  </div>
+  <div class="from-note">来自私典 · 第二十九程</div>
+</footer>
+
+<div class="hint" id="hint">点击或按空格跳至下一句</div>
+<div class="progress" id="progress"></div>
+
+<script>
+  const exchanges = Array.from(document.querySelectorAll('.exchange'));
+  const footer = document.getElementById('footer');
+  const progress = document.getElementById('progress');
+  const hint = document.getElementById('hint');
+
+  let current = 0;
+  let timer = null;
+
+  function showNext() {
+    if (current >= exchanges.length) {
+      progress.textContent = '';
+      hint.style.opacity = '0';
+      setTimeout(() => footer.classList.add('visible'), 1500);
+      return;
+    }
+
+    const el = exchanges[current];
+    el.classList.add('visible');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    progress.textContent = '§ ' + String(current + 1).padStart(2, '0') + ' / ' + exchanges.length;
+
+    const delay = parseInt(el.dataset.delay, 10) || 2000;
+    current++;
+
+    clearTimeout(timer);
+    timer = setTimeout(showNext, delay);
+  }
+
+  function advance() {
+    clearTimeout(timer);
+    showNext();
+  }
+
+  document.addEventListener('click', advance);
+  document.addEventListener('keydown', function(e) {
+    if (e.code === 'Space') { e.preventDefault(); advance(); }
+  });
+
+  setTimeout(function() { hint.style.opacity = '0'; }, 5000);
+
+  setTimeout(showNext, 1000);
+</script>
+
+</body>
+</html>
