@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>听空</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #070707;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+}
+#caption {
+  position: fixed;
+  bottom: 3.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 5s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#caption.show { opacity: 1; }
+#caption .word {
+  font-family: 'Songti SC', 'STSong', 'SimSun', serif;
+  font-size: 1.1rem;
+  color: #aaa090;
+  letter-spacing: 0.5em;
+  padding-right: 0.5em;
+  margin-bottom: 0.65rem;
+}
+#caption .def {
+  font-family: 'Songti SC', 'STSong', 'SimSun', serif;
+  font-size: 0.70rem;
+  color: #5c4c3a;
+  letter-spacing: 0.06em;
+}
+#tag {
+  position: fixed;
+  top: 1.6rem;
+  right: 2.2rem;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 0.58rem;
+  color: #1c1410;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="caption">
+  <div class="word">听空</div>
+  <div class="def">音乐结束之后的那段沉默，它里面仍然装着刚才的音乐。</div>
+</div>
+<div id="tag">§ 私典 · 听空</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const caption = document.getElementById('caption');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Six wave components, from treble to sub-bass.
+// [cyclesAcrossCanvas, initialAmpFraction, decayPerSec, phaseRad, speedRadPerSec]
+const WAVES = [
+  [7.20, 0.024, 0.340, 0.0,  4.00],  // treble — gone in ~15s
+  [4.60, 0.034, 0.240, 1.6,  2.70],  // upper-mid
+  [3.00, 0.048, 0.170, 0.8,  1.85],  // mid
+  [1.80, 0.063, 0.115, 2.2,  1.25],  // lower-mid
+  [1.00, 0.080, 0.078, 0.5,  0.82],  // bass
+  [0.42, 0.098, 0.052, 1.4,  0.33],  // sub-bass — lingers until ~45s
+];
+
+const INIT_AMP = WAVES.reduce((s, w) => s + w[1], 0);
+const SILENCE_THRESH = 0.011;
+
+function sampleY(xNorm, t) {
+  let y = 0;
+  for (const [freq, amp, decay, phase, speed] of WAVES) {
+    y += (amp * Math.exp(-decay * t)) * Math.sin(2 * Math.PI * freq * xNorm + phase + speed * t);
+  }
+  return y;
+}
+
+function totalAmp(t) {
+  return WAVES.reduce((s, [, amp, decay]) => s + amp * Math.exp(-decay * t), 0);
+}
+
+// Interpolate between warm amber and cool steel-blue as silence deepens.
+function waveColor(sf) {
+  const r = ~~(193 + (72  - 193) * sf);
+  const g = ~~(133 + (98  - 133) * sf);
+  const b = ~~(62  + (132 - 62)  * sf);
+  return `rgb(${r},${g},${b})`;
+}
+
+let t0 = null, captionDone = false;
+
+function frame(ts) {
+  if (!t0) t0 = ts;
+  const t = (ts - t0) / 1000;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const amp = totalAmp(t);
+  const sf  = Math.max(0, Math.min(1, 1 - amp / INIT_AMP));  // 0 = loud, 1 = silent
+  const maxPx = Math.min(H * 0.30, 140);
+  const cy = H / 2;
+  const col = waveColor(sf);
+
+  // Glow (wide, very transparent) — only while music is alive
+  if (sf < 0.88) {
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 3) {
+      const y = cy + sampleY(x / W, t) * maxPx;
+      x < 3 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 10;
+    ctx.globalAlpha = 0.07 * (1 - sf);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Main waveform line
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 2) {
+    const y = cy + sampleY(x / W, t) * maxPx;
+    x < 2 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 0.5 + 1.5 * (1 - sf);
+  ctx.globalAlpha = 0.78 + 0.12 * (1 - sf);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Ghost axis: the zero line becomes visible only as silence approaches.
+  // You can't see where silence is until you're almost there.
+  if (sf > 0.72) {
+    const axisAlpha = (sf - 0.72) * 0.16;
+    ctx.beginPath();
+    ctx.moveTo(0, cy);
+    ctx.lineTo(W, cy);
+    ctx.strokeStyle = `rgba(72,98,132,${axisAlpha})`;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+
+  // Reveal the word once silence has arrived
+  if (!captionDone && amp < SILENCE_THRESH) {
+    captionDone = true;
+    caption.classList.add('show');
+  }
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
