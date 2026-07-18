@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前悬 · 候语</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0d0c09;
+  --text: #d5c9b6;
+  --mute: #5d5750;
+  --gold: #c8a76c;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Georgia', 'Noto Serif SC', serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+.act {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  transition: opacity 3s;
+}
+
+#act2 { opacity: 0; }
+
+/* ── ACT 1: 前悬 ── */
+.q-pre {
+  font-size: clamp(0.72rem, 1.5vw, 0.85rem);
+  letter-spacing: 0.3em;
+  color: var(--mute);
+  margin-bottom: 2.5rem;
+  opacity: 0;
+  transition: opacity 2s;
+}
+
+.q-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  font-size: clamp(2rem, 5.5vw, 3.2rem);
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transition: opacity 1.5s;
+}
+
+.blank {
+  display: inline-block;
+  min-width: 2em;
+  border-bottom: 1.5px solid var(--mute);
+  color: var(--gold);
+  font-style: italic;
+  transition: opacity 0.35s;
+  padding: 0 0.15em;
+}
+
+.q-frag {
+  font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+  letter-spacing: 0.2em;
+  color: var(--mute);
+  margin-top: 2rem;
+  min-height: 1.5em;
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+
+/* ── ACT 2: 候语 ── */
+.h-sent {
+  font-size: clamp(1.5rem, 4vw, 2.4rem);
+  letter-spacing: 0.05em;
+  line-height: 2;
+  opacity: 0;
+  transition: opacity 3s;
+}
+
+.h-wait {
+  margin-top: 3rem;
+  font-size: clamp(0.72rem, 1.4vw, 0.82rem);
+  letter-spacing: 0.25em;
+  color: var(--mute);
+  opacity: 0;
+  transition: opacity 2s;
+}
+
+.ctr {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+
+.h-resolve {
+  margin-top: 2.2rem;
+  font-size: clamp(0.8rem, 1.6vw, 0.92rem);
+  letter-spacing: 0.1em;
+  color: var(--mute);
+  line-height: 2.4;
+  opacity: 0;
+  transition: opacity 4s;
+}
+
+/* ── 共用定义块 ── */
+.def {
+  margin-top: 4.5rem;
+  opacity: 0;
+  transition: opacity 3s;
+}
+
+.def-word {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  letter-spacing: 0.22em;
+  color: var(--gold);
+}
+
+.def-line {
+  width: 1px;
+  height: 1.8rem;
+  background: var(--mute);
+  margin: 0.85rem auto;
+  opacity: 0.35;
+}
+
+.def-body {
+  font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+  color: var(--mute);
+  letter-spacing: 0.08em;
+  line-height: 2;
+}
+
+/* ── 隐藏层 ── */
+.sig {
+  position: fixed;
+  bottom: 1.1rem;
+  right: 1.4rem;
+  font-size: 0.58rem;
+  color: #1a1816;
+  letter-spacing: 0.07em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ts {
+  position: fixed;
+  bottom: 1.1rem;
+  left: 1.4rem;
+  font-size: 0.56rem;
+  color: #1c1a15;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <!-- 第一幕：前悬 -->
+  <div class="act" id="act1">
+    <p class="q-pre" id="qPre">就在嘴边</p>
+    <div class="q-main" id="qMain">
+      那个词——<span class="blank" id="blank">&nbsp;&nbsp;&nbsp;</span>
+    </div>
+    <p class="q-frag" id="qFrag"></p>
+    <div class="def" id="def1">
+      <div class="def-word">前悬</div>
+      <div class="def-line"></div>
+      <div class="def-body">快想起一件事的那个悬停<br>名字就在嘴边，抓不住</div>
+    </div>
+  </div>
+
+  <!-- 第二幕：候语 -->
+  <div class="act" id="act2">
+    <div class="h-sent" id="hSent">
+      这句话，原本<br>是要说给你的。
+    </div>
+    <div class="h-wait" id="hWait">
+      它等了&ensp;<span class="ctr" id="ctr">00:00</span>
+    </div>
+    <div class="h-resolve" id="hResolve">
+      你来了。<br>那句话已经忘了。
+    </div>
+    <div class="def" id="def2">
+      <div class="def-word">候语</div>
+      <div class="def-line"></div>
+      <div class="def-body">准备好要说、但那个人没来的那句话<br>等久了，连它自己也不记得了</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="sig">§ 私典 · 前悬 · 候语</div>
+<div class="ts">最后一次准备好：那天下午 3:17</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const qPre = $('qPre'), qMain = $('qMain'), blank = $('blank'), qFrag = $('qFrag'), def1 = $('def1'),
+      act1 = $('act1'), act2 = $('act2'),
+      hSent = $('hSent'), hWait = $('hWait'), ctr = $('ctr'),
+      hResolve = $('hResolve'), def2 = $('def2');
+
+const attempts = ['……', '是', '那', '记', '不对', '好像', '就', '——', '快了', '……'];
+const frags = [
+  '就是那个……',
+  '有了——不对',
+  '好像是两个字的？',
+  '以前说过的……',
+  '明明知道的——',
+  '就是——',
+  '几乎了……',
+  '……',
+];
+let ai = 0, fi = 0, cycleTimer;
+
+function cycle() {
+  blank.style.opacity = '0';
+  qFrag.style.opacity = '0';
+  setTimeout(() => {
+    blank.textContent = attempts[ai++ % attempts.length];
+    blank.style.opacity = '1';
+  }, 320);
+  setTimeout(() => {
+    qFrag.textContent = frags[fi++ % frags.length];
+    qFrag.style.opacity = '1';
+  }, 480);
+}
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+async function run() {
+  await wait(900);
+  qPre.style.opacity = '1';
+
+  await wait(1200);
+  qMain.style.opacity = '1';
+
+  await wait(2000);
+  blank.textContent = attempts[ai++ % attempts.length];
+  qFrag.textContent = frags[fi++ % frags.length];
+  qFrag.style.opacity = '1';
+  cycleTimer = setInterval(cycle, 1900);
+
+  await wait(18000);
+  clearInterval(cycleTimer);
+  qFrag.style.transition = 'opacity 2.5s';
+  qFrag.style.opacity = '0';
+  blank.style.transition = 'opacity 3s';
+  blank.style.opacity = '0.12';
+  blank.textContent = '　　';
+  qMain.style.transition = 'opacity 3s';
+  qMain.style.opacity = '0.18';
+  qPre.style.transition = 'opacity 3s';
+  qPre.style.opacity = '0.18';
+
+  await wait(5000);
+  def1.style.opacity = '1';
+
+  await wait(5500);
+  act1.style.opacity = '0';
+
+  await wait(2000);
+  act2.style.opacity = '1';
+
+  await wait(2200);
+  hSent.style.opacity = '1';
+
+  await wait(7000);
+  hWait.style.opacity = '1';
+  const t0 = Date.now();
+  setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    ctr.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  }, 1000);
+
+  await wait(30000);
+  hResolve.style.opacity = '1';
+
+  await wait(14000);
+  def2.style.opacity = '1';
+}
+
+run();
+</script>
+</body>
+</html>
