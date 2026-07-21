@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>续无</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: #0f0d08;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'STSong', 'Songti SC', 'SimSun', 'Georgia', serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+.scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.8rem;
+}
+.slot {
+  position: relative;
+  width: 340px;
+  height: 220px;
+}
+.transient {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #7a6c52;
+  letter-spacing: 0.16em;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  pointer-events: none;
+}
+.word-block {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 2s ease;
+  pointer-events: none;
+}
+.word {
+  font-size: 3rem;
+  letter-spacing: 0.35em;
+  color: #d2c298;
+  font-weight: 400;
+  line-height: 1;
+  margin-bottom: 0.45rem;
+}
+.pinyin {
+  font-family: 'Garamond', 'Palatino Linotype', 'Palatino', serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.38em;
+  color: #4a4030;
+  font-style: italic;
+  margin-bottom: 1.4rem;
+}
+.divider {
+  width: 20px;
+  height: 1px;
+  background: #2c2218;
+  margin-bottom: 1.4rem;
+}
+.definition {
+  font-size: 0.88rem;
+  line-height: 2.15;
+  color: #888068;
+  letter-spacing: 0.08em;
+}
+.ghost {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Garamond', 'Palatino', serif;
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  font-style: italic;
+  color: #1c1810;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.corner {
+  position: fixed;
+  top: 1.4rem;
+  right: 1.6rem;
+  font-family: 'Garamond', 'Palatino', serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.22em;
+  font-style: italic;
+  color: #1c1810;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <svg viewBox="-92 -92 184 184" width="216" height="216" style="display:block;overflow:visible">
+    <defs>
+      <radialGradient id="g-rim" cx="50%" cy="50%">
+        <stop offset="0%"   stop-color="#3a2618"/>
+        <stop offset="100%" stop-color="#221408"/>
+      </radialGradient>
+      <radialGradient id="g-tea" cx="35%" cy="30%" r="70%">
+        <stop offset="0%"   stop-color="#7e4e20"/>
+        <stop offset="48%"  stop-color="#4c2c0e"/>
+        <stop offset="100%" stop-color="#2c1806"/>
+      </radialGradient>
+    </defs>
+    <!-- cup rim -->
+    <circle r="86" fill="url(#g-rim)" stroke="#4a3624" stroke-width="1"/>
+    <!-- tea surface (uniform, already done) -->
+    <circle r="74" fill="url(#g-tea)"/>
+    <!-- faint surface light -->
+    <ellipse cx="-16" cy="-17" rx="14" ry="8" fill="#a05c24" opacity="0.08"/>
+    <!-- spoon: rotates around (0,0) = center of cup -->
+    <g>
+      <rect x="9" y="-2" width="52" height="4" rx="2" fill="#bea870"/>
+      <ellipse cx="70" cy="0" rx="10.5" ry="6.5" fill="#ccb87a"/>
+      <ellipse cx="68" cy="-1.8" rx="5" ry="2.8" fill="#ddc884" opacity="0.45"/>
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0" to="360"
+        dur="4.2s"
+        repeatCount="indefinite"/>
+    </g>
+    <!-- pivot at center -->
+    <circle r="3.2" fill="#3a2c1c"/>
+  </svg>
+
+  <div class="slot">
+    <div class="transient" id="txt">茶已经好了。</div>
+    <div class="word-block" id="wb">
+      <div class="word">续无</div>
+      <div class="pinyin">xù wú</div>
+      <div class="divider"></div>
+      <div class="definition">
+        一个动作在失去意义后的延续。<br>
+        搅完了的茶，继续搅。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ghost">停下来比继续搅更难。</div>
+<div class="corner">§ 私典 · 续无</div>
+
+<script>
+const txt = document.getElementById('txt');
+const wb  = document.getElementById('wb');
+
+// 0-3.2s: pure motion
+// 3.2s: text fades in (1.5s transition)
+// 11s: text fades out
+// 21.5s: word + definition appear
+setTimeout(() => txt.style.opacity = '1', 3200);
+setTimeout(() => txt.style.opacity = '0', 11000);
+setTimeout(() => wb.style.opacity  = '1', 21500);
+</script>
+
+</body>
+</html>
