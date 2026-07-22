@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>私典 · 隔候</title>
+<style>
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #080607;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Songti SC', 'STSong', Georgia, serif;
+  position: relative;
+}
+
+#cold {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #6d8299;
+  font-size: 1.05rem;
+  line-height: 2.9;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transition: opacity 1.8s ease;
+  white-space: nowrap;
+}
+
+#door-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  transition: opacity 2.5s ease;
+}
+
+#warm {
+  position: absolute;
+  bottom: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #bf9848;
+  font-size: 1.05rem;
+  line-height: 2.9;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transition: opacity 1.8s ease;
+  white-space: nowrap;
+}
+
+#word-block {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 2s ease;
+}
+
+#word-hanzi {
+  display: block;
+  font-size: 2.4rem;
+  letter-spacing: 0.35em;
+  padding-right: 0.35em;
+  color: #bdb6af;
+  margin-bottom: 26px;
+}
+
+#word-def {
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  color: #3c3730;
+  line-height: 2.2;
+}
+
+#sig-tr {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  color: #141210;
+  pointer-events: none;
+  user-select: none;
+}
+
+#sig-b {
+  position: fixed;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: #141210;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<div id="sig-tr">§ 私典 · 隔候</div>
+<div id="sig-b">你早到了。只是时间还没跟上。</div>
+
+<div id="cold">
+  你站着。<br>
+  楼道里安静。<br>
+  他还没来。
+</div>
+
+<div id="door-wrap">
+  <svg id="door-svg" width="150" height="210" viewBox="0 0 150 210" fill="none">
+    <defs>
+      <filter id="gf" x="-100%" y="-80%" width="300%" height="260%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
+      </filter>
+    </defs>
+
+    <!-- warm glow behind door -->
+    <rect id="glow-plane" x="5" y="0" width="140" height="210"
+      fill="#a87820" opacity="0" filter="url(#gf)"/>
+
+    <!-- door body -->
+    <rect x="25" y="10" width="100" height="195" rx="2"
+      fill="#0e0c09" stroke="#231f1b" stroke-width="1.5"/>
+
+    <!-- upper panel -->
+    <rect x="36" y="22" width="78" height="66" rx="1"
+      stroke="#1b1714" stroke-width="1"/>
+
+    <!-- lower panel -->
+    <rect x="36" y="102" width="78" height="90" rx="1"
+      stroke="#1b1714" stroke-width="1"/>
+
+    <!-- handle -->
+    <circle cx="114" cy="112" r="4.5"
+      fill="#1e1a16" stroke="#2c2722" stroke-width="0.5"/>
+
+    <!-- crack of light under door -->
+    <rect id="crack" x="26" y="203" width="98" height="2"
+      fill="#c49a2a" opacity="0"/>
+  </svg>
+</div>
+
+<div id="warm">
+  你已经到了。<br>
+  门没开，但你已经在那边了。<br>
+  你们说了很多话了。
+</div>
+
+<div id="word-block">
+  <span id="word-hanzi">隔候</span>
+  <div id="word-def">
+    久别重逢之前的那段时间。<br>
+    你的心已经到了，但他们还没有。
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function fade(el, val, dur) {
+  el.style.transition = 'opacity ' + dur + 'ms ease';
+  el.style.opacity = String(val);
+}
+
+function startGlow() {
+  const gp = $('glow-plane');
+  let op = 0, rising = true;
+  const rise = setInterval(() => {
+    if (rising) {
+      op += 0.012;
+      if (op >= 0.55) rising = false;
+    } else {
+      op -= 0.008;
+      if (op <= 0.07) {
+        clearInterval(rise);
+        let t = 0;
+        setInterval(() => {
+          t += 0.022;
+          gp.setAttribute('opacity', (0.07 + 0.05 * Math.sin(t)).toFixed(3));
+        }, 40);
+        return;
+      }
+    }
+    gp.setAttribute('opacity', op.toFixed(3));
+  }, 40);
+}
+
+[
+  [700,   () => fade($('cold'), 1, 1800)],
+  [5400,  () => fade($('cold'), 0, 2000)],
+  [7600,  () => startGlow()],
+  [9000,  () => {
+    const c = $('crack');
+    c.style.transition = 'opacity 3.5s ease';
+    c.style.opacity = '0.65';
+  }],
+  [10200, () => fade($('warm'), 1, 1800)],
+  [15800, () => fade($('warm'), 0, 2000)],
+  [17200, () => fade($('door-wrap'), 0.1, 2500)],
+  [18800, () => fade($('word-block'), 1, 2200)],
+].forEach(([t, fn]) => setTimeout(fn, t));
+</script>
+
+</body>
+</html>
