@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>私典 · 成前</title>
+<style>
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+}
+body {
+  background: #0c0a08;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', Georgia, serif;
+}
+#corner {
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  font-size: 10.5px;
+  color: #191410;
+  letter-spacing: 0.12em;
+  opacity: 0;
+  transition: opacity 3s ease;
+  pointer-events: none;
+}
+#paper {
+  width: 320px;
+  height: 430px;
+  background: #f4efe6;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+#word {
+  font-size: 62px;
+  color: #1c1812;
+  letter-spacing: 0.22em;
+  padding-right: 0.22em;
+  opacity: 0;
+  transition: opacity 7s ease;
+  user-select: none;
+}
+#def {
+  font-size: 13.5px;
+  color: #3a3328;
+  letter-spacing: 0.1em;
+  line-height: 2;
+  text-align: center;
+  padding: 0 36px;
+  opacity: 0;
+  transition: opacity 9s ease;
+  user-select: none;
+}
+#secret {
+  position: absolute;
+  bottom: 22px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: #dcd5c9;
+  opacity: 0;
+  transition: opacity 7s ease;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+
+<div id="corner">§ 私典 · 成前</div>
+
+<div id="paper">
+  <div id="word">成前</div>
+  <div id="def">空白的纸比写满之后更完整。</div>
+  <div id="secret">落笔那刻，完整已去。</div>
+</div>
+
+<script>
+const paper  = document.getElementById('paper');
+const word   = document.getElementById('word');
+const def    = document.getElementById('def');
+const secret = document.getElementById('secret');
+const corner = document.getElementById('corner');
+
+function setGlow(g1, g2, s1, s2) {
+  paper.style.boxShadow = [
+    `0 0 ${s1.toFixed(1)}px rgba(244,239,230,${g1.toFixed(4)})`,
+    `0 0 ${s2.toFixed(1)}px rgba(244,239,230,${g2.toFixed(4)})`,
+    '0 4px 28px rgba(0,0,0,0.55)'
+  ].join(', ');
+}
+
+// Phase 1: breathing glow (0–10s)
+let t = 0;
+let breathRAF;
+function breathe() {
+  const p = Math.sin(t * 0.8);
+  setGlow(0.20 + 0.025 * p, 0.10 + 0.012 * p, 100 + 12 * p, 30 + 6 * p);
+  t += 0.016;
+  breathRAF = requestAnimationFrame(breathe);
+}
+breathRAF = requestAnimationFrame(breathe);
+
+// Phase 2: dimming (starts 10s, 14s duration)
+setTimeout(() => {
+  cancelAnimationFrame(breathRAF);
+
+  let dimStart = null;
+  const DIM_DUR = 14000;
+
+  function dimStep(ts) {
+    if (dimStart === null) dimStart = ts;
+    const raw   = Math.min((ts - dimStart) / DIM_DUR, 1);
+    const eased = 1 - Math.pow(1 - raw, 3); // ease-out cubic
+
+    // glow fades toward near-zero
+    setGlow(
+      0.20 * (1 - eased * 0.87),
+      0.10 * (1 - eased * 0.84),
+      100  - 62 * eased,
+      30   - 19 * eased
+    );
+
+    // paper itself dims slightly — the page loses its own inner light
+    paper.style.background = `rgb(
+      ${Math.round(244 - 12 * eased)},
+      ${Math.round(239 - 13 * eased)},
+      ${Math.round(230 - 14 * eased)}
+    )`;
+
+    if (raw < 1) requestAnimationFrame(dimStep);
+  }
+  requestAnimationFrame(dimStep);
+
+}, 10000);
+
+// Phase 3: word appears (14s)
+setTimeout(() => { word.style.opacity = '1'; }, 14000);
+
+// Phase 4: definition appears (26s)
+setTimeout(() => { def.style.opacity = '1'; }, 26000);
+
+// Phase 5: secret text — barely visible on dimmed paper (42s)
+setTimeout(() => { secret.style.opacity = '0.9'; }, 42000);
+
+// Phase 6: corner tag (49s)
+setTimeout(() => { corner.style.opacity = '1'; }, 49000);
+</script>
+</body>
+</html>
