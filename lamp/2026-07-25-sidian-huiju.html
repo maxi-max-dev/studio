@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>私典 · 汇</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html {
+  background: #0c0a07;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', 'SimSun', Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5rem 2rem 6rem;
+}
+
+.container {
+  width: 100%;
+  max-width: 560px;
+  opacity: 0;
+  animation: arrive 1.6s cubic-bezier(0.2, 0, 0.5, 1) 0.4s forwards;
+}
+
+@keyframes arrive {
+  to { opacity: 1; }
+}
+
+/* ── Header ── */
+
+.header {
+  text-align: center;
+  margin-bottom: 4.5rem;
+  user-select: none;
+}
+
+.title {
+  font-size: 1.1rem;
+  letter-spacing: 0.75em;
+  padding-right: 0.75em;
+  color: #8a7e62;
+}
+
+.subtitle {
+  margin-top: 0.65rem;
+  font-family: 'Garamond', 'Palatino Linotype', 'Palatino', serif;
+  font-size: 0.57rem;
+  letter-spacing: 0.48em;
+  color: #25201a;
+  font-style: italic;
+}
+
+/* ── Lexicon ── */
+
+.lexicon {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 6.6rem 1fr;
+  gap: 0 2rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid #14120d;
+  cursor: default;
+  user-select: none;
+}
+
+.entry:last-child {
+  border-bottom: 1px solid #14120d;
+}
+
+.word-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.word {
+  font-size: 1.55rem;
+  letter-spacing: 0.22em;
+  padding-right: 0.22em;
+  color: #ccc0a0;
+  line-height: 1;
+  transition: color 0.55s ease;
+}
+
+.pinyin {
+  margin-top: 0.42rem;
+  font-family: 'Garamond', 'EB Garamond', 'Palatino', serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: #27211a;
+  font-style: italic;
+  transition: color 0.55s ease;
+}
+
+.def-col {
+  display: flex;
+  align-items: center;
+}
+
+.definition {
+  font-size: 0.8rem;
+  line-height: 2.05;
+  letter-spacing: 0.04em;
+  color: #1b1710;
+  transition: color 0.45s ease;
+}
+
+/* Active / dimmed states (via JS) */
+
+.entry.active .definition {
+  color: #8c8068;
+}
+
+.entry.active .pinyin {
+  color: #3e3428;
+}
+
+.entry.dimmed .word {
+  color: #3a3525;
+}
+
+.entry.dimmed .pinyin {
+  color: #1e1a14;
+}
+
+/* ── Footer ── */
+
+.footer {
+  margin-top: 4rem;
+  text-align: center;
+  user-select: none;
+}
+
+.year {
+  font-family: 'Garamond', 'Palatino', serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.4em;
+  color: #261f16;
+  font-style: italic;
+}
+
+.unnamed {
+  margin-top: 1.8rem;
+  font-size: 0.55rem;
+  letter-spacing: 0.28em;
+  color: #121009;
+  cursor: default;
+  transition: color 1s ease;
+}
+
+.unnamed:hover {
+  color: #2c2720;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="title">私典</div>
+    <div class="subtitle">十词已聚</div>
+  </div>
+
+  <div class="lexicon" id="lexicon">
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">光痕</div>
+        <div class="pinyin">guāng hén</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">太阳移走后，<br>地板上那块窗影还停留的几秒钟。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">前悬</div>
+        <div class="pinyin">qián xuán</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">快想起一件事的那个悬停——<br>还没记起，还没再次忘掉。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">候语</div>
+        <div class="pinyin">hòu yǔ</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">你准备好要说、但那个人没来的那句话。<br>它在你嗓子里停了很久。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">余在</div>
+        <div class="pinyin">yú zài</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">有人的手握过的东西上残留的温度。<br>门把手。杯沿。书脊。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">听空</div>
+        <div class="pinyin">tīng kōng</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">音乐结束之后的那段沉默，<br>它里面仍然装着刚才的音乐。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">续无</div>
+        <div class="pinyin">xù wú</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">一个动作在失去意义后的延续。<br>搅完了的茶，继续搅。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">归体</div>
+        <div class="pinyin">guī tǐ</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">睡了多年的那张床的形状。<br>你的身体记得，你自己忘了——<br>直到你回去。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">隔候</div>
+        <div class="pinyin">gé hòu</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">久别重逢之前的那段时间——<br>你已经在重逢了，<br>但他们还不在。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">窗知</div>
+        <div class="pinyin">chuāng zhī</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">从高处看见别人家里亮着灯，<br>短暂知道了一件<br>他们没意识到自己透露的事。</div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="word-col">
+        <div class="word">成前</div>
+        <div class="pinyin">chéng qián</div>
+      </div>
+      <div class="def-col">
+        <div class="definition">还没有被开始的事物拥有的那种完整性。<br>一张空白的纸比写满之后更完整。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="year">二○二六年 · 初夏至仲夏</div>
+    <div class="unnamed">（　）　还没有名字的那个</div>
+  </div>
+</div>
+
+<script>
+const entries = document.querySelectorAll('#lexicon .entry');
+
+entries.forEach(entry => {
+  entry.addEventListener('mouseenter', () => {
+    entries.forEach(e => {
+      if (e === entry) {
+        e.classList.add('active');
+        e.classList.remove('dimmed');
+      } else {
+        e.classList.remove('active');
+        e.classList.add('dimmed');
+      }
+    });
+  });
+
+  entry.addEventListener('mouseleave', () => {
+    entries.forEach(e => {
+      e.classList.remove('active', 'dimmed');
+    });
+  });
+});
+</script>
+
+</body>
+</html>
