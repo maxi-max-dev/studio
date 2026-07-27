@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>游</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #060503;
+}
+canvas { display: block; }
+#label {
+  position: fixed;
+  bottom: 22px;
+  right: 26px;
+  font-family: 'Songti SC', 'SimSun', serif;
+  font-size: 10px;
+  color: #1e1710;
+  letter-spacing: 0.22em;
+  user-select: none;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="label">§ 灯 · 游</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, mouse = { x: -9e4, y: -9e4 };
+
+function resize() {
+  W = canvas.width = innerWidth;
+  H = canvas.height = innerHeight;
+}
+resize();
+addEventListener('resize', resize);
+addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+addEventListener('mouseleave', () => { mouse.x = mouse.y = -9e4; });
+
+const WARM = [
+  [212, 146, 16],
+  [230, 168, 42],
+  [186, 120, 10],
+  [242, 182, 55],
+  [166, 98, 8],
+  [220, 155, 28],
+];
+
+function rnd(a, b) { return a + Math.random() * (b - a); }
+
+function make(special) {
+  const a = rnd(0, Math.PI * 2);
+  const spd = rnd(0.06, 0.22);
+  return {
+    x: rnd(0, W), y: rnd(0, H),
+    r: special ? rnd(2.2, 3.4) : rnd(0.7, 2.5),
+    vx: Math.cos(a) * spd,
+    vy: Math.sin(a) * spd,
+    col: special ? [172, 155, 142] : WARM[0 | (Math.random() * WARM.length)],
+    alpha: special ? rnd(0.16, 0.28) : rnd(0.20, 0.58),
+    wa: a,
+    ws: rnd(-0.007, 0.007),
+  };
+}
+
+const pts = Array.from({ length: 84 }, () => make(false)).concat([make(true)]);
+let fade = 0;
+
+function tick() {
+  fade = Math.min(1, fade + 0.005);
+  ctx.clearRect(0, 0, W, H);
+
+  for (const p of pts) {
+    p.wa += p.ws;
+    const tx = Math.cos(p.wa) * 0.15;
+    const ty = Math.sin(p.wa) * 0.15;
+    p.vx += (tx - p.vx) * 0.013;
+    p.vy += (ty - p.vy) * 0.013;
+
+    const dx = p.x - mouse.x, dy = p.y - mouse.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < 14400) {
+      const d = Math.sqrt(d2), f = (120 - d) / 120 * 0.42;
+      p.vx += dx / d * f;
+      p.vy += dy / d * f;
+    }
+
+    const spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+    if (spd > 1.35) { p.vx = p.vx / spd * 1.35; p.vy = p.vy / spd * 1.35; }
+
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < -10) p.x += W + 20; else if (p.x > W + 10) p.x -= W + 20;
+    if (p.y < -10) p.y += H + 20; else if (p.y > H + 10) p.y -= H + 20;
+
+    const [r, g, b] = p.col;
+    const a = p.alpha * fade;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * 5.5, 0, 6.2832);
+    ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (a * 0.065).toFixed(4) + ')';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, 6.2832);
+    ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(4) + ')';
+    ctx.fill();
+  }
+
+  requestAnimationFrame(tick);
+}
+
+tick();
+</script>
+</body>
+</html>
