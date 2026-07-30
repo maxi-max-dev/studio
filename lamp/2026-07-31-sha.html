@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>沙</title>
+<style>
+* { margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #c8a870; }
+canvas { display: block; cursor: none; }
+#label {
+  position: fixed;
+  bottom: 22px;
+  right: 28px;
+  font: 12px/1 'Palatino Linotype', Georgia, serif;
+  color: rgba(96, 68, 38, 0.26);
+  letter-spacing: 0.2em;
+  pointer-events: none;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="label">沙</div>
+<script>
+const cvs = document.getElementById('c');
+const ctx  = cvs.getContext('2d');
+let W, H, tex;
+
+let mx = -999, my = -999, pressing = false;
+const marks = [];
+let cur = null;
+let drawn = false, shimmer = 0, shimmering = false, prevAlive = 0;
+
+const FADE = 44000; // ms to fully fade
+const GAP  = 7;    // min px between recorded points
+const MAX_PTS = 1800;
+
+function resize() {
+  W = cvs.width  = innerWidth;
+  H = cvs.height = innerHeight;
+  buildTex();
+}
+
+function buildTex() {
+  const img = ctx.createImageData(W, H);
+  const d = img.data;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      // layered sine noise → dune ripple texture
+      const n = Math.sin(x * 0.0085 + y * 0.012)  * 15
+              + Math.sin(x * 0.028  - y * 0.021)   *  9
+              + Math.sin(y * 0.13)                  *  5
+              + Math.sin(x * 0.55   + y * 0.42)     *  3
+              + (Math.random() - 0.5) * 22;
+      // edge vignette: slightly darker toward corners
+      const ex = (x / W - 0.5) * 2, ey = (y / H - 0.5) * 2;
+      const vig = (ex * ex + ey * ey) * 22;
+      const v = Math.round(n) - Math.round(vig);
+      const i = (y * W + x) * 4;
+      d[i]   = Math.max(138, Math.min(240, 204 + v));
+      d[i+1] = Math.max(108, Math.min(212, 172 + Math.round(v * 0.87)));
+      d[i+2] = Math.max(65,  Math.min(172, 124 + Math.round(v * 0.58)));
+      d[i+3] = 255;
+    }
+  }
+  tex = img;
+}
+
+function frame(now) {
+  if (tex) ctx.putImageData(tex, 0, 0);
+
+  let alive = 0;
+  for (let i = marks.length - 1; i >= 0; i--) {
+    const m = marks[i];
+    const age = now - m.t;
+    if (age >= FADE) { marks.splice(i, 1); continue; }
+    alive++;
+
+    const a = 1 - age / FADE;
+    const pts = m.pts;
+    ctx.save();
+
+    if (pts.length < 2) {
+      // Single tap: a small dot
+      ctx.globalAlpha = a * 0.70;
+      ctx.shadowBlur  = 10;
+      ctx.shadowColor = 'rgba(62, 40, 14, .48)';
+      ctx.fillStyle   = 'rgba(105, 74, 38, .78)';
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, 12, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Stroke: groove in sand (dark wide) + inner highlight ridge
+      ctx.globalAlpha = a * 0.73;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      ctx.shadowBlur  = 13;
+      ctx.shadowColor = 'rgba(58, 37, 12, .52)';
+      ctx.lineWidth   = 20;
+      ctx.strokeStyle = 'rgba(102, 72, 38, .74)';
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let j = 1; j < pts.length; j++) ctx.lineTo(pts[j].x, pts[j].y);
+      ctx.stroke();
+
+      // Displaced-sand highlight along center of groove
+      ctx.shadowBlur  = 0;
+      ctx.globalAlpha = a * 0.17;
+      ctx.lineWidth   = 6;
+      ctx.strokeStyle = 'rgba(230, 202, 158, 1)';
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let j = 1; j < pts.length; j++) ctx.lineTo(pts[j].x, pts[j].y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // Secret: when all marks have just faded away, the surface breathes once
+  if (drawn && !pressing && prevAlive > 0 && alive === 0 && !shimmering) {
+    shimmering = true;
+    shimmer    = 1;
+  }
+  prevAlive = alive;
+
+  if (shimmering) {
+    shimmer = Math.max(0, shimmer - 0.005);
+    if (shimmer === 0) shimmering = false;
+    ctx.save();
+    ctx.globalAlpha = shimmer * 0.078;
+    ctx.fillStyle   = '#fff9e8';
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  // Cursor ring
+  ctx.save();
+  const r = pressing ? 7 : 10;
+  ctx.globalAlpha  = pressing ? 0.72 : 0.38;
+  ctx.strokeStyle  = 'rgba(82, 55, 26, .95)';
+  ctx.lineWidth    = pressing ? 1.5 : 1;
+  ctx.beginPath();
+  ctx.arc(mx, my, r, 0, Math.PI * 2);
+  ctx.stroke();
+  if (pressing) {
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle   = 'rgba(82, 55, 26, 1)';
+    ctx.fill();
+  }
+  ctx.restore();
+
+  requestAnimationFrame(frame);
+}
+
+function addPt(x, y) {
+  if (!cur) return;
+  const p    = cur.pts;
+  const last = p[p.length - 1];
+  if (last) {
+    const dx = x - last.x, dy = y - last.y;
+    if (dx * dx + dy * dy < GAP * GAP) return;
+  }
+  if (p.length < MAX_PTS) p.push({ x, y });
+}
+
+cvs.addEventListener('mousedown', e => {
+  pressing = true;
+  cur = { pts: [{ x: e.clientX, y: e.clientY }], t: performance.now() };
+  marks.push(cur);
+  drawn = true;
+  shimmering = false;
+  shimmer    = 0;
+});
+window.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  addPt(mx, my);
+});
+window.addEventListener('mouseup', () => { pressing = false; cur = null; });
+
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault();
+  pressing = true;
+  const t  = e.touches[0];
+  mx = t.clientX; my = t.clientY;
+  cur = { pts: [{ x: mx, y: my }], t: performance.now() };
+  marks.push(cur);
+  drawn = true;
+  shimmering = false;
+  shimmer    = 0;
+}, { passive: false });
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  mx = t.clientX; my = t.clientY;
+  addPt(mx, my);
+}, { passive: false });
+cvs.addEventListener('touchend', () => { pressing = false; cur = null; });
+
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
