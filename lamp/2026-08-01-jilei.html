@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>積</title>
+<style>
+* { margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #0d0a06;
+  overflow: hidden;
+}
+canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%; height: 100%;
+}
+#s {
+  position: fixed;
+  right: 22px; bottom: 18px;
+  font-family: 'Hiragino Mincho ProN', 'SimSun', 'Georgia', serif;
+  font-size: 30px;
+  color: rgba(200, 155, 60, 0.10);
+  pointer-events: none;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="s">積</div>
+<script>
+// 積 · 每一粒都落下，每一粒都留着
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+let heights;       // Int16Array: pile height at each column
+let maxH = 0;
+let pile, pctx;   // offscreen canvas for the pile
+
+let wind = 0, windTarget = 0;
+let mouseX;
+let frame = 0;
+let particles = [];
+
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+// ——————— init ———————
+function init() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  mouseX = W / 2;
+  heights = new Int16Array(W);
+  maxH = 0;
+
+  pile = document.createElement('canvas');
+  pile.width = W;
+  pile.height = H;
+  pctx = pile.getContext('2d');
+  pctx.clearRect(0, 0, W, H);
+
+  particles = [];
+}
+
+// ——————— pile rendering ———————
+function drawCol(x) {
+  if (x < 0 || x >= W) return;
+  const h = heights[x];
+  pctx.clearRect(x, 0, 1, H);
+  if (h <= 0) return;
+
+  const top = H - h;
+
+  // Gradient: surface (pale gold) → base (near-black)
+  const g = pctx.createLinearGradient(0, top, 0, H);
+  g.addColorStop(0,    'rgb(242, 205, 130)');
+  g.addColorStop(0.07, 'rgb(210, 160, 68)');
+  g.addColorStop(0.24, 'rgb(150, 92, 22)');
+  g.addColorStop(0.56, 'rgb(62, 34, 8)');
+  g.addColorStop(1,    'rgb(14, 8, 2)');
+  pctx.fillStyle = g;
+  pctx.fillRect(x, top, 1, h);
+
+  // Surface glint: topmost pixel slightly brighter
+  pctx.fillStyle = 'rgba(255, 238, 165, 0.24)';
+  pctx.fillRect(x, top, 1, 2);
+}
+
+// ——————— physics: land a particle at floating x ———————
+function land(fx) {
+  let x = clamp(Math.round(fx), 0, W - 1);
+  if (heights[x] >= H - 1) return;
+
+  // Slide toward lower neighbor (angle of repose ≈ 2px)
+  for (let i = 0; i < 12; i++) {
+    const c = heights[x];
+    const l = x > 0     ? heights[x - 1] : c;
+    const r = x < W - 1 ? heights[x + 1] : c;
+    if      (l < c - 1 && l <= r) x = clamp(x - 1, 0, W - 1);
+    else if (r < c - 1)           x = clamp(x + 1, 0, W - 1);
+    else break;
+  }
+
+  heights[x]++;
+  if (heights[x] > maxH) maxH = heights[x];
+
+  // Local avalanche cascade (5 passes, ±40 columns)
+  const dirty = new Set([x]);
+  const lo = Math.max(0, x - 40);
+  const hi = Math.min(W - 1, x + 40);
+
+  for (let pass = 0; pass < 5; pass++) {
+    let any = false;
+    for (let i = lo + 1; i <= hi; i++) {
+      if (heights[i] - heights[i - 1] > 2) {
+        heights[i]--; heights[i - 1]++;
+        dirty.add(i); dirty.add(i - 1); any = true;
+      }
+    }
+    for (let i = hi - 1; i >= lo; i--) {
+      if (heights[i] - heights[i + 1] > 2) {
+        heights[i]--; heights[i + 1]++;
+        dirty.add(i); dirty.add(i + 1); any = true;
+      }
+    }
+    if (!any) break;
+  }
+
+  dirty.forEach(drawCol);
+}
+
+// ——————— particles ———————
+function mkP(sx, sy) {
+  return {
+    x: sx != null ? sx : Math.random() * W,
+    y: sy != null ? sy : -4 - Math.random() * 14,
+    vy: 0.9 + Math.random() * 1.2,
+    wobble: Math.random() * 6.28,
+    wAmt: 0.08 + Math.random() * 0.22,
+    wSpd: 0.035 + Math.random() * 0.055,
+    r:  1.0 + Math.random() * 1.4,
+    a:  0.4 + Math.random() * 0.5,
+  };
+}
+
+function tickP(p) {
+  const wx = Math.sin(wind) * 1.5;
+  p.wobble += p.wSpd;
+  p.x += wx + Math.sin(p.wobble) * p.wAmt;
+  p.y += p.vy;
+
+  p.x = clamp(p.x, 0, W - 1);
+
+  const xi = Math.round(clamp(p.x, 0, W - 1));
+  if (p.y >= H - heights[xi]) {
+    land(p.x);
+    return false;
+  }
+  return p.y < H + 8;
+}
+
+// ——————— draw ———————
+function draw() {
+  ctx.fillStyle = '#0d0a06';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.drawImage(pile, 0, 0);
+
+  // Secret: ember glow rises from the base once the pile grows tall enough.
+  // Appears after ~a few minutes of watching; rewards patience.
+  if (maxH > H * 0.30) {
+    const t = clamp((maxH - H * 0.30) / (H * 0.32), 0, 1);
+    const pulse = 0.87 + 0.13 * Math.sin(frame * 0.0038);
+    const a = t * 0.082 * pulse;
+    const glow = ctx.createRadialGradient(W * 0.5, H + 25, 8, W * 0.5, H + 25, W * 0.68);
+    glow.addColorStop(0,    `rgba(255, 115, 15, ${(a * 1.5).toFixed(4)})`);
+    glow.addColorStop(0.28, `rgba(220, 72, 6,  ${a.toFixed(4)})`);
+    glow.addColorStop(0.62, `rgba(175, 42, 0,  ${(a * 0.28).toFixed(4)})`);
+    glow.addColorStop(1,    'rgba(130, 22, 0, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Falling particles
+  ctx.fillStyle = '#cfa048';
+  for (const p of particles) {
+    ctx.globalAlpha = p.a;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, 6.283);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ——————— loop ———————
+function loop() {
+  frame++;
+
+  // Wind: slowly follows mouse, with a gentle natural drift
+  if (frame % 95 === 0) {
+    const mi = ((mouseX || W / 2) / W - 0.5) * 0.85;
+    windTarget = mi + (Math.random() - 0.5) * 0.55;
+  }
+  wind += (windTarget - wind) * 0.007;
+
+  // Maintain steady stream of falling particles
+  if (particles.length < 38) particles.push(mkP());
+
+  particles = particles.filter(tickP);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ——————— events ———————
+window.addEventListener('mousemove', e => { mouseX = e.clientX; });
+
+// Click / touch: pour a handful at that point
+function pour(cx, cy) {
+  const n = 28 + Math.floor(Math.random() * 14);
+  for (let i = 0; i < n; i++) {
+    particles.push(mkP(
+      cx + (Math.random() - 0.5) * 72,
+      cy - 12 - Math.random() * 28
+    ));
+  }
+}
+
+canvas.addEventListener('click', e => pour(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  for (const t of e.touches) pour(t.clientX, t.clientY);
+}, { passive: false });
+
+window.addEventListener('resize', init);
+
+// ——
+init();
+loop();
+</script>
+</body>
+</html>
