@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>雨 · 灯</title>
+<style>
+* { margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #07090d; }
+canvas { position: absolute; top: 0; left: 0; }
+#sig {
+  position: fixed;
+  bottom: 18px;
+  right: 22px;
+  font-family: Georgia, serif;
+  font-size: 11px;
+  color: rgba(120, 165, 200, 0.18);
+  letter-spacing: 0.2em;
+  pointer-events: none;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="t"></canvas>
+<canvas id="m"></canvas>
+<div id="sig">雨</div>
+<script>
+const tEl = document.getElementById('t');
+const mEl = document.getElementById('m');
+const tc = tEl.getContext('2d');
+const mc = mEl.getContext('2d');
+let W, H;
+
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  tEl.width = mEl.width = W;
+  tEl.height = mEl.height = H;
+  tc.clearRect(0, 0, W, H);
+}
+resize();
+window.addEventListener('resize', resize);
+
+class Drop {
+  constructor() {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H * 0.08;
+    this.r = 1.3 + Math.random() * 2.2;
+    this.vx = (Math.random() - 0.5) * 0.18;
+    this.vy = 0;
+    this.waitLeft = 60 + Math.random() * 180;
+    this.sliding = false;
+    this.dead = false;
+    this.prevX = this.x;
+    this.prevY = this.y;
+    this.trailAlpha = 0.10 + Math.random() * 0.08;
+  }
+
+  step() {
+    if (!this.sliding) {
+      this.waitLeft--;
+      if (this.waitLeft <= 0) this.sliding = true;
+      return;
+    }
+
+    this.prevX = this.x;
+    this.prevY = this.y;
+
+    this.vy = Math.min(this.vy + 0.05 + this.r * 0.01, 2.4 + this.r * 0.35);
+    this.vx += (Math.random() - 0.5) * 0.05;
+    this.vx = Math.max(-0.8, Math.min(0.8, this.vx * 0.97));
+    this.x += this.vx;
+    this.y += this.vy;
+    this.r = Math.max(1.0, this.r * 0.9998);
+
+    tc.beginPath();
+    tc.moveTo(this.prevX, this.prevY);
+    tc.lineTo(this.x, this.y);
+    tc.strokeStyle = `rgba(135, 185, 228, ${this.trailAlpha * Math.min(1, this.r / 2.5)})`;
+    tc.lineWidth = this.r * 0.26;
+    tc.lineCap = 'round';
+    tc.stroke();
+
+    if (this.y > H + 20 || this.x < -10 || this.x > W + 10) {
+      this.dead = true;
+    }
+  }
+
+  draw() {
+    if (this.dead) return;
+    const fade = this.sliding ? 1 : Math.max(0, 1 - this.waitLeft / 15);
+    if (fade < 0.01) return;
+
+    const r = this.r;
+    const stretch = this.sliding ? (1 + Math.min(this.vy * 0.15, 0.6)) : 1;
+    const sx = 1 / Math.sqrt(stretch);
+    const sy = stretch / Math.sqrt(stretch);
+
+    mc.save();
+    mc.translate(this.x, this.y);
+    mc.scale(sx, sy);
+
+    const g = mc.createRadialGradient(-r * 0.28, -r * 0.28, 0, 0, 0, r);
+    g.addColorStop(0, `rgba(218, 238, 255, ${fade * 0.88})`);
+    g.addColorStop(0.42, `rgba(135, 180, 228, ${fade * 0.56})`);
+    g.addColorStop(1, `rgba(65, 108, 162, ${fade * 0.10})`);
+
+    mc.beginPath();
+    mc.arc(0, 0, r, 0, Math.PI * 2);
+    mc.fillStyle = g;
+    mc.fill();
+    mc.strokeStyle = `rgba(190, 225, 255, ${fade * 0.20})`;
+    mc.lineWidth = 0.35;
+    mc.stroke();
+
+    mc.restore();
+  }
+}
+
+let drops = [];
+let frame = 0;
+let lastSpawn = 0;
+let lastMove = Date.now();
+let fog = 0, fogDir = 0;
+
+document.addEventListener('mousemove', () => { lastMove = Date.now(); });
+
+function spawnInterval(ts) {
+  const wave = Math.sin(ts / 22000) * 0.35 + Math.sin(ts / 55000) * 0.25;
+  return (850 + 200 * Math.random()) * (1 - wave * 0.5);
+}
+
+function mergeDrops() {
+  for (let i = 0; i < drops.length - 1; i++) {
+    const a = drops[i];
+    if (a.dead || a.sliding) continue;
+    for (let j = i + 1; j < drops.length; j++) {
+      const b = drops[j];
+      if (b.dead || b.sliding) continue;
+      const dx = a.x - b.x, dy = a.y - b.y;
+      if (dx * dx + dy * dy < (a.r + b.r) * (a.r + b.r)) {
+        if (a.r >= b.r) {
+          a.r = Math.min(6.5, Math.sqrt(a.r * a.r + b.r * b.r * 0.65));
+          b.dead = true;
+        } else {
+          b.r = Math.min(6.5, Math.sqrt(b.r * b.r + a.r * a.r * 0.65));
+          a.dead = true;
+          break;
+        }
+      }
+    }
+  }
+}
+
+function drawFog() {
+  const stillMs = Date.now() - lastMove;
+  if (fogDir === 0 && stillMs > 38000) fogDir = 1;
+  if (fogDir === 1) {
+    fog = Math.min(fog + 0.00055, 0.085);
+    if (fog >= 0.085) fogDir = -1;
+  } else if (fogDir === -1) {
+    fog = Math.max(fog - 0.00035, 0);
+    if (fog <= 0) {
+      fogDir = 0;
+      lastMove = Date.now() - 18000;
+    }
+  }
+  if (fog < 0.002) return;
+
+  const cx = W * 0.5, cy = H * 0.62;
+  mc.save();
+  mc.translate(cx, cy);
+  mc.scale(2.2, 0.65);
+  const g = mc.createRadialGradient(0, 0, 0, 0, 0, W * 0.13);
+  g.addColorStop(0, `rgba(200, 215, 232, ${fog})`);
+  g.addColorStop(0.5, `rgba(200, 215, 232, ${fog * 0.35})`);
+  g.addColorStop(1, 'rgba(200, 215, 232, 0)');
+  mc.fillStyle = g;
+  mc.beginPath();
+  mc.arc(0, 0, W * 0.13, 0, Math.PI * 2);
+  mc.fill();
+  mc.restore();
+}
+
+function loop(ts) {
+  frame++;
+
+  tc.globalCompositeOperation = 'destination-out';
+  tc.fillStyle = 'rgba(0, 0, 0, 0.013)';
+  tc.fillRect(0, 0, W, H);
+  tc.globalCompositeOperation = 'source-over';
+
+  mc.clearRect(0, 0, W, H);
+  mc.fillStyle = '#07090d';
+  mc.fillRect(0, 0, W, H);
+
+  const amb = mc.createRadialGradient(W * 0.5, H * 0.72, 0, W * 0.5, H * 0.72, W * 0.52);
+  amb.addColorStop(0, 'rgba(40, 28, 14, 0.048)');
+  amb.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  mc.fillStyle = amb;
+  mc.fillRect(0, 0, W, H);
+
+  mc.drawImage(tEl, 0, 0);
+
+  if (ts - lastSpawn > spawnInterval(ts) && drops.length < 100) {
+    drops.push(new Drop());
+    lastSpawn = ts;
+  }
+
+  if (frame % 5 === 0) mergeDrops();
+
+  for (const d of drops) d.step();
+  drops = drops.filter(d => !d.dead);
+
+  for (const d of drops) d.draw();
+
+  drawFog();
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
