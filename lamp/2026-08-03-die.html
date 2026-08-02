@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>叠</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f5f0e8; overflow: hidden; }
+    canvas { display: block; cursor: default; }
+    #t {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font: 300 80px/1 'Helvetica Neue', Helvetica, sans-serif;
+      color: rgba(26, 15, 61, 0.07);
+      pointer-events: none;
+      user-select: none;
+      z-index: 1;
+    }
+    #h {
+      position: fixed;
+      bottom: 16px;
+      right: 20px;
+      font: 10px/1 'Helvetica Neue', Helvetica, sans-serif;
+      color: rgba(26, 15, 61, 0.16);
+      letter-spacing: 0.12em;
+      pointer-events: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="t">叠</div>
+<div id="h">叠 · drag</div>
+<script>
+  /*
+   * 叠 · superposition
+   *
+   * 两个点各发出同频率的圆形波，互不相知。
+   * 相遇处相消 → 暗纹。
+   * 相遇处相长 → 亮纹，几乎和纸一样白，几乎看不出来。
+   * 那些暗的双曲线，才是它们之间唯一的接触。
+   */
+
+  const C = document.getElementById('c');
+  const ctx = C.getContext('2d');
+  const T = document.getElementById('t');
+
+  const WC = document.createElement('canvas');
+  const wctx = WC.getContext('2d');
+
+  const SCALE = 4;
+  const WL = 80;
+  const kk = (2 * Math.PI) / WL;
+  const OM = kk * 1.0;
+
+  let W, H, rW, rH, t = 0;
+  const srcs = [{ x: 0.38, y: 0.5 }, { x: 0.62, y: 0.5 }];
+  let drag = null;
+
+  function resize() {
+    W = innerWidth; H = innerHeight;
+    C.width = W; C.height = H;
+    rW = Math.ceil(W / SCALE);
+    rH = Math.ceil(H / SCALE);
+    WC.width = rW; WC.height = rH;
+  }
+
+  function fillPx(a, d, i) {
+    // a ∈ [-2, +2]
+    // 负值（相消）→ 深靛色 #1a0f3d (26,15,61)
+    // 零值 → 纸色 #f5f0e8 (245,240,232)
+    // 正值（相长）→ 近白
+    let r, g, b;
+    if (a < 0) {
+      const u2 = a * a * 0.25; // (|a|/2)²，range [0,1]
+      r = (245 - 219 * u2) | 0;
+      g = (240 - 225 * u2) | 0;
+      b = (232 - 171 * u2) | 0;
+    } else {
+      const u = a * 0.5;
+      r = (245 + 10 * u) | 0;
+      g = (240 + 15 * u) | 0;
+      b = (232 + 23 * u) | 0;
+    }
+    d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+  }
+
+  function draw() {
+    const s0x = srcs[0].x * W, s0y = srcs[0].y * H;
+    const s1x = srcs[1].x * W, s1y = srcs[1].y * H;
+
+    const img = wctx.createImageData(rW, rH);
+    const buf = img.data;
+
+    for (let py = 0; py < rH; py++) {
+      const sy = (py + 0.5) * SCALE;
+      const dy0sq = (sy - s0y) * (sy - s0y);
+      const dy1sq = (sy - s1y) * (sy - s1y);
+      let ii = py * rW * 4;
+
+      for (let px = 0; px < rW; px++, ii += 4) {
+        const sx = (px + 0.5) * SCALE;
+        const d0 = Math.sqrt((sx - s0x) * (sx - s0x) + dy0sq);
+        const d1 = Math.sqrt((sx - s1x) * (sx - s1x) + dy1sq);
+        fillPx(Math.sin(kk * d0 - OM * t) + Math.sin(kk * d1 - OM * t), buf, ii);
+      }
+    }
+
+    wctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
+    ctx.drawImage(WC, 0, 0, W, H);
+
+    // 两源重叠时，整张画面轻轻泛白
+    const ddx = (srcs[0].x - srcs[1].x) * W;
+    const ddy = (srcs[0].y - srcs[1].y) * H;
+    const sep = Math.sqrt(ddx * ddx + ddy * ddy);
+    if (sep < 25) {
+      ctx.fillStyle = `rgba(255,252,248,${(1 - sep / 25) * 0.65})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 光源标记
+    for (const s of srcs) {
+      const sx = s.x * W, sy = s.y * H;
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, 22);
+      g.addColorStop(0, 'rgba(26,15,61,0.28)');
+      g.addColorStop(1, 'rgba(26,15,61,0)');
+      ctx.beginPath();
+      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(26,15,61,0.58)';
+      ctx.fill();
+    }
+
+    // 极淡的连线
+    ctx.beginPath();
+    ctx.moveTo(srcs[0].x * W, srcs[0].y * H);
+    ctx.lineTo(srcs[1].x * W, srcs[1].y * H);
+    ctx.strokeStyle = 'rgba(26,15,61,0.07)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function loop() {
+    t += 0.6;
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // 标题在 3 秒后淡出
+  setTimeout(() => {
+    T.style.cssText += ';transition:opacity 2s ease;opacity:0';
+    setTimeout(() => T.remove(), 2200);
+  }, 3000);
+
+  // 鼠标
+  C.addEventListener('mousedown', e => {
+    for (let i = 0; i < srcs.length; i++) {
+      const dx = e.clientX - srcs[i].x * W, dy = e.clientY - srcs[i].y * H;
+      if (dx * dx + dy * dy < 900) { drag = i; C.style.cursor = 'grabbing'; break; }
+    }
+  });
+  C.addEventListener('mousemove', e => {
+    if (drag !== null) {
+      srcs[drag].x = Math.max(0.02, Math.min(0.98, e.clientX / W));
+      srcs[drag].y = Math.max(0.02, Math.min(0.98, e.clientY / H));
+    } else {
+      let hover = false;
+      for (const s of srcs) {
+        const dx = e.clientX - s.x * W, dy = e.clientY - s.y * H;
+        if (dx * dx + dy * dy < 900) { hover = true; break; }
+      }
+      C.style.cursor = hover ? 'grab' : 'default';
+    }
+  });
+  C.addEventListener('mouseup', () => { drag = null; C.style.cursor = 'default'; });
+  C.addEventListener('mouseleave', () => { drag = null; });
+
+  // 触屏
+  C.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const t0 = e.touches[0];
+    for (let i = 0; i < srcs.length; i++) {
+      const dx = t0.clientX - srcs[i].x * W, dy = t0.clientY - srcs[i].y * H;
+      if (dx * dx + dy * dy < 1600) { drag = i; break; }
+    }
+  }, { passive: false });
+  C.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (drag !== null) {
+      srcs[drag].x = Math.max(0.02, Math.min(0.98, e.touches[0].clientX / W));
+      srcs[drag].y = Math.max(0.02, Math.min(0.98, e.touches[0].clientY / H));
+    }
+  }, { passive: false });
+  C.addEventListener('touchend', () => { drag = null; });
+
+  window.addEventListener('resize', resize);
+  resize();
+  loop();
+</script>
+</body>
+</html>
