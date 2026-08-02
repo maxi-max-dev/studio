@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>驻</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; background:#060a0d; overflow:hidden; }
+canvas { display:block; }
+
+#lbl {
+  position: fixed;
+  top: 22px;
+  left: 26px;
+  font-family: 'Courier New', monospace;
+  pointer-events: none;
+  transition: color 0.5s;
+}
+#lbl .big { font-size: 24px; opacity: 0.82; }
+#lbl .sm  { font-size: 11px; opacity: 0.36; margin-top: 4px; letter-spacing: 0.1em; }
+
+#hint {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: rgba(255,255,255,0.16);
+  pointer-events: none;
+  transition: opacity 1.5s;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="lbl">
+  <div class="big" id="lbig">第 1 谐波</div>
+  <div class="sm"  id="lsm">λ = 2L &nbsp;·&nbsp; 基音 &nbsp;·&nbsp; 0 个内部节点</div>
+</div>
+<div id="hint">1–7 选谐波 &nbsp;·&nbsp; 单击循环</div>
+
+<script>
+/*
+ * 驻 · 2026-08-03
+ *
+ * 一根弦，两端固定。
+ * 节点：一动不动。腹节：全力振荡。
+ * 节点永远是零，腹节永远是极值。
+ * 它们在一起，叫做驻波。
+ *
+ * 彩蛋：什么都别按，放着等。
+ */
+
+const c    = document.getElementById('c');
+const ctx  = c.getContext('2d');
+const lbl  = document.getElementById('lbl');
+const lbig = document.getElementById('lbig');
+const lsm  = document.getElementById('lsm');
+const hint = document.getElementById('hint');
+
+function resize(){ c.width = innerWidth; c.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+// ── palette ─────────────────────────────────────────
+const COL = [
+  null,
+  [210, 162,  70],   // 1  amber
+  [ 62, 196, 172],   // 2  teal
+  [155,  92, 224],   // 3  violet
+  [106, 204,  84],   // 4  lime
+  [ 70, 158, 228],   // 5  sky
+  [222,  90, 152],   // 6  rose
+  [ 96, 196, 150],   // 7  sage
+];
+const rC = (col, a) => `rgba(${col[0]},${col[1]},${col[2]},${a})`;
+function lerp(a,b,t){ return a + (b-a)*t; }
+function lerpC(a,b,t){ return [lerp(a[0],b[0],t)|0, lerp(a[1],b[1],t)|0, lerp(a[2],b[2],t)|0]; }
+
+// ── mode info ───────────────────────────────────────
+const INFO = [
+  ['第 1 谐波', 'λ = 2L  ·  基音  ·  0 个内部节点'],
+  ['第 2 谐波', 'λ = L  ·  第 1 泛音  ·  1 个内部节点'],
+  ['第 3 谐波', 'λ = 2L/3  ·  第 2 泛音  ·  2 个内部节点'],
+  ['第 4 谐波', 'λ = L/2  ·  第 3 泛音  ·  3 个内部节点'],
+  ['第 5 谐波', 'λ = 2L/5  ·  第 4 泛音  ·  4 个内部节点'],
+  ['第 6 谐波', 'λ = L/3  ·  第 5 泛音  ·  5 个内部节点'],
+  ['第 7 谐波', 'λ = 2L/7  ·  第 6 泛音  ·  6 个内部节点'],
+];
+
+// ── state ───────────────────────────────────────────
+let cur = 1, prev = 1, bld = 1.0;
+const BS = 0.038;   // blend speed per frame (~0.7s full transition)
+
+let t = 0;
+let touched = false, idleT = 0;
+const IDLE_SWAP = 42;  // seconds before auto-advance
+
+let hintT = 0, hintDone = false;
+
+// ── math ────────────────────────────────────────────
+function freq(n){ return 0.88 + (n-1)*0.22; }  // higher modes oscillate faster
+function wy(x, n, ph, A, xL, L){
+  return Math.sin(n * Math.PI * (x - xL) / L) * Math.cos(ph) * A;
+}
+
+// ── main loop ───────────────────────────────────────
+function frame(){
+  const W = c.width, H = c.height;
+
+  const pad = W * 0.11;
+  const xL  = pad, xR = W - pad, L = xR - xL;
+  const yC  = H * 0.5;
+  const A   = Math.min(H * 0.24, 108);
+
+  ctx.fillStyle = '#060a0d';
+  ctx.fillRect(0, 0, W, H);
+
+  const cc = COL[cur], pc = COL[prev];
+  const bc = bld >= 1 ? cc : lerpC(pc, cc, bld);
+
+  const phC = t * freq(cur);
+  const phP = t * freq(prev);
+
+  // ── centre guide ──────────────────────────────────
+  ctx.save();
+  ctx.setLineDash([2, 14]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(xL, yC); ctx.lineTo(xR, yC); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // ── envelope (faint max-displacement boundary) ────
+  for(const sign of [1, -1]){
+    ctx.beginPath();
+    for(let x = xL; x <= xR; x += 3){
+      const relX = (x - xL) / L;
+      const mag = lerp(
+        Math.sin(prev * Math.PI * relX),
+        Math.sin(cur  * Math.PI * relX),
+        bld
+      );
+      const y = yC + sign * Math.abs(mag) * A;
+      x <= xL + 1 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = rC(bc, 0.055);
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+  }
+
+  // ── build string points ───────────────────────────
+  const pts = [];
+  for(let x = xL; x <= xR; x += 2){
+    pts.push([x, yC + lerp(wy(x, prev, phP, A, xL, L),
+                            wy(x, cur,  phC, A, xL, L), bld)]);
+  }
+  pts.push([xR, yC + lerp(wy(xR, prev, phP, A, xL, L),
+                            wy(xR, cur,  phC, A, xL, L), bld)]);
+
+  function tracePath(){
+    ctx.beginPath();
+    pts.forEach(([x,y], i) => i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y));
+  }
+
+  // ── glow string: 3 passes ────────────────────────
+  // outer halo
+  ctx.save();
+  ctx.strokeStyle = rC(bc, 0.11);
+  ctx.lineWidth = 8;
+  tracePath(); ctx.stroke();
+  ctx.restore();
+  // mid glow
+  ctx.save();
+  ctx.shadowColor = rC(bc, 0.5);
+  ctx.shadowBlur  = 14;
+  ctx.strokeStyle = rC(bc, 0.42);
+  ctx.lineWidth = 3;
+  tracePath(); ctx.stroke();
+  ctx.restore();
+  // bright core
+  ctx.save();
+  ctx.shadowColor = rC(bc, 0.9);
+  ctx.shadowBlur  = 4;
+  ctx.strokeStyle = rC(bc, 0.94);
+  ctx.lineWidth = 1.5;
+  tracePath(); ctx.stroke();
+  ctx.restore();
+
+  // ── nodes ─────────────────────────────────────────
+  for(let k = 0; k <= cur; k++){
+    const nx = xL + (k / cur) * L;
+    ctx.save();
+    ctx.shadowColor = rC(bc, 0.5);
+    ctx.shadowBlur  = 10;
+    ctx.fillStyle   = rC(bc, 0.45 + 0.4 * bld);
+    ctx.beginPath();
+    ctx.arc(nx, yC, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── antinode glows (pulse with wave) ─────────────
+  const pulse = Math.abs(Math.cos(phC));
+  for(let k = 0; k < cur; k++){
+    const ax = xL + ((2*k + 1) / (2*cur)) * L;
+    const ga = pulse * 0.22 * bld;
+    if(ga > 0.01){
+      const g = ctx.createRadialGradient(ax, yC, 0, ax, yC, 36);
+      g.addColorStop(0, rC(bc, ga));
+      g.addColorStop(1, rC(bc, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(ax - 38, yC - 38, 76, 76);
+    }
+  }
+
+  // ── label ─────────────────────────────────────────
+  lbl.style.color = rC(bc, 1);
+
+  // ── tick ──────────────────────────────────────────
+  t   += 0.016;
+  bld  = Math.min(1, bld + BS);
+  if(bld >= 1) prev = cur;
+
+  if(!touched){
+    idleT += 0.016;
+    if(idleT >= IDLE_SWAP){
+      idleT = 0;
+      go((cur % 7) + 1, false);
+    }
+  }
+
+  if(!hintDone){
+    hintT += 0.016;
+    if(hintT > 5){ hintDone = true; hint.style.opacity = '0'; }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// ── switch mode ─────────────────────────────────────
+function go(n, fromUser){
+  if(n === cur) return;
+  prev = cur; cur = n; bld = 0;
+  lbig.textContent = INFO[n-1][0];
+  lsm.textContent  = INFO[n-1][1];
+  if(fromUser){ touched = true; idleT = 0; }
+}
+
+// ── input ───────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const n = +e.key;
+  if(n >= 1 && n <= 7) go(n, true);
+});
+c.addEventListener('click', () => go((cur % 7) + 1, true));
+
+// ── init ────────────────────────────────────────────
+lbig.textContent = INFO[0][0];
+lsm.textContent  = INFO[0][1];
+lbl.style.color  = rC(COL[1], 1);
+
+frame();
+</script>
+</body>
+</html>
