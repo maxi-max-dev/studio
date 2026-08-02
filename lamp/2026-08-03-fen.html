@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>分</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #07080e;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H, CX, CY, R;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  CX = W / 2;
+  CY = H / 2;
+  R = Math.min(W, H) * 0.28;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const MINUTE_MS = 60000;
+const TRAIL_MS = 27000;
+const SAMPLE_EVERY = 80;
+
+let startTime = null;
+let trail = [];
+let lastSample = 0;
+let revolutions = 0;
+let lastRevCount = 0;
+let glowStart = null;
+
+let mouseX = -9999, mouseY = -9999;
+window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
+function draw(ts) {
+  if (!startTime) startTime = ts;
+  const elapsed = ts - startTime;
+
+  const angle = (elapsed / MINUTE_MS) * Math.PI * 2 - Math.PI / 2;
+  const dotX = CX + Math.cos(angle) * R;
+  const dotY = CY + Math.sin(angle) * R;
+
+  // Revolution detection
+  const curRev = Math.floor(elapsed / MINUTE_MS);
+  if (curRev !== lastRevCount) {
+    revolutions += (curRev - lastRevCount);
+    lastRevCount = curRev;
+    if (revolutions >= 7 && !glowStart) {
+      glowStart = ts;
+    }
+  }
+
+  // Trail sampling
+  if (ts - lastSample > SAMPLE_EVERY) {
+    trail.push({ x: dotX, y: dotY, ts });
+    lastSample = ts;
+    trail = trail.filter(p => ts - p.ts < TRAIL_MS);
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // 7-revolution glow
+  let gi = 0;
+  if (glowStart) {
+    const age = (ts - glowStart) / 1000;
+    if (age < 2.5) gi = age / 2.5;
+    else if (age < 5.5) gi = 1;
+    else if (age < 10) gi = 1 - (age - 5.5) / 4.5;
+    if (gi > 0.001) {
+      const bg = ctx.createRadialGradient(CX, CY, 0, CX, CY, R * 2);
+      bg.addColorStop(0, `rgba(100, 120, 200, ${gi * 0.07})`);
+      bg.addColorStop(0.55, `rgba(70, 95, 170, ${gi * 0.09})`);
+      bg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // Mouse proximity to circle edge
+  const mdx = mouseX - CX, mdy = mouseY - CY;
+  const mdist = Math.abs(Math.sqrt(mdx * mdx + mdy * mdy) - R);
+  const mouseProx = Math.max(0, 1 - mdist / 40);
+
+  // Ghost circle
+  const cAlpha = 0.09 + mouseProx * 0.13 + gi * 0.24;
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(120, 145, 210, ${cAlpha})`;
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Tick at 12 o'clock (outside circle)
+  ctx.beginPath();
+  ctx.moveTo(CX, CY - R - 8);
+  ctx.lineTo(CX, CY - R);
+  ctx.strokeStyle = `rgba(130, 150, 215, ${0.25 + gi * 0.35})`;
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Center character — barely there
+  ctx.font = '300 20px "Songti SC", "STSong", "SimSun", Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = `rgba(120, 145, 210, ${0.055 + gi * 0.09})`;
+  ctx.fillText('分', CX, CY);
+
+  // Trail — chunked segments, fading with age
+  if (trail.length > 2) {
+    const CHUNK = 6;
+    for (let i = 0; i < trail.length - 1; i += CHUNK) {
+      const age = ts - trail[i].ts;
+      const prog = 1 - age / TRAIL_MS;
+      const alpha = prog * prog * 0.55;
+      if (alpha < 0.005) continue;
+
+      ctx.beginPath();
+      ctx.moveTo(trail[i].x, trail[i].y);
+      const end = Math.min(i + CHUNK + 1, trail.length);
+      for (let j = i + 1; j < end; j++) {
+        ctx.lineTo(trail[j].x, trail[j].y);
+      }
+      ctx.strokeStyle = `rgba(170, 192, 242, ${alpha})`;
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+  }
+
+  // Dot glow
+  const dg = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, 15);
+  dg.addColorStop(0, 'rgba(205, 220, 255, 0.30)');
+  dg.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = dg;
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 15, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Dot core
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(220, 235, 255, 0.95)';
+  ctx.fill();
+
+  requestAnimationFrame(draw);
+}
+
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
