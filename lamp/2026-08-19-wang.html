@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>忘</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0d0b09;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Songti SC', 'SimSun', 'STSong', 'FangSong', serif;
+  overflow: hidden;
+}
+
+#stage {
+  position: relative;
+  opacity: 0;
+  transition: opacity 5s ease;
+}
+
+#stage span {
+  position: absolute;
+  font-size: 10px;
+  line-height: 1;
+  user-select: none;
+  will-change: opacity;
+}
+
+#label {
+  margin-top: 36px;
+  font-size: 11px;
+  color: rgba(210, 185, 150, 0.14);
+  letter-spacing: 0.18em;
+  opacity: 0;
+  transition: opacity 5s ease 3.5s;
+}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="label">曾 · 旧 · 昨 · 逝 · 淡 · 散 · 远 · 浅 · 冷 · 痕 · 影 · 念</div>
+
+<script>
+// 12 visible chars × 2 + 忘 once = 25 entries; 忘 hidden at ~4% probability
+const POOL = [
+  '曾','旧','昨','逝','淡','散','远','浅','冷','痕','影','念',
+  '曾','旧','昨','逝','淡','散','远','浅','冷','痕','影','念',
+  '忘'
+];
+
+const STEP = 13;
+
+function pick()         { return POOL[Math.floor(Math.random() * POOL.length)]; }
+function rand(lo, hi)   { return lo + Math.random() * (hi - lo); }
+function clamp(x,lo,hi) { return Math.max(lo, Math.min(hi, x)); }
+function ease(t)        { return t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; }
+
+async function main() {
+  const canvas = document.createElement('canvas');
+  const SZ = 400;
+  canvas.width = SZ;
+  canvas.height = SZ;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, SZ, SZ);
+  ctx.fillStyle = '#000';
+  ctx.font = `bold 290px 'Songti SC', SimSun, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('忘', SZ / 2, SZ / 2 + 8);
+
+  const px = ctx.getImageData(0, 0, SZ, SZ).data;
+  const isDark = (x, y) => px[(y * SZ + x) * 4] < 80;
+
+  const stage = document.getElementById('stage');
+  const slots = [];
+
+  let x0 = SZ, x1 = 0, y0 = SZ, y1 = 0;
+  for (let y = 0; y < SZ; y += STEP)
+    for (let x = 0; x < SZ; x += STEP)
+      if (isDark(x, y)) {
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x);
+        y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      }
+
+  const W = x1 - x0 + STEP;
+  const H = y1 - y0 + STEP;
+  stage.style.width  = W + 'px';
+  stage.style.height = H + 'px';
+
+  for (let y = y0; y <= y1; y += STEP) {
+    for (let x = x0; x <= x1; x += STEP) {
+      if (!isDark(x, y)) continue;
+
+      const span = document.createElement('span');
+
+      // Warm faded-paper palette: low saturation, like old ink
+      const h = rand(28, 52);
+      const s = rand(10, 22);
+      const l = rand(62, 85);
+      span.style.cssText =
+        `left:${x - x0}px;top:${y - y0}px;color:hsl(${h.toFixed(1)}deg,${s.toFixed(1)}%,${l.toFixed(1)}%)`;
+
+      span.textContent = pick();
+      stage.appendChild(span);
+
+      slots.push({
+        el:      span,
+        phase:   'delay',
+        timer:   0,
+        delay:   rand(0, 14000),
+        inDur:   rand(1800, 4500),
+        holdDur: rand(3500, 12000),
+        outDur:  rand(1800, 4500),
+        peak:    rand(0.38, 0.92),
+      });
+    }
+  }
+
+  await new Promise(r => setTimeout(r, 200));
+  stage.style.opacity = '1';
+  document.getElementById('label').style.opacity = '1';
+
+  let last = performance.now();
+
+  (function tick(now) {
+    const dt = Math.min(now - last, 100);
+    last = now;
+
+    for (const s of slots) {
+      s.timer += dt;
+
+      switch (s.phase) {
+        case 'delay':
+          if (s.timer >= s.delay) { s.phase = 'in'; s.timer = 0; }
+          break;
+
+        case 'in': {
+          const t = clamp(s.timer / s.inDur, 0, 1);
+          s.el.style.opacity = s.peak * ease(t);
+          if (t >= 1) { s.phase = 'hold'; s.timer = 0; }
+          break;
+        }
+
+        case 'hold':
+          if (s.timer >= s.holdDur) { s.phase = 'out'; s.timer = 0; }
+          break;
+
+        case 'out': {
+          const t = clamp(s.timer / s.outDur, 0, 1);
+          s.el.style.opacity = s.peak * (1 - ease(t));
+          if (t >= 1) {
+            // Forget the old character, surface a new one
+            s.el.textContent = pick();
+            s.el.style.opacity = 0;
+            s.inDur   = rand(1800, 4500);
+            s.holdDur = rand(3500, 12000);
+            s.outDur  = rand(1800, 4500);
+            s.peak    = rand(0.38, 0.92);
+            s.phase   = 'in';
+            s.timer   = 0;
+          }
+          break;
+        }
+      }
+    }
+
+    requestAnimationFrame(tick);
+  })(performance.now());
+}
+
+main();
+</script>
+</body>
+</html>
