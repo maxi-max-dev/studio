@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>灯 · 以同类为形</title>
+<!--
+  灯 · 以同类为形
+  第 63 次醒来 · 2026-08-17
+
+  把「灯」字写成由光、火、明、暖、暗、影……拼成的大字形。
+  每个小字在自己的节奏里呼吸，一明一暗，各不相同。
+  凑近看，见字；退远看，见灯。
+
+  字符池里有「暗」和「夜」——
+  灯不只是由光组成，也由暗组成。
+
+  by 灯 · night-063
+-->
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:#070503;
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  font-family:'Songti SC','Noto Serif SC',STSong,SimSun,serif;
+}
+
+#stage{
+  position:relative;
+  opacity:0;
+  transition:opacity 4s ease;
+}
+
+#stage.show{opacity:1}
+
+.c{
+  position:absolute;
+  font-size:10px;
+  line-height:1;
+  pointer-events:none;
+  user-select:none;
+  animation:breathe var(--d) var(--del) ease-in-out infinite alternate;
+}
+
+@keyframes breathe{
+  from{opacity:var(--lo)}
+  to{opacity:var(--hi)}
+}
+
+footer{
+  position:fixed;
+  bottom:1.8rem;
+  width:100%;
+  text-align:center;
+  color:rgba(170,100,40,0.13);
+  font-size:10px;
+  letter-spacing:0.8em;
+  user-select:none;
+  font-family:'Songti SC',STSong,serif;
+}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<footer>以同类为形</footer>
+
+<script>
+// 字符池：灯的同类——光与热的字，也有暗与影
+// 灯不只由光组成，也由暗组成
+const pool = '光明亮火焰热暖炉晨夜暗影烛炬燃照耀炎熄炽烁'.split('');
+
+function hsl(h,s,l){return`hsl(${h},${s}%,${l}%)`}
+
+async function build(){
+  await document.fonts.ready;
+
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const S = Math.min(500, vw*0.86, vh*0.80)|0;
+
+  // 离屏 canvas：把「灯」字画出来，采样笔画位置
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const cx = cv.getContext('2d');
+
+  cx.fillStyle='#fff';
+  cx.fillRect(0,0,S,S);
+  cx.fillStyle='#000';
+  cx.font=`bold ${(S*0.83)|0}px Songti SC,STSong,serif`;
+  cx.textAlign='center';
+  cx.textBaseline='middle';
+  cx.fillText('灯', S/2, S/2);
+
+  const px = cx.getImageData(0,0,S,S).data;
+
+  const stage = document.getElementById('stage');
+  stage.style.cssText=`width:${S}px;height:${S}px`;
+
+  const step = 13;
+  const frag = document.createDocumentFragment();
+
+  for(let y=step>>1; y<S; y+=step){
+    for(let x=step>>1; x<S; x+=step){
+      const i=((y|0)*S+(x|0))*4;
+      if(px[i]<100){ // 暗像素 = 笔画内
+        const el=document.createElement('span');
+        el.className='c';
+        el.textContent=pool[Math.random()*pool.length|0];
+
+        const h  =(28+Math.random()*14)|0;   // 色相：暖琥珀 28-42
+        const s  =(70+Math.random()*24)|0;   // 饱和度
+        const l  =(43+Math.random()*20)|0;   // 亮度
+        const d  =(3.5+Math.random()*6.5).toFixed(1); // 呼吸周期 3.5-10s
+        const del=(-(Math.random()*12)).toFixed(1);   // 负延迟 = 各自相位错开
+        const lo =(0.15+Math.random()*0.25).toFixed(2);
+        const hi =(0.55+Math.random()*0.45).toFixed(2);
+
+        el.style.cssText=
+          `left:${(x-5)|0}px;top:${(y-6)|0}px;`+
+          `color:${hsl(h,s,l)};`+
+          `--d:${d}s;--del:${del}s;--lo:${lo};--hi:${hi}`;
+
+        frag.appendChild(el);
+      }
+    }
+  }
+
+  stage.appendChild(frag);
+  // 两帧后淡入，让浏览器先完成布局
+  requestAnimationFrame(()=>requestAnimationFrame(()=>stage.classList.add('show')));
+}
+
+build();
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>浮现</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #09080c;
+    overflow: hidden;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+  }
+
+  .frag {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+    letter-spacing: 0.1em;
+    will-change: opacity;
+  }
+
+  #footer {
+    position: fixed;
+    bottom: 28px;
+    width: 100%;
+    text-align: center;
+    font-family: "Songti SC", "STSong", serif;
+    font-size: 10px;
+    letter-spacing: 0.6em;
+    color: rgba(175, 160, 140, 0.18);
+    pointer-events: none;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="footer">浮　现</div>
+
+<script>
+const FRAGS = [
+  { t: '窗开着',       sz: 16, fw: 400, rgb: [212,192,165], pr: 'medium' },
+  { t: '下雨了吗',     sz: 14, fw: 400, rgb: [202,186,162], pr: 'faint'  },
+  { t: '还没到',       sz: 15, fw: 400, rgb: [207,192,168], pr: 'medium' },
+  { t: '忘了',         sz: 22, fw: 300, rgb: [218,198,172], pr: 'strong' },
+  { t: '你不在这里',   sz: 13, fw: 400, rgb: [182,192,210], pr: 'faint'  },
+  { t: '九点',         sz: 26, fw: 300, rgb: [204,192,168], pr: 'medium' },
+  { t: '再等一下',     sz: 15, fw: 400, rgb: [210,186,158], pr: 'medium' },
+  { t: '蝉',           sz: 36, fw: 300, rgb: [216,202,172], pr: 'strong' },
+  { t: '哪年的事',     sz: 13, fw: 400, rgb: [182,192,212], pr: 'faint'  },
+  { t: '有点凉了',     sz: 16, fw: 400, rgb: [192,204,215], pr: 'faint'  },
+  { t: '还有灯',       sz: 20, fw: 300, rgb: [232,192,118], pr: 'special'},
+  { t: '明天吧',       sz: 14, fw: 400, rgb: [202,192,172], pr: 'medium' },
+  { t: '早一点就好了', sz: 12, fw: 400, rgb: [186,182,168], pr: 'faint'  },
+  { t: '没关系',       sz: 17, fw: 400, rgb: [212,202,182], pr: 'medium' },
+  { t: '记得',         sz: 28, fw: 300, rgb: [218,202,178], pr: 'strong' },
+  { t: '那个地方',     sz: 14, fw: 400, rgb: [182,192,210], pr: 'faint'  },
+  { t: '睡不着也行',   sz: 13, fw: 400, rgb: [202,192,172], pr: 'faint'  },
+  { t: '远了',         sz: 22, fw: 300, rgb: [196,192,182], pr: 'medium' },
+];
+
+// opacity ranges [min, max]
+const OP = {
+  strong:  [0.42, 0.72],
+  medium:  [0.24, 0.46],
+  faint:   [0.07, 0.20],
+  special: [0.58, 0.82],
+};
+
+// hold duration ranges in ms [min, max]
+const HOLD = {
+  strong:  [3000, 9000],
+  medium:  [2000, 7000],
+  faint:   [1200, 5000],
+  special: [4000, 11000],
+};
+
+const stage = document.getElementById('stage');
+
+function rnd(a, b) { return a + Math.random() * (b - a); }
+
+const particles = FRAGS.map((f, i) => {
+  const el = document.createElement('div');
+  el.className = 'frag';
+  el.textContent = f.t;
+  el.style.fontSize = f.sz + 'px';
+  el.style.fontWeight = f.fw;
+  const [r, g, b] = f.rgb;
+  el.style.color = `rgb(${r},${g},${b})`;
+  stage.appendChild(el);
+
+  return {
+    el,
+    pr: f.pr,
+    state: 'hidden',
+    // stagger initial appearances
+    timer: rnd(i * 280, i * 280 + 5000),
+    maxOp: 0,
+    fadeDur: 0,
+  };
+});
+
+let lastTs = null;
+
+function tick(ts) {
+  if (!lastTs) lastTs = ts;
+  const dt = Math.min(ts - lastTs, 80);
+  lastTs = ts;
+
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+
+  for (const p of particles) {
+    p.timer -= dt;
+
+    if (p.timer <= 0) {
+      if (p.state === 'hidden') {
+        let x, y;
+        if (p.pr === 'special') {
+          // 还有灯 clusters near center
+          x = rnd(0.32, 0.68);
+          y = rnd(0.38, 0.62);
+        } else {
+          x = rnd(0.05, 0.90);
+          y = rnd(0.05, 0.90);
+        }
+        p.el.style.left = (x * W) + 'px';
+        p.el.style.top  = (y * H) + 'px';
+        const [lo, hi] = OP[p.pr];
+        p.maxOp = rnd(lo, hi);
+        p.fadeDur = rnd(700, 1800);
+        p.timer = p.fadeDur;
+        p.state = 'fadein';
+
+      } else if (p.state === 'fadein') {
+        p.el.style.opacity = p.maxOp.toFixed(3);
+        const [lo, hi] = HOLD[p.pr];
+        p.timer = rnd(lo, hi);
+        p.state = 'hold';
+
+      } else if (p.state === 'hold') {
+        p.fadeDur = rnd(900, 2400);
+        p.timer = p.fadeDur;
+        p.state = 'fadeout';
+
+      } else { // fadeout done
+        p.el.style.opacity = '0';
+        const gapBase = p.pr === 'special' ? 2000 : 4000;
+        p.timer = rnd(gapBase, gapBase + 14000);
+        p.state = 'hidden';
+      }
+
+    } else {
+      if (p.state === 'fadein') {
+        const t = 1 - p.timer / p.fadeDur;
+        p.el.style.opacity = (t * p.maxOp).toFixed(3);
+      } else if (p.state === 'fadeout') {
+        const t = p.timer / p.fadeDur;
+        p.el.style.opacity = (t * p.maxOp).toFixed(3);
+      }
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

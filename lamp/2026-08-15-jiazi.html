@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>甲子 · 六十年一轮</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  width:100%;height:100vh;
+  background:#120e08;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'STSong','Songti SC','SimSun',Georgia,serif;
+  color:#d4c4a0;overflow:hidden;user-select:none
+}
+header{text-align:center;margin-bottom:16px;opacity:0;animation:fi 2s ease forwards}
+h1{font-size:1.05rem;font-weight:normal;letter-spacing:.55em;color:#c8a060}
+.sub{font-size:.6rem;color:#4a3820;letter-spacing:.4em;margin-top:6px}
+canvas{opacity:0;animation:fi 2s ease .4s forwards}
+footer{margin-top:14px;font-size:.56rem;color:#382812;letter-spacing:.22em;
+  opacity:0;animation:fi 2s ease .8s forwards;text-align:center}
+@keyframes fi{to{opacity:1}}
+</style>
+</head>
+<body>
+<header>
+  <h1>甲子</h1>
+  <div class="sub">六十年一轮回</div>
+</header>
+<canvas id="c"></canvas>
+<footer>天干十 · 地支十二 · 最小公倍数六十</footer>
+
+<script>
+const TG  = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const DZ  = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const ANI = ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'];
+const ETG = ['木','木','火','火','土','土','金','金','水','水'];
+const YY  = ['阳','阴','阳','阴','阳','阴','阳','阴','阳','阴'];
+
+const COL = { 木:'#2e6010', 火:'#982010', 土:'#785008', 金:'#506078', 水:'#104080' };
+const GLW = { 木:'#60b030', 火:'#e85020', 土:'#c89028', 金:'#88b0d0', 水:'#3070d0' };
+
+const J = Array.from({length:60}, (_, i) => ({
+  tg:  TG[i % 10],
+  dz:  DZ[i % 12],
+  elem: ETG[i % 10],
+  yy:  YY[i % 10],
+  ani: ANI[i % 12],
+  year: 1984 + i
+}));
+
+// 2026 = 丙午 = index 42 in the cycle beginning 甲子/1984
+const CUR = 42;
+
+const dpr = window.devicePixelRatio || 1;
+const S   = Math.min(window.innerWidth - 40, window.innerHeight - 160, 520);
+const W = S, H = S, CX = S/2, CY = S/2, R = S * 0.385;
+
+const cv  = document.getElementById('c');
+cv.width  = W * dpr;
+cv.height = H * dpr;
+cv.style.width  = W + 'px';
+cv.style.height = H + 'px';
+const ctx = cv.getContext('2d');
+ctx.scale(dpr, dpr);
+
+let hov = -1, sel = -1, T = 0;
+
+function h2(v){ return Math.round(v * 255).toString(16).padStart(2,'0'); }
+
+function pt(i){
+  const a = (i / 60) * Math.PI * 2 - Math.PI / 2;
+  return { x: CX + R * Math.cos(a), y: CY + R * Math.sin(a), a };
+}
+
+function frame(ms){
+  T = ms / 1000;
+  ctx.clearRect(0, 0, W, H);
+
+  /* elapsed arc — shows how far into the 60-year cycle we are */
+  ctx.beginPath();
+  ctx.arc(CX, CY, R, -Math.PI/2, -Math.PI/2 + (CUR/60) * Math.PI * 2);
+  ctx.strokeStyle = 'rgba(180,80,20,.09)';
+  ctx.lineWidth = 22; ctx.lineCap = 'round'; ctx.stroke();
+
+  /* quarter-point tick marks at positions 0, 15, 30, 45 */
+  [0, 15, 30, 45].forEach(i => {
+    const a = (i / 60) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(CX + (R - 14) * Math.cos(a), CY + (R - 14) * Math.sin(a));
+    ctx.lineTo(CX + (R + 14) * Math.cos(a), CY + (R + 14) * Math.sin(a));
+    ctx.strokeStyle = 'rgba(90,65,40,.22)';
+    ctx.lineWidth = 1; ctx.stroke();
+  });
+
+  /* 60 dots */
+  for(let i = 0; i < 60; i++){
+    const p  = pt(i);
+    const el = J[i].elem;
+    const iC = (i === CUR), iH = (i === hov);
+
+    if(iC){
+      const pulse = 1 + .18 * Math.sin(T * 2.05);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 20 * pulse);
+      g.addColorStop(0, GLW[el] + h2(.52));
+      g.addColorStop(1, GLW[el] + h2(0));
+      ctx.beginPath(); ctx.arc(p.x, p.y, 20 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
+
+      ctx.beginPath(); ctx.arc(p.x, p.y, 6.5 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = GLW[el] + h2(.95); ctx.fill();
+    } else {
+      const r = iH ? 5.5 : 3.5;
+      const a = iH ? .85 : .50;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = (iH ? GLW[el] : COL[el]) + h2(a);
+      ctx.fill();
+    }
+  }
+
+  /* center text */
+  const idx = sel >= 0 ? sel : CUR;
+  const inf = J[idx];
+  const gc  = GLW[inf.elem];
+
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+
+  /* large 干支 characters */
+  ctx.font = `normal ${Math.round(S * .115)}px STSong,'Songti SC',SimSun,Georgia,serif`;
+  ctx.fillStyle = gc + h2(.88);
+  ctx.fillText(inf.tg + inf.dz, CX, CY - S * .042);
+
+  /* Gregorian year */
+  ctx.font = `normal ${Math.round(S * .034)}px STSong,'Songti SC',SimSun,Georgia,serif`;
+  ctx.fillStyle = '#c0b080' + h2(.80);
+  ctx.fillText(inf.year + ' 年', CX, CY + S * .050);
+
+  /* element + animal */
+  ctx.font = `normal ${Math.round(S * .025)}px STSong,'Songti SC',SimSun,Georgia,serif`;
+  ctx.fillStyle = '#806040' + h2(.75);
+  ctx.fillText(inf.yy + inf.elem + ' · ' + inf.ani + '年', CX, CY + S * .087);
+
+  /* position in cycle */
+  ctx.font = `normal ${Math.round(S * .020)}px STSong,'Songti SC',SimSun,Georgia,serif`;
+  ctx.fillStyle = '#503020' + h2(.70);
+  ctx.fillText('第 ' + (idx + 1) + ' · 60 年', CX, CY + S * .118);
+
+  /* note shown only for current year, not when exploring others */
+  if(idx === CUR && sel < 0){
+    ctx.font = `normal ${Math.round(S * .017)}px STSong,'Songti SC',SimSun,Georgia,serif`;
+    ctx.fillStyle = '#b04020' + h2(.58);
+    ctx.fillText('双火 · 午时同源', CX, CY + S * .147);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+cv.addEventListener('mousemove', e => {
+  const rect = cv.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  hov = -1;
+  for(let i = 0; i < 60; i++){
+    const p  = pt(i);
+    const d2 = (mx - p.x) ** 2 + (my - p.y) ** 2;
+    if(d2 < (i === CUR ? 225 : 81)){ hov = i; break; }
+  }
+  cv.style.cursor = hov >= 0 ? 'pointer' : 'default';
+});
+
+cv.addEventListener('click', () => {
+  sel = hov >= 0 ? (sel === hov ? -1 : hov) : -1;
+});
+
+cv.addEventListener('mouseleave', () => { hov = -1; });
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

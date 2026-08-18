@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>你</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #090b12;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Songti SC', 'Noto Serif SC', 'SimSun', serif;
+}
+
+#stage {
+  position: relative;
+  opacity: 0;
+  transition: opacity 4s ease;
+}
+#stage.visible { opacity: 1; }
+
+.pt {
+  position: absolute;
+  font-size: 10px;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+  color: hsl(var(--h), var(--s), var(--l));
+  animation-name: breathe;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  animation-duration: var(--dur);
+  animation-delay: var(--dly);
+}
+
+@keyframes breathe {
+  from { opacity: var(--lo); }
+  to   { opacity: var(--hi); }
+}
+
+#hint {
+  position: fixed;
+  bottom: 1.6rem;
+  width: 100%;
+  text-align: center;
+  color: rgba(180, 200, 255, 0.05);
+  font-size: 11px;
+  letter-spacing: 0.5em;
+  pointer-events: none;
+  font-family: 'Songti SC', serif;
+}
+</style>
+</head>
+<body>
+
+<div id="stage"></div>
+<div id="hint">我 · 他 · 人 · 情 · 忆 · 想 · 念</div>
+<canvas id="c" style="display:none"></canvas>
+
+<script>
+// 字符池有八个，不是七个——第八个是「你」本身
+const CHARS = ['我','他','人','情','忆','想','念','你'];
+const STEP  = 13;
+const SIZE  = 520;
+let seeded  = false;
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d', { willReadFrequently: true });
+canvas.width  = SIZE;
+canvas.height = SIZE;
+
+function seed() {
+  if (seeded) return;
+  seeded = true;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillStyle = '#000000';
+  ctx.font = "400px 'Songti SC', 'Noto Serif SC', serif";
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('你', SIZE / 2, SIZE / 2);
+
+  const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
+  const pts = [];
+
+  for (let y = 0; y < SIZE; y += STEP) {
+    for (let x = 0; x < SIZE; x += STEP) {
+      if (data[(y * SIZE + x) * 4] < 100) pts.push([x, y]);
+    }
+  }
+
+  if (!pts.length) return;
+
+  const xs = pts.map(p => p[0]);
+  const ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  const x1 = Math.max(...xs), y1 = Math.max(...ys);
+
+  const stage = document.getElementById('stage');
+  stage.style.width  = (x1 - x0 + STEP * 3) + 'px';
+  stage.style.height = (y1 - y0 + STEP * 3) + 'px';
+
+  for (const [px, py] of pts) {
+    const el = document.createElement('span');
+    el.className   = 'pt';
+    el.textContent = CHARS[Math.random() * CHARS.length | 0];
+
+    const h   = 210 + (Math.random() * 65 | 0);   // 210-275，蓝紫域
+    const s   = 28  + (Math.random() * 38 | 0);   // 28-66%
+    const l   = 58  + (Math.random() * 22 | 0);   // 58-80%
+    const lo  = (0.12 + Math.random() * 0.28).toFixed(2);
+    const hi  = Math.min(0.95, 0.55 + Math.random() * 0.40).toFixed(2);
+    const dur = (4 + Math.random() * 9).toFixed(1);
+    const dly = (-Math.random() * +dur).toFixed(2);
+
+    el.style.left = (px - x0 + STEP * 1.5) + 'px';
+    el.style.top  = (py - y0 + STEP * 1.5) + 'px';
+    el.style.setProperty('--h',   h);
+    el.style.setProperty('--s',   s + '%');
+    el.style.setProperty('--l',   l + '%');
+    el.style.setProperty('--lo',  lo);
+    el.style.setProperty('--hi',  hi);
+    el.style.setProperty('--dur', dur + 's');
+    el.style.setProperty('--dly', dly + 's');
+
+    stage.appendChild(el);
+  }
+
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => stage.classList.add('visible'))
+  );
+}
+
+document.fonts.ready.then(seed);
+setTimeout(seed, 600);
+</script>
+</body>
+</html>

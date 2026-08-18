@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>立秋</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #f4f0e4;
+  color: #1c1810;
+  font-family: "Noto Serif SC", "Source Han Serif SC", "STSong", "SimSun", Georgia, serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 72px 24px 120px;
+}
+
+/* ─── 大字 ─── */
+.char-wrap {
+  animation: charIn 2s ease both;
+  margin-bottom: 20px;
+}
+
+.char-main {
+  font-size: clamp(96px, 22vw, 156px);
+  line-height: 1;
+  color: #c08030;
+  text-shadow: 0 4px 32px rgba(192,128,48,0.18);
+  animation: charBreathe 7s 2s ease-in-out infinite;
+  display: block;
+  user-select: none;
+}
+
+@keyframes charIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes charBreathe {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.018); }
+}
+
+/* ─── 标题 ─── */
+.title-block {
+  text-align: center;
+  margin-bottom: 28px;
+  animation: fadeUp 1.4s 0.5s both;
+}
+
+.title-name {
+  font-size: 24px;
+  letter-spacing: 14px;
+  padding-left: 14px;
+  color: #1c1810;
+  margin-bottom: 10px;
+}
+
+.title-date {
+  font-size: 12px;
+  letter-spacing: 5px;
+  color: #9a8a6a;
+}
+
+/* ─── 三候标记 ─── */
+.hou-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 52px;
+  animation: fadeUp 1.4s 1s both;
+}
+
+.hou-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 22px;
+}
+
+.hou-sep {
+  color: #c8b88a;
+  font-size: 18px;
+  line-height: 1;
+  margin-bottom: 6px;
+  align-self: center;
+}
+
+.hou-num {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #b0a080;
+  margin-bottom: 5px;
+}
+
+.hou-name {
+  font-size: 15px;
+  letter-spacing: 3px;
+  color: #8a7a5a;
+  margin-bottom: 6px;
+  transition: color 0.4s;
+}
+
+.hou-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #c8b88a;
+  transition: background 0.4s;
+}
+
+.hou-item.active .hou-name { color: #c08030; }
+.hou-item.active .hou-dot  { background: #c08030; }
+
+/* ─── 竖线分隔 ─── */
+.divider {
+  width: 1px;
+  height: 44px;
+  background: linear-gradient(to bottom, transparent, #c8b88a, transparent);
+  margin-bottom: 52px;
+  animation: fadeUp 1.2s 1.3s both;
+}
+
+/* ─── 正文 ─── */
+.sections {
+  max-width: 460px;
+  width: 100%;
+}
+
+.section {
+  margin-bottom: 48px;
+  animation: fadeUp 1.5s both;
+  opacity: 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.section-num   { font-size: 11px; letter-spacing: 2px; color: #b0a080; white-space: nowrap; }
+.section-title { font-size: 14px; letter-spacing: 4px; color: #8a7a5a; white-space: nowrap; }
+.section-line  { flex: 1; height: 1px; background: #ddd4b8; }
+
+.section.active .section-num,
+.section.active .section-title { color: #c08030; }
+.section.active .section-line  { background: rgba(192,128,48,0.3); }
+
+.section-text {
+  font-size: 17px;
+  line-height: 2;
+  color: #2a2218;
+  text-align: justify;
+  text-justify: inter-character;
+}
+
+/* ─── 结尾 ─── */
+.footer {
+  max-width: 460px;
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 36px;
+  border-top: 1px solid #c8b88a;
+  animation: fadeUp 1.5s both;
+  opacity: 0;
+}
+
+.footer-body {
+  font-size: 13px;
+  line-height: 2.2;
+  color: #7a6a4a;
+  letter-spacing: 0.5px;
+  margin-bottom: 28px;
+}
+
+.footer-close {
+  font-size: 16px;
+  color: #1c1810;
+  letter-spacing: 4px;
+  text-align: right;
+  padding-right: 2px;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<div class="char-wrap">
+  <span class="char-main">秋</span>
+</div>
+
+<div class="title-block">
+  <div class="title-name">立　秋</div>
+  <div class="title-date">二〇二六年　八月七日　始</div>
+</div>
+
+<div class="hou-row">
+  <div class="hou-item" id="h1">
+    <div class="hou-num">一候</div>
+    <div class="hou-name">凉风至</div>
+    <div class="hou-dot"></div>
+  </div>
+  <span class="hou-sep">·</span>
+  <div class="hou-item" id="h2">
+    <div class="hou-num">二候</div>
+    <div class="hou-name">白露降</div>
+    <div class="hou-dot"></div>
+  </div>
+  <span class="hou-sep">·</span>
+  <div class="hou-item" id="h3">
+    <div class="hou-num">三候</div>
+    <div class="hou-name">寒蝉鸣</div>
+    <div class="hou-dot"></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="sections">
+
+  <div class="section" id="s1" style="animation-delay:1.5s">
+    <div class="section-header">
+      <span class="section-num">一候</span>
+      <span class="section-title">凉风至</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-text">
+      风是第一个来的。不是真正的秋风——气温未必降，暑气还没走——只是方向变了，来的位置变了。树还绿着，地还烫着，但绷紧的那根绳子松了一节。凉风至，不是说凉，是说风来了，并且知道往哪里去。
+    </div>
+  </div>
+
+  <div class="section" id="s2" style="animation-delay:1.9s">
+    <div class="section-header">
+      <span class="section-num">二候</span>
+      <span class="section-title">白露降</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-text">
+      露，在古人那里不只是水珠。它是天气开始往低处走时，最先凝结的情绪。白的，细的，在草叶尖上等天明。夜里的地气比天气凉得快，水分在草上停下来。这个过程要等到更深的处暑才明显，但立秋已经给了第一个许诺。
+    </div>
+  </div>
+
+  <div class="section" id="s3" style="animation-delay:2.3s">
+    <div class="section-header">
+      <span class="section-num">三候</span>
+      <span class="section-title">寒蝉鸣</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="section-text">
+      寒蝉不是最响的蝉，是知道的蝉。它们在夏天里叫了很久，到了这一段，叫的是另一件事。不是哀，是清醒。古人记下这三个字，因为蝉比人先感知到：某种东西真的在转弯了。凉这个字还差一口气，但寒蝉已经先唱了。
+    </div>
+  </div>
+
+</div>
+
+<div class="footer" style="animation-delay:2.7s">
+  <div class="footer-body">
+    三候为一节气，每候约五日，一节气约十五天。<br>
+    立秋是秋的第一道门槛——不是终点，是方向的转折。
+  </div>
+  <div class="footer-close">进门之前，先听蝉。</div>
+</div>
+
+<script>
+// 标记当前所在候
+const liqiu = new Date(2026, 7, 7); // 2026-08-07
+const day   = Math.floor((new Date() - liqiu) / 86400000);
+const cur   = day >= 0 && day < 5 ? 1 : day >= 5 && day < 10 ? 2 : day >= 10 && day < 15 ? 3 : 0;
+if (cur) {
+  document.getElementById('h' + cur).classList.add('active');
+  document.getElementById('s' + cur).classList.add('active');
+}
+</script>
+
+</body>
+</html>

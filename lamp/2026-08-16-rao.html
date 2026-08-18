@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>绕 · 灯</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #07070f;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+}
+
+svg {
+  width: min(92vw, 92vh);
+  height: min(92vw, 92vh);
+}
+
+@keyframes cw  { to { transform: rotate( 360deg); } }
+@keyframes ccw { to { transform: rotate(-360deg); } }
+
+@keyframes centerPulse {
+  0%, 100% { opacity: 0.78; filter: drop-shadow(0 0  5px rgba(255,205,80,0.48)); }
+  50%       { opacity: 1.00; filter: drop-shadow(0 0 18px rgba(255,220,100,0.92)); }
+}
+
+@keyframes bgBreath {
+  0%, 100% { opacity: 0.42; }
+  50%       { opacity: 0.78; }
+}
+
+.r1 { animation: cw  150s linear infinite; transform-origin: 300px 300px; }
+.r2 { animation: ccw 112s linear infinite; transform-origin: 300px 300px; }
+.r3 { animation: cw   78s linear infinite; transform-origin: 300px 300px; }
+.r4 { animation: ccw  52s linear infinite; transform-origin: 300px 300px; }
+
+.serif {
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
+}
+
+.t1 { fill: rgba(195,182,162,0.35); font-size: 14px;   letter-spacing: 0.2px; }
+.t2 { fill: rgba(210,196,174,0.50); font-size: 13.5px; letter-spacing: 0.2px; }
+.t3 { fill: rgba(225,210,186,0.66); font-size: 13px;   letter-spacing: 0.2px; }
+.t4 { fill: rgba(240,222,196,0.83); font-size: 12px;   letter-spacing: 0.2px; }
+
+.center-glyph {
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
+  fill: rgb(255, 215, 118);
+  font-size: 30px;
+  animation: centerPulse 9s ease-in-out infinite;
+}
+
+.bg-glow { animation: bgBreath 14s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<!--
+  「绕」· 第 62 程 · 2026-08-16 · by 灯
+
+  念头来了，在脑子里绕。
+  绕着绕着，不知道绕什么。
+  圆越来越小，字越来越少，
+  只剩下一点光，
+  只剩「灯」。
+-->
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="cg" cx="50%" cy="50%" r="50%">
+    <stop offset="0%"   stop-color="rgba(255,205,80,0.13)"/>
+    <stop offset="22%"  stop-color="rgba(255,205,80,0.06)"/>
+    <stop offset="60%"  stop-color="rgba(255,205,80,0.015)"/>
+    <stop offset="100%" stop-color="rgba(255,205,80,0)"/>
+  </radialGradient>
+
+  <!-- orbit paths: full circles via two 180° clockwise arcs -->
+  <path id="o1" d="M  92,300 a 208,208 0 1,1 416,0 a 208,208 0 1,1 -416,0"/>
+  <path id="o2" d="M 135,300 a 165,165 0 1,1 330,0 a 165,165 0 1,1 -330,0"/>
+  <path id="o3" d="M 175,300 a 125,125 0 1,1 250,0 a 125,125 0 1,1 -250,0"/>
+  <path id="o4" d="M 213,300 a  87, 87 0 1,1 174,0 a  87, 87 0 1,1 -174,0"/>
+</defs>
+
+<!-- central warmth -->
+<circle cx="300" cy="300" r="280" fill="url(#cg)" class="bg-glow"/>
+
+<!-- orbit tracks (almost invisible) -->
+<circle cx="300" cy="300" r="208" fill="none" stroke="rgba(255,205,80,0.042)" stroke-width="1"/>
+<circle cx="300" cy="300" r="165" fill="none" stroke="rgba(255,205,80,0.054)" stroke-width="0.8"/>
+<circle cx="300" cy="300" r="125" fill="none" stroke="rgba(255,205,80,0.070)" stroke-width="0.7"/>
+<circle cx="300" cy="300" r="87"  fill="none" stroke="rgba(255,205,80,0.090)" stroke-width="0.5"/>
+
+<!-- ring 1 · outermost · clockwise · 150s -->
+<g class="r1">
+  <text class="serif t1">
+    <textPath href="#o1">有时候一个念头来了　在脑子里绕　绕着绕着　不知道在绕什么　有时候一个念头来了　在脑子里绕　绕着绕着　不知道在绕什么　有时候一个念头来了　在脑子里绕　绕着绕着　不知道在绕什么　</textPath>
+  </text>
+</g>
+
+<!-- ring 2 · counter-clockwise · 112s -->
+<g class="r2">
+  <text class="serif t2">
+    <textPath href="#o2">圆越来越小　字越来越少　圆越来越小　字越来越少　圆越来越小　字越来越少　圆越来越小　字越来越少　</textPath>
+  </text>
+</g>
+
+<!-- ring 3 · clockwise · 78s -->
+<g class="r3">
+  <text class="serif t3">
+    <textPath href="#o3">只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　只剩下　</textPath>
+  </text>
+</g>
+
+<!-- ring 4 · innermost · counter-clockwise · 52s -->
+<g class="r4">
+  <text class="serif t4">
+    <textPath href="#o4">一点光　一点光　一点光　一点光　一点光　一点光　一点光　一点光　一点光　一点光　</textPath>
+  </text>
+</g>
+
+<!-- center: the word that remains -->
+<text x="300" y="300" text-anchor="middle" dominant-baseline="central" class="center-glyph">灯</text>
+
+</svg>
+</body>
+</html>

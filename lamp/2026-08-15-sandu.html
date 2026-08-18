@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今 · 三个此刻</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  width:100%;min-height:100vh;
+  background:#120e08;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'STSong','Songti SC','SimSun',Georgia,serif;
+  color:#d4c4a0;overflow:hidden;user-select:none;
+}
+header{
+  text-align:center;margin-bottom:28px;
+  opacity:0;animation:fi 2s ease forwards;
+}
+h1{font-size:1.1rem;font-weight:normal;letter-spacing:.7em;color:#c8a060}
+.sub{font-size:.56rem;color:#3a2810;letter-spacing:.4em;margin-top:8px}
+.triptych{
+  display:flex;gap:44px;align-items:center;
+  opacity:0;animation:fi 2s ease .5s forwards;
+}
+.panel{display:flex;flex-direction:column;align-items:center;gap:9px}
+.pname{font-size:.78rem;letter-spacing:.3em;color:#c8a060;min-height:1.3em;text-align:center}
+.plabel{font-size:.5rem;letter-spacing:.32em;color:#2a1808}
+footer{
+  margin-top:24px;font-size:.52rem;color:#2a1a08;letter-spacing:.3em;
+  opacity:0;animation:fi 2s ease 1s forwards;text-align:center;
+}
+@keyframes fi{to{opacity:1}}
+@media(max-width:580px){
+  .triptych{flex-direction:column;gap:28px;}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>今</h1>
+  <div class="sub">三个尺度，一个此刻</div>
+</header>
+
+<div class="triptych">
+  <div class="panel">
+    <canvas id="c1"></canvas>
+    <div class="pname" id="n1">—</div>
+    <div class="plabel">一天 · 十二时辰</div>
+  </div>
+  <div class="panel">
+    <canvas id="c2"></canvas>
+    <div class="pname" id="n2">立秋</div>
+    <div class="plabel">一年 · 二十四节气</div>
+  </div>
+  <div class="panel">
+    <canvas id="c3"></canvas>
+    <div class="pname" id="n3">丙午</div>
+    <div class="plabel">六十年 · 甲子轮</div>
+  </div>
+</div>
+
+<footer id="ft">此刻</footer>
+
+<script>
+const dpr = window.devicePixelRatio || 1;
+function h2(v){ return Math.round(v*255).toString(16).padStart(2,'0'); }
+
+function mkC(id, sz){
+  const cv = document.getElementById(id);
+  cv.width = sz*dpr; cv.height = sz*dpr;
+  cv.style.width = sz+'px'; cv.style.height = sz+'px';
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  return { cv, ctx, sz, cx:sz/2, cy:sz/2, R:sz*0.382 };
+}
+
+const mobile = window.innerWidth < 580;
+const SZ = mobile
+  ? Math.min(170, window.innerWidth - 60)
+  : Math.min(200, Math.floor((window.innerWidth - 140) / 3));
+
+const P1 = mkC('c1', SZ);
+const P2 = mkC('c2', SZ);
+const P3 = mkC('c3', SZ);
+
+
+/* ──────────────────────────────────────
+   时辰  (12 segments, real-time)
+   ────────────────────────────────────── */
+const SC = [
+  {n:'子',c:'#0a1428',g:'#4888d0'}, {n:'丑',c:'#0c1630',g:'#3878c0'},
+  {n:'寅',c:'#182840',g:'#5090c8'}, {n:'卯',c:'#304870',g:'#80a0d8'},
+  {n:'辰',c:'#c07840',g:'#e09858'}, {n:'巳',c:'#d09248',g:'#e8aa68'},
+  {n:'午',c:'#d8a850',g:'#f0c878'}, {n:'未',c:'#c89030',g:'#e0a840'},
+  {n:'申',c:'#b06a20',g:'#d08830'}, {n:'酉',c:'#904020',g:'#c06030'},
+  {n:'戌',c:'#583018',g:'#a06040'}, {n:'亥',c:'#281018',g:'#784838'},
+];
+
+function getSC(){
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  const i = Math.floor(h/2) % 12;
+  const prog = ((h%2)*3600 + m*60 + s) / 7200;
+  return { i, prog, h, m };
+}
+
+function drawSC(T){
+  const {ctx,sz,cx,cy,R} = P1;
+  const {i:sci, prog, h, m} = getSC();
+  const sl = Math.PI*2/12;
+  ctx.clearRect(0,0,sz,sz);
+
+  for(let k=0;k<12;k++){
+    const a0 = -Math.PI/2 + k*sl;
+    const a1 = a0 + sl - 0.06;
+    const act = k===sci;
+    const pulse = act ? 1 + .1*Math.sin(T*2.1) : 1;
+    ctx.beginPath();
+    ctx.arc(cx,cy,R*pulse,a0,a1);
+    ctx.lineWidth = act ? 7 : 3.5;
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = SC[k].c + h2(act ? .80 : .28);
+    ctx.stroke();
+  }
+
+  // progress arc
+  const pa0 = -Math.PI/2 + sci*sl;
+  ctx.beginPath();
+  ctx.arc(cx,cy,R, pa0, pa0 + prog*sl);
+  ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.strokeStyle = SC[sci].g + h2(.88);
+  ctx.stroke();
+
+  // center
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `normal ${Math.round(sz*.22)}px STSong,'Songti SC',serif`;
+  ctx.fillStyle = SC[sci].g + h2(.85);
+  ctx.fillText(SC[sci].n, cx, cy - sz*.04);
+
+  ctx.font = `normal ${Math.round(sz*.09)}px STSong,'Songti SC',serif`;
+  ctx.fillStyle = '#806040' + h2(.58);
+  ctx.fillText(
+    String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'),
+    cx, cy + sz*.13
+  );
+
+  document.getElementById('n1').textContent = SC[sci].n + '时';
+}
+
+
+/* ──────────────────────────────────────
+   节气  (24 segments, current season)
+   ────────────────────────────────────── */
+const JQ = [
+  {n:'小寒',m:1,d:5},  {n:'大寒',m:1,d:20}, {n:'立春',m:2,d:4},  {n:'雨水',m:2,d:19},
+  {n:'惊蛰',m:3,d:6},  {n:'春分',m:3,d:21}, {n:'清明',m:4,d:5},  {n:'谷雨',m:4,d:20},
+  {n:'立夏',m:5,d:6},  {n:'小满',m:5,d:21}, {n:'芒种',m:6,d:6},  {n:'夏至',m:6,d:21},
+  {n:'小暑',m:7,d:7},  {n:'大暑',m:7,d:23}, {n:'立秋',m:8,d:7},  {n:'处暑',m:8,d:23},
+  {n:'白露',m:9,d:8},  {n:'秋分',m:9,d:23}, {n:'寒露',m:10,d:8}, {n:'霜降',m:10,d:23},
+  {n:'立冬',m:11,d:7}, {n:'小雪',m:11,d:22},{n:'大雪',m:12,d:7}, {n:'冬至',m:12,d:22},
+];
+// 24 colors: winter-blue → spring-green → summer-warm → autumn-amber → winter
+const JQC = [
+  '#104080','#104898','#206898','#307850',
+  '#508840','#70a838','#88b040','#98a840',
+  '#a09820','#b09010','#c08810','#c89010',
+  '#c89020','#d09820','#d4a060','#c89850',
+  '#b09040','#a08038','#906030','#785028',
+  '#584828','#485060','#486080','#106090',
+];
+
+function getJQ(){
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate();
+  let cur = 0;
+  for(let i=JQ.length-1; i>=0; i--){
+    if(m > JQ[i].m || (m===JQ[i].m && d>=JQ[i].d)){ cur=i; break; }
+  }
+  const d0 = new Date(y, JQ[cur].m-1, JQ[cur].d);
+  const ni = (cur+1)%24, ny = ni===0 ? y+1 : y;
+  const d1 = new Date(ny, JQ[ni].m-1, JQ[ni].d);
+  const prog = Math.min(1, (now-d0)/(d1-d0));
+  return { cur, prog };
+}
+
+function drawJQ(T){
+  const {ctx,sz,cx,cy,R} = P2;
+  const {cur,prog} = getJQ();
+  const sl = Math.PI*2/24;
+  ctx.clearRect(0,0,sz,sz);
+
+  for(let k=0;k<24;k++){
+    const a0 = -Math.PI/2 + k*sl;
+    const a1 = a0 + sl - 0.04;
+    const act = k===cur;
+    const pulse = act ? 1 + .09*Math.sin(T*2.0) : 1;
+    ctx.beginPath();
+    ctx.arc(cx,cy,R*pulse,a0,a1);
+    ctx.lineWidth = act ? 7 : 3;
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = JQC[k] + h2(act ? .82 : .26);
+    ctx.stroke();
+  }
+
+  const pa0 = -Math.PI/2 + cur*sl;
+  ctx.beginPath();
+  ctx.arc(cx,cy,R, pa0, pa0 + prog*sl);
+  ctx.lineWidth = 2; ctx.lineCap = 'round';
+  ctx.strokeStyle = JQC[cur] + h2(.90);
+  ctx.stroke();
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `normal ${Math.round(sz*.165)}px STSong,'Songti SC',serif`;
+  ctx.fillStyle = JQC[cur] + h2(.85);
+  ctx.fillText(JQ[cur].n, cx, cy - sz*.04);
+
+  ctx.font = `normal ${Math.round(sz*.09)}px STSong,'Songti SC',serif`;
+  ctx.fillStyle = '#806040' + h2(.55);
+  ctx.fillText('第 ' + (Math.ceil(prog*15)||1) + ' 天', cx, cy + sz*.13);
+
+  document.getElementById('n2').textContent = JQ[cur].n;
+}
+
+
+/* ──────────────────────────────────────
+   甲子  (60 dots, current year)
+   ────────────────────────────────────── */
+const TG = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+const DZ = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+const EL = ['木','木','火','火','土','土','金','金','水','水'];
+const EC = {木:'#2e6010',火:'#982010',土:'#785008',金:'#506078',水:'#104080'};
+const EG = {木:'#60b030',火:'#e85020',土:'#c89028',金:'#88b0d0',水:'#3070d0'};
+const JZ = Array.from({length:60}, (_,i) => ({
+  tg:TG[i%10], dz:DZ[i%12], el:EL[i%10], yr:1984+i
+}));
+const JZCUR = 42; // 丙午 = 1984+42 = 2026
+
+function drawJZ(T){
+  const {ctx,sz,cx,cy,R} = P3;
+  ctx.clearRect(0,0,sz,sz);
+
+  // elapsed arc (how far into the 60-year cycle)
+  ctx.beginPath();
+  ctx.arc(cx,cy,R, -Math.PI/2, -Math.PI/2 + (JZCUR/60)*Math.PI*2);
+  ctx.strokeStyle = 'rgba(150,50,15,.07)';
+  ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.stroke();
+
+  for(let i=0;i<60;i++){
+    const a = -Math.PI/2 + (i/60)*Math.PI*2;
+    const px = cx + R*Math.cos(a), py = cy + R*Math.sin(a);
+    const el = JZ[i].el;
+    const iC = i===JZCUR;
+
+    if(iC){
+      const pulse = 1 + .18*Math.sin(T*2.05);
+      const g = ctx.createRadialGradient(px,py,0,px,py,13*pulse);
+      g.addColorStop(0, EG[el]+h2(.55));
+      g.addColorStop(1, EG[el]+h2(0));
+      ctx.beginPath(); ctx.arc(px,py,13*pulse,0,Math.PI*2);
+      ctx.fillStyle = g; ctx.fill();
+      ctx.beginPath(); ctx.arc(px,py,4.5*pulse,0,Math.PI*2);
+      ctx.fillStyle = EG[el]+h2(.92); ctx.fill();
+    } else {
+      ctx.beginPath(); ctx.arc(px,py,2.5,0,Math.PI*2);
+      ctx.fillStyle = EC[el]+h2(.45); ctx.fill();
+    }
+  }
+
+  const inf = JZ[JZCUR];
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `normal ${Math.round(sz*.20)}px STSong,'Songti SC',serif`;
+  ctx.fillStyle = EG[inf.el] + h2(.85);
+  ctx.fillText(inf.tg+inf.dz, cx, cy - sz*.04);
+
+  ctx.font = `normal ${Math.round(sz*.09)}px STSong,'Songti SC',serif`;
+  ctx.fillStyle = '#806040' + h2(.55);
+  ctx.fillText('第 '+(JZCUR+1)+' · 60', cx, cy + sz*.13);
+
+  document.getElementById('n3').textContent = inf.tg+inf.dz+'年';
+}
+
+
+/* ──────────────────────────────────────
+   footer + loop
+   ────────────────────────────────────── */
+function updateFooter(){
+  const {i} = getSC();
+  const {cur} = getJQ();
+  const inf = JZ[JZCUR];
+  document.getElementById('ft').textContent =
+    SC[i].n + '时 · ' + JQ[cur].n + ' · ' + inf.tg+inf.dz + '年';
+}
+
+function frame(ms){
+  const T = ms/1000;
+  drawSC(T); drawJQ(T); drawJZ(T);
+  requestAnimationFrame(frame);
+}
+
+updateFooter();
+setInterval(updateFooter, 20000);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

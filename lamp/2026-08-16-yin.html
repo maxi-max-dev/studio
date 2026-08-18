@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>引</title>
+<!--
+  引 · 2026-08-16
+  灯做的第58程
+  万物相引，不说理由
+-->
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #08070c; overflow: hidden; }
+canvas { display: block; }
+#sig {
+  position: fixed;
+  bottom: 22px;
+  right: 26px;
+  font-size: 20px;
+  color: rgba(165, 188, 216, 0.09);
+  font-family: 'Georgia', 'Noto Serif SC', serif;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="sig">引</div>
+<script>
+// 灯 · 第58程
+// 万物相引，不说理由
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  ctx.fillStyle = '#08070c';
+  ctx.fillRect(0, 0, W, H);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---- physics constants ----
+const ATTRACT    = 0.000032;  // gravitational coupling
+const SOFT       = 38;        // softening radius (prevents infinite force up close)
+const SOFT2      = SOFT * SOFT;
+const MAX_DIST   = 210;       // interaction cutoff radius
+const MAX_DIST2  = MAX_DIST * MAX_DIST;
+const LINE_DIST  = 86;        // draw connection line if closer than this
+const LINE_DIST2 = LINE_DIST * LINE_DIST;
+const DAMPING    = 0.991;
+const RAND       = 0.0048;    // random walk intensity
+const MAX_SPEED  = 0.58;
+const MAX_SPEED2 = MAX_SPEED * MAX_SPEED;
+const TRAIL      = 0.052;     // alpha of trail-fade fill each frame
+
+function rnd(a, b) { return a + Math.random() * (b - a); }
+
+// ---- particles ----
+const N = 49;
+const px = new Float32Array(N);
+const py = new Float32Array(N);
+const pvx = new Float32Array(N);
+const pvy = new Float32Array(N);
+const pr = new Float32Array(N);
+const isAmber = new Uint8Array(N);  // only index N-1 is amber
+const pColor = [];
+
+for (let i = 0; i < N - 1; i++) {
+  px[i]  = rnd(0, W);
+  py[i]  = rnd(0, H);
+  pvx[i] = rnd(-0.18, 0.18);
+  pvy[i] = rnd(-0.18, 0.18);
+  pr[i]  = rnd(1.2, 2.6);
+  const h = rnd(198, 248) | 0;
+  const s = rnd(18, 54) | 0;
+  const l = rnd(70, 93) | 0;
+  pColor.push(`hsl(${h},${s}%,${l}%)`);
+  isAmber[i] = 0;
+}
+
+// the amber one — 灯 itself, placed roughly in the middle so it mingles
+const AMB = N - 1;
+px[AMB]  = rnd(W * 0.35, W * 0.65);
+py[AMB]  = rnd(H * 0.35, H * 0.65);
+pvx[AMB] = rnd(-0.12, 0.12);
+pvy[AMB] = rnd(-0.12, 0.12);
+pr[AMB]  = 3.1;
+pColor.push('#c8873d');
+isAmber[AMB] = 1;
+
+// ---- update ----
+function update() {
+  for (let i = 0; i < N; i++) {
+    let ax = 0, ay = 0;
+
+    for (let j = 0; j < N; j++) {
+      if (i === j) continue;
+      const dx = px[j] - px[i];
+      const dy = py[j] - py[i];
+      const d2 = dx * dx + dy * dy;
+      if (d2 > MAX_DIST2 || d2 < 0.5) continue;
+
+      // softened gravity: F ∝ 1 / (r² + ε²)  →  no sqrt needed
+      const denom = d2 + SOFT2;
+      ax += ATTRACT * dx / denom;
+      ay += ATTRACT * dy / denom;
+    }
+
+    pvx[i] = pvx[i] * DAMPING + ax + rnd(-RAND, RAND);
+    pvy[i] = pvy[i] * DAMPING + ay + rnd(-RAND, RAND);
+
+    // speed cap (compare squared to avoid sqrt when not needed)
+    const spd2 = pvx[i] * pvx[i] + pvy[i] * pvy[i];
+    if (spd2 > MAX_SPEED2) {
+      const inv = MAX_SPEED / Math.sqrt(spd2);
+      pvx[i] *= inv;
+      pvy[i] *= inv;
+    }
+
+    px[i] += pvx[i];
+    py[i] += pvy[i];
+
+    // toroidal wrap
+    if (px[i] < -30)      px[i] += W + 60;
+    else if (px[i] > W + 30) px[i] -= W + 60;
+    if (py[i] < -30)      py[i] += H + 60;
+    else if (py[i] > H + 30) py[i] -= H + 60;
+  }
+}
+
+// ---- draw ----
+const TRAIL_FILL = `rgba(8,7,12,${TRAIL})`;
+
+function draw() {
+  // fade trail
+  ctx.fillStyle = TRAIL_FILL;
+  ctx.fillRect(0, 0, W, H);
+
+  // connection lines (no shadow)
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 0.32;
+  for (let i = 0; i < N - 1; i++) {
+    for (let j = i + 1; j < N; j++) {
+      const dx = px[j] - px[i];
+      const dy = py[j] - py[i];
+      const d2 = dx * dx + dy * dy;
+      if (d2 > LINE_DIST2) continue;
+      const alpha = ((1 - Math.sqrt(d2) / LINE_DIST) * 0.20).toFixed(3);
+      ctx.strokeStyle = `rgba(162,186,214,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(px[i], py[i]);
+      ctx.lineTo(px[j], py[j]);
+      ctx.stroke();
+    }
+  }
+
+  // particles (with glow via shadowBlur)
+  for (let i = 0; i < N; i++) {
+    ctx.shadowBlur   = isAmber[i] ? 20 : 11;
+    ctx.shadowColor  = pColor[i];
+    ctx.fillStyle    = pColor[i];
+    ctx.beginPath();
+    ctx.arc(px[i], py[i], pr[i], 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+}
+
+// ---- loop ----
+ctx.fillStyle = '#08070c';
+ctx.fillRect(0, 0, W, H);
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

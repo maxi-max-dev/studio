@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>节 · 二十四节气</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#080d18;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const JQ=[
+  {name:'小寒',md:[1,5], wu:'雁北乡 · 鹊始巢 · 雉始鸲'},
+  {name:'大寒',md:[1,20],wu:'鸡始乳 · 征鸟厉疾 · 水泽腹坚'},
+  {name:'立春',md:[2,3], wu:'东风解冻 · 蛰虫始振 · 鱼陟负冰'},
+  {name:'雨水',md:[2,19],wu:'獭祭鱼 · 鸿雁来 · 草木萌动'},
+  {name:'惊蛰',md:[3,5], wu:'桃始华 · 仓庚鸣 · 鹰化为鸠'},
+  {name:'春分',md:[3,20],wu:'玄鸟至 · 雷乃发声 · 始电'},
+  {name:'清明',md:[4,4], wu:'桐始华 · 田鼠化鴽 · 虹始见'},
+  {name:'谷雨',md:[4,20],wu:'萍始生 · 鸣鸠拂其羽 · 戴胜降于桑'},
+  {name:'立夏',md:[5,5], wu:'蝼蝈鸣 · 蚯蚓出 · 王瓜生'},
+  {name:'小满',md:[5,21],wu:'苦菜秀 · 靡草死 · 麦秋至'},
+  {name:'芒种',md:[6,5], wu:'螳螂生 · 鵙始鸣 · 反舌无声'},
+  {name:'夏至',md:[6,21],wu:'鹿角解 · 蜩始鸣 · 半夏生'},
+  {name:'小暑',md:[7,7], wu:'温风至 · 蟋蟀居壁 · 鹰始挚'},
+  {name:'大暑',md:[7,23],wu:'腐草为萤 · 土润溽暑 · 大雨行时'},
+  {name:'立秋',md:[8,7], wu:'凉风至 · 白露降 · 寒蝉鸣'},
+  {name:'处暑',md:[8,23],wu:'鹰乃祭鸟 · 天地始肃 · 禾乃登'},
+  {name:'白露',md:[9,7], wu:'鸿雁来 · 玄鸟归 · 群鸟养羞'},
+  {name:'秋分',md:[9,22],wu:'雷始收声 · 蛰虫坯户 · 水始涸'},
+  {name:'寒露',md:[10,8],wu:'鸿雁来宾 · 雀入大水为蛤 · 菊有黄华'},
+  {name:'霜降',md:[10,23],wu:'豺乃祭兽 · 草木黄落 · 蛰虫咸俯'},
+  {name:'立冬',md:[11,7],wu:'水始冰 · 地始冻 · 雉入大水为蜃'},
+  {name:'小雪',md:[11,22],wu:'虹藏不见 · 天气上升 · 闭塞成冬'},
+  {name:'大雪',md:[12,7],wu:'鹖鴠不鸣 · 虎始交 · 荔挺出'},
+  {name:'冬至',md:[12,22],wu:'蚯蚓结 · 麋角解 · 水泉动'},
+];
+
+/* 每个节气的季节色 */
+const COL=[
+  '#7ab3d0','#8bbfd8',                                          /* 小寒,大寒 */
+  '#9dc86b','#a8d47e','#b2d870','#bde080','#c6e87a','#c8e88a', /* 立春→谷雨 */
+  '#e8c84a','#e8c040','#e0b838','#dab035','#e87840','#e06030', /* 立夏→大暑 */
+  '#d4a060','#c89450','#c8b060','#c0a868','#a8b8c8','#9cb0c0', /* 立秋→霜降 */
+  '#88a8c8','#7aa0c0','#6898b8','#6090b8',                     /* 立冬→冬至 */
+];
+
+function doy(d){return Math.floor((d-new Date(d.getFullYear(),0,0))/86400000);}
+
+function getInfo(){
+  const now=new Date(),y=now.getFullYear(),dn=doy(now);
+  let cur=0;
+  for(let i=0;i<24;i++)if(doy(new Date(y,JQ[i].md[0]-1,JQ[i].md[1]))<=dn)cur=i;
+  const next=(cur+1)%24,ny=next===0?y+1:y;
+  const nd=new Date(ny,JQ[next].md[0]-1,JQ[next].md[1]);
+  const cd=new Date(y,JQ[cur].md[0]-1,JQ[cur].md[1]);
+  const days=Math.ceil((nd-now)/86400000);
+  const prog=Math.min(1,Math.max(0,(now-cd)/(nd-cd)));
+  return{cur,next,days,prog};
+}
+
+const cv=document.getElementById('c');
+const DPR=window.devicePixelRatio||1;
+const SZ=Math.min(window.innerWidth,window.innerHeight,580);
+cv.width=SZ*DPR; cv.height=SZ*DPR;
+cv.style.width=SZ+'px'; cv.style.height=SZ+'px';
+const g=cv.getContext('2d');
+g.scale(DPR,DPR);
+const W=SZ,H=SZ,cx=W/2,cy=H/2,R=SZ*0.34;
+
+let hi=-1,info=getInfo();
+setInterval(()=>{info=getInfo();},60000);
+
+cv.addEventListener('click',e=>{
+  const rc=cv.getBoundingClientRect();
+  const mx=e.clientX-rc.left,my=e.clientY-rc.top;
+  for(let i=0;i<24;i++){
+    const a=(i/24)*Math.PI*2-Math.PI/2;
+    const nx=cx+R*Math.cos(a),ny_=cy+R*Math.sin(a);
+    if(Math.hypot(mx-nx,my-ny_)<20){hi=hi===i?-1:i;return;}
+  }
+  hi=-1;
+});
+
+function h2(n){return Math.round(n*255).toString(16).padStart(2,'0');}
+
+function draw(ts){
+  const br=Math.sin(ts/1800)*0.5+0.5;
+  const{cur,next,days,prog}=info;
+  g.clearRect(0,0,W,H);
+
+  /* 细圆环 */
+  g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);
+  g.strokeStyle='rgba(60,80,110,0.13)';g.lineWidth=1;g.stroke();
+
+  /* 进度弧：当前节气在圆环上走了多少 */
+  const pa=(cur/24)*Math.PI*2-Math.PI/2;
+  g.beginPath();g.arc(cx,cy,R,pa,pa+prog*Math.PI*2/24);
+  g.strokeStyle=COL[cur]+'50';g.lineWidth=3;g.lineCap='round';g.stroke();
+
+  /* 24个节点 */
+  for(let i=0;i<24;i++){
+    const a=(i/24)*Math.PI*2-Math.PI/2;
+    const x=cx+R*Math.cos(a),y=cy+R*Math.sin(a);
+    const c=COL[i];
+    const iC=i===cur,iH=i===hi;
+    const dist=Math.min(Math.abs(i-cur),24-Math.abs(i-cur));
+    const al=iC?1:iH?.85:Math.max(.08,.38-dist*.028);
+    const dr=iC?5+br*1.5:iH?4.5:2.2;
+
+    if(iC||iH){
+      const hr=iC?20+br*5:16;
+      const grd=g.createRadialGradient(x,y,0,x,y,hr);
+      grd.addColorStop(0,c+'55');grd.addColorStop(1,c+'00');
+      g.fillStyle=grd;g.beginPath();g.arc(x,y,hr,0,Math.PI*2);g.fill();
+    }
+    g.fillStyle=c+h2(al);g.beginPath();g.arc(x,y,dr,0,Math.PI*2);g.fill();
+
+    const lr=R+22,lx=cx+lr*Math.cos(a),ly=cy+lr*Math.sin(a);
+    g.save();g.translate(lx,ly);g.textAlign='center';g.textBaseline='middle';
+    const fs=iC||iH?12:9.5;
+    g.font=(iC||iH?'bold ':'')+fs+"px 'PingFang SC','Noto Sans SC',sans-serif";
+    g.fillStyle=c+h2(al);
+    if(iC){g.shadowColor=c;g.shadowBlur=5;}
+    g.fillText(JQ[i].name,0,0);g.restore();
+  }
+
+  /* 中心信息 */
+  const sh=hi>=0?hi:cur,sc=COL[sh];
+  g.save();g.textAlign='center';g.textBaseline='middle';
+
+  g.font="10px 'PingFang SC',sans-serif";
+  g.fillStyle='rgba(90,110,140,0.45)';
+  g.fillText('二十四节气',cx,cy-56);
+
+  g.font="bold 52px 'PingFang SC','Noto Serif SC',serif";
+  g.fillStyle=sc;g.shadowColor=sc;g.shadowBlur=18+br*10;
+  g.fillText(JQ[sh].name,cx,cy-4);g.shadowBlur=0;
+
+  g.font="11px 'PingFang SC',sans-serif";
+  g.fillStyle=sc+h2(.5);
+  g.fillText(JQ[sh].wu,cx,cy+38);
+
+  g.font="10px 'PingFang SC',sans-serif";
+  g.fillStyle='rgba(85,105,130,0.42)';
+  g.fillText(hi<0?days+' 天后  '+JQ[next].name:'点击空白处返回',cx,cy+58);
+  g.restore();
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

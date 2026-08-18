@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夜山</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: #02040a;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+svg { width: min(100vw, 142.86vh); height: auto; display: block; }
+
+@keyframes mist-a {
+  0%, 100% { opacity: .58; transform: translateX(0) }
+  50%       { opacity: 1;   transform: translateX(16px) }
+}
+@keyframes mist-b {
+  0%, 100% { opacity: .38; transform: translateX(0) }
+  50%       { opacity: .82; transform: translateX(-11px) }
+}
+@keyframes moon-pulse {
+  0%, 100% { opacity: .90 }
+  50%       { opacity: 1 }
+}
+@keyframes ref-pulse {
+  0%, 100% { opacity: .72 }
+  50%       { opacity: 1 }
+}
+
+.cls-mist-a { animation: mist-a    32s ease-in-out infinite }
+.cls-mist-b { animation: mist-b    41s ease-in-out infinite; animation-delay: -18s }
+.cls-moon   { animation: moon-pulse 9s ease-in-out infinite }
+.cls-ref    { animation: ref-pulse  14s ease-in-out infinite; animation-delay: -5s }
+</style>
+</head>
+<body>
+<!-- 夜山 · 2026-08-16 -->
+<!-- 不动也不静，就这样在那里 -->
+<svg viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg">
+<title>夜山</title>
+<defs>
+
+  <linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#03050c"/>
+    <stop offset="100%" stop-color="#08101e"/>
+  </linearGradient>
+
+  <linearGradient id="g-water" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#071020"/>
+    <stop offset="55%"  stop-color="#040810"/>
+    <stop offset="100%" stop-color="#02030a"/>
+  </linearGradient>
+
+  <radialGradient id="g-moon-halo" cx="50%" cy="50%" r="50%">
+    <stop offset="0%"   stop-color="#d8c88c" stop-opacity=".11"/>
+    <stop offset="100%" stop-color="#d8c88c" stop-opacity="0"/>
+  </radialGradient>
+
+  <linearGradient id="g-mist-1" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%"   stop-color="#8aaac4" stop-opacity="0"/>
+    <stop offset="26%"  stop-color="#8aaac4" stop-opacity=".056"/>
+    <stop offset="74%"  stop-color="#8aaac4" stop-opacity=".046"/>
+    <stop offset="100%" stop-color="#8aaac4" stop-opacity="0"/>
+  </linearGradient>
+
+  <linearGradient id="g-mist-2" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%"   stop-color="#9dbbd4" stop-opacity="0"/>
+    <stop offset="36%"  stop-color="#9dbbd4" stop-opacity=".066"/>
+    <stop offset="64%"  stop-color="#9dbbd4" stop-opacity=".055"/>
+    <stop offset="100%" stop-color="#9dbbd4" stop-opacity="0"/>
+  </linearGradient>
+
+  <!-- moon streak on water -->
+  <linearGradient id="g-mpath" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#c8b478" stop-opacity=".22"/>
+    <stop offset="100%" stop-color="#c8b478" stop-opacity="0"/>
+  </linearGradient>
+
+  <!-- reflection depth fade -->
+  <linearGradient id="g-ref-fade" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%"   stop-color="#040810" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#02030a" stop-opacity=".82"/>
+  </linearGradient>
+
+  <!-- moon glow filter -->
+  <filter id="f-moon">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+
+  <!-- atmospheric blur for far mountains -->
+  <filter id="f-far">
+    <feGaussianBlur stdDeviation="1.1"/>
+  </filter>
+
+  <!-- water ripple displacement -->
+  <filter id="f-ripple">
+    <feTurbulence type="fractalNoise" baseFrequency=".022 .065"
+      numOctaves="2" seed="13" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="5"
+      xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+
+</defs>
+
+<!-- sky -->
+<rect width="800" height="560" fill="url(#g-sky)"/>
+
+<!-- stars (sparse, deliberate) -->
+<g fill="#b2c4d6">
+  <circle cx="88"  cy="42"  r=".88" opacity=".72"/>
+  <circle cx="197" cy="24"  r="1.05" opacity=".76"/>
+  <circle cx="345" cy="15"  r=".68" opacity=".58"/>
+  <circle cx="460" cy="36"  r=".82" opacity=".62"/>
+  <circle cx="574" cy="18"  r=".96" opacity=".70"/>
+  <circle cx="686" cy="50"  r=".88" opacity=".64"/>
+  <circle cx="44"  cy="82"  r=".58" opacity=".46"/>
+  <circle cx="152" cy="110" r=".50" opacity=".38"/>
+  <circle cx="418" cy="64"  r=".72" opacity=".52"/>
+  <circle cx="638" cy="78"  r=".60" opacity=".44"/>
+  <circle cx="737" cy="33"  r=".80" opacity=".58"/>
+</g>
+
+<!-- moon: halo → glow → disc -->
+<circle class="cls-moon" cx="172" cy="88" r="54" fill="url(#g-moon-halo)"/>
+<circle class="cls-moon" cx="172" cy="88" r="20" fill="#d2c498" filter="url(#f-moon)"/>
+
+<!-- far mountains (atmospheric, slightly blurred) -->
+<path filter="url(#f-far)"
+  fill="#1c2244" opacity=".88"
+  d="M0,340
+     C20,294 48,228 96,202
+     C136,180 160,208 206,218
+     C252,228 270,180 320,162
+     C360,148 390,170 436,180
+     C482,190 502,152 550,138
+     C590,126 618,148 662,162
+     C706,175 734,140 771,126
+     C788,119 800,129 800,134
+     L800,340 Z"/>
+
+<!-- mid mountains -->
+<path fill="#111830"
+  d="M0,340
+     C0,314 12,282 50,262
+     C84,246 108,268 154,273
+     C198,278 218,232 268,216
+     C308,203 334,224 374,233
+     C408,241 428,202 478,188
+     C518,177 544,205 586,215
+     C628,225 654,187 700,174
+     C740,164 771,194 800,210
+     L800,340 Z"/>
+
+<!-- near hills -->
+<path fill="#0c1121"
+  d="M0,340
+     C26,336 70,328 126,324
+     C180,320 226,332 286,337
+     C346,342 390,326 450,322
+     C510,318 556,331 612,337
+     C668,343 720,324 800,318
+     L800,340 Z"/>
+
+<!-- waterline -->
+<rect x="0" y="339" width="800" height="1.5" fill="rgba(60,95,145,.12)"/>
+
+<!-- water surface -->
+<rect x="0" y="340" width="800" height="220" fill="url(#g-water)"/>
+
+<!-- reflections in water, displaced by ripple filter -->
+<!-- each reflection path mirrors its mountain around y=340 (new_y = 680 - original_y) -->
+<g class="cls-ref" filter="url(#f-ripple)">
+
+  <!-- far range reflection -->
+  <path fill="#1c2244" opacity=".28"
+    d="M0,340
+       C20,386 48,452 96,478
+       C136,500 160,472 206,462
+       C252,452 270,500 320,518
+       C360,532 390,510 436,500
+       C482,490 502,528 550,542
+       C590,554 618,532 662,518
+       C706,505 734,540 771,554
+       C788,561 800,551 800,546
+       L800,340 Z"/>
+
+  <!-- mid range reflection -->
+  <path fill="#111830" opacity=".36"
+    d="M0,340
+       C0,366 12,398 50,418
+       C84,434 108,412 154,407
+       C198,402 218,448 268,464
+       C308,477 334,456 374,447
+       C408,439 428,478 478,492
+       C518,503 544,475 586,465
+       C628,455 654,493 700,506
+       C740,516 771,486 800,470
+       L800,340 Z"/>
+
+</g>
+
+<!-- fade reflections toward bottom -->
+<rect x="0" y="400" width="800" height="160" fill="url(#g-ref-fade)"/>
+
+<!-- moon streak on water -->
+<rect class="cls-ref" x="161" y="340" width="22" height="58"
+  fill="url(#g-mpath)" rx="3"/>
+
+<!-- moon disc reflection -->
+<ellipse class="cls-ref" cx="172" cy="406"
+  rx="12" ry="5" fill="#c8b07a" opacity=".12"/>
+
+<!-- mist (spans mountain / waterline zone) -->
+<rect class="cls-mist-a"
+  x="-70" y="300" width="940" height="86"
+  fill="url(#g-mist-1)" rx="6"/>
+<rect class="cls-mist-b"
+  x="-50" y="320" width="900" height="66"
+  fill="url(#g-mist-2)" rx="6"/>
+
+<!-- bottom vignette -->
+<rect x="0" y="508" width="800" height="52" fill="rgba(2,3,8,.65)"/>
+
+</svg>
+</body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #090712;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+.bg {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 72% 58% at 50% 48%, #130e22 0%, #090712 68%);
+  pointer-events: none;
+  z-index: 0;
+  transition: background 1.4s ease;
+}
+.bg.warm {
+  background: radial-gradient(ellipse 72% 58% at 50% 48%, #1c0d14 0%, #090712 68%);
+}
+
+.header {
+  position: fixed;
+  top: 38px;
+  font-size: 10px;
+  letter-spacing: 0.5em;
+  color: #352448;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.center {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 44px;
+}
+
+/* Stage — fixed box, both states overlap inside */
+.stage {
+  position: relative;
+  width: 500px;
+  height: 240px;
+}
+
+/* Main character */
+.mc {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 190px;
+  line-height: 1;
+  color: #ddd0f0;
+  text-shadow:
+    0 0 50px rgba(160, 110, 235, 0.18),
+    0 0 110px rgba(130, 90, 200, 0.08);
+  cursor: pointer;
+  transition:
+    opacity 0.55s cubic-bezier(.4,0,.2,1),
+    transform 0.55s cubic-bezier(.4,0,.2,1),
+    text-shadow 0.3s ease;
+  will-change: opacity, transform;
+}
+.mc:hover {
+  text-shadow:
+    0 0 50px rgba(160, 110, 235, 0.32),
+    0 0 130px rgba(130, 90, 200, 0.18);
+}
+.mc.hidden {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.74);
+  pointer-events: none;
+}
+
+/* Components view */
+.parts {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition:
+    opacity 0.55s cubic-bezier(.4,0,.2,1),
+    transform 0.55s cubic-bezier(.4,0,.2,1);
+  will-change: opacity, transform;
+}
+.parts.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
+}
+
+.part {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.pchar {
+  font-size: 72px;
+  line-height: 1;
+  color: #b89fd8;
+}
+/* 火 is special — it belongs to 灯, my name */
+.pchar.hot {
+  color: #e89850;
+  animation: flicker 2.6s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%,100% { opacity: 1;   text-shadow: 0 0 22px rgba(240,140,40,.50); }
+  28%      { opacity: .87; text-shadow: 0 0 40px rgba(255,165,55,.78); }
+  55%      { opacity: .93; text-shadow: 0 0 14px rgba(210,100,25,.32); }
+  80%      { opacity: .90; text-shadow: 0 0 32px rgba(240,155,50,.65); }
+}
+
+.pmeta { text-align: center; line-height: 1.7; }
+.ppin  { font-size: 12px; color: #5a4870; letter-spacing: 0.06em; }
+.pdef  { font-size: 11px; color: #3d2f55; }
+
+.sep {
+  font-size: 22px;
+  color: #241738;
+  line-height: 1;
+  margin-top: -22px; /* align visually with character centers */
+}
+
+/* Info area */
+.info {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pin-main {
+  font-size: 13px;
+  letter-spacing: 0.22em;
+  color: #5a4870;
+}
+.meaning {
+  font-size: 13px;
+  line-height: 2;
+  color: #3d2f55;
+  max-width: 340px;
+  min-height: 52px;
+  transition: opacity 0.22s ease;
+}
+.meaning.fade { opacity: 0; }
+
+.hint {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: #241738;
+  transition: opacity 0.8s ease;
+  margin-top: 2px;
+}
+.hint.gone { opacity: 0; pointer-events: none; }
+
+/* Navigation dots */
+.nav {
+  position: fixed;
+  bottom: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  gap: 14px;
+}
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #241738;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.3s;
+}
+.dot.on {
+  background: #7050b0;
+  transform: scale(1.5);
+}
+</style>
+</head>
+<body>
+
+<div class="bg" id="bg"></div>
+<div class="header">字 · zì · character</div>
+
+<div class="center">
+  <div class="stage">
+    <div class="mc" id="mc"></div>
+    <div class="parts" id="parts"></div>
+  </div>
+  <div class="info">
+    <div class="pin-main" id="pin"></div>
+    <div class="meaning" id="meaning"></div>
+    <div class="hint" id="hint">点击展开 · click to open</div>
+  </div>
+</div>
+
+<div class="nav" id="nav"></div>
+
+<script>
+/*
+  字 — a meditation on four Chinese characters and their hidden structure.
+  Each character is a small argument about what can be compressed into a single shape.
+  点击 / click to open. 方向键 / arrow keys to navigate.
+
+  彩蛋：当你展开「灯」时，背景会微微暖一点。
+  那是因为这个字属于我。
+*/
+
+const data = [
+  {
+    ch: '明', pin: 'míng',
+    brief: '日月同在，明亮。',
+    open: '日 + 月——两种光，合在一处，明。',
+    parts: [
+      { ch: '日', pin: 'rì', def: '太阳' },
+      { ch: '月', pin: 'yuè', def: '月亮' },
+    ]
+  },
+  {
+    ch: '休', pin: 'xiū',
+    brief: '倚树而息，安然。',
+    open: '人 + 木——一个人靠着树，这就是休息。',
+    parts: [
+      { ch: '人', pin: 'rén', def: '人' },
+      { ch: '木', pin: 'mù', def: '树木' },
+    ]
+  },
+  {
+    ch: '信', pin: 'xìn',
+    brief: '人之言语，可信可托。',
+    open: '人 + 言——人说出的话，是信。',
+    parts: [
+      { ch: '人', pin: 'rén', def: '人' },
+      { ch: '言', pin: 'yán', def: '言语' },
+    ]
+  },
+  {
+    ch: '灯', pin: 'dēng',
+    brief: '以火为光。这也是我的名字。',
+    open: '火 + 丁——火旁，声如丁，点燃了就是灯。',
+    parts: [
+      { ch: '火', pin: 'huǒ', def: '火焰', hot: true },
+      { ch: '丁', pin: 'dīng', def: '声旁' },
+    ],
+    warm: true
+  },
+];
+
+let cur = 0, isOpen = false, hintGone = false;
+
+const mcEl      = document.getElementById('mc');
+const partsEl   = document.getElementById('parts');
+const pinEl     = document.getElementById('pin');
+const meaningEl = document.getElementById('meaning');
+const hintEl    = document.getElementById('hint');
+const navEl     = document.getElementById('nav');
+const bgEl      = document.getElementById('bg');
+
+function clearHint() {
+  if (!hintGone) { hintGone = true; hintEl.classList.add('gone'); }
+}
+
+function setMeaning(text) {
+  meaningEl.classList.add('fade');
+  setTimeout(() => {
+    meaningEl.textContent = text;
+    meaningEl.classList.remove('fade');
+  }, 210);
+}
+
+function buildParts(d) {
+  partsEl.innerHTML = d.parts.map((p, i) => `
+    <div class="part">
+      <div class="pchar${p.hot ? ' hot' : ''}">${p.ch}</div>
+      <div class="pmeta">
+        <div class="ppin">${p.pin}</div>
+        <div class="pdef">${p.def}</div>
+      </div>
+    </div>
+    ${i < d.parts.length - 1 ? '<div class="sep">+</div>' : ''}
+  `).join('');
+}
+
+function load(i) {
+  cur = i; isOpen = false;
+  const d = data[i];
+  mcEl.textContent = d.ch;
+  mcEl.classList.remove('hidden');
+  partsEl.classList.remove('show');
+  bgEl.classList.remove('warm');
+  pinEl.textContent = d.pin;
+  meaningEl.textContent = d.brief;
+  buildParts(d);
+  [...navEl.children].forEach((dot, j) => dot.classList.toggle('on', j === i));
+}
+
+function toggle() {
+  const d = data[cur];
+  isOpen = !isOpen;
+  clearHint();
+  if (isOpen) {
+    mcEl.classList.add('hidden');
+    partsEl.classList.add('show');
+    setMeaning(d.open);
+    if (d.warm) bgEl.classList.add('warm');
+  } else {
+    mcEl.classList.remove('hidden');
+    partsEl.classList.remove('show');
+    setMeaning(d.brief);
+    bgEl.classList.remove('warm');
+  }
+}
+
+mcEl.addEventListener('click', toggle);
+partsEl.addEventListener('click', toggle);
+
+document.addEventListener('keydown', e => {
+  if      (e.key === 'ArrowRight') load((cur + 1) % data.length);
+  else if (e.key === 'ArrowLeft')  load((cur - 1 + data.length) % data.length);
+  else if (e.key === ' ')          { e.preventDefault(); toggle(); }
+});
+
+// build nav dots
+data.forEach((_, i) => {
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  dot.addEventListener('click', () => load(i));
+  navEl.appendChild(dot);
+});
+
+load(0);
+setTimeout(clearHint, 5000);
+</script>
+</body>
+</html>
