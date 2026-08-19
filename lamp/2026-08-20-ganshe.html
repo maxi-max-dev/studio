@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>干涉</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100vh;
+    background: #040810;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  #wrap {
+    opacity: 0;
+    transition: opacity 4s ease;
+  }
+  canvas {
+    display: block;
+    width: min(90vmin, 500px);
+    height: min(90vmin, 500px);
+    image-rendering: pixelated;
+  }
+  footer {
+    position: fixed;
+    bottom: 1.8rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.7em;
+    color: rgba(128, 188, 218, 0.18);
+    white-space: nowrap;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+</div>
+<footer>干涉</footer>
+<script>
+(function () {
+  const SIZE  = 500;
+  const SCALE = 2;         // compute at half resolution, fill 2×2 blocks
+  const CW    = SIZE / SCALE;  // 250
+  const CH    = SIZE / SCALE;  // 250
+
+  const canvas = document.getElementById('c');
+  canvas.width  = SIZE;
+  canvas.height = SIZE;
+  const ctx     = canvas.getContext('2d');
+  const imgData = ctx.createImageData(SIZE, SIZE);
+  const buf     = imgData.data;
+
+  // Three wave sources — each slowly orbits the centre
+  const sources = [
+    { r: 72,  speed: 2.7e-4, phase: 0.0 },
+    { r: 118, speed: 4.1e-4, phase: Math.PI * 0.74 },
+    { r: 150, speed: 1.8e-4, phase: Math.PI * 1.53 },
+  ];
+
+  const CXs = CW / 2;   // centre in scaled space
+  const CYs = CH / 2;
+
+  const lambda = 52;                        // wavelength in full-res pixels
+  const k      = (2 * Math.PI) / lambda;
+  const omega  = 1.35e-3;                   // temporal frequency (rad / ms)
+
+  // Precompute radial vignette in scaled space
+  const vig = new Float32Array(CW * CH);
+  for (let cy = 0; cy < CH; cy++) {
+    for (let cx = 0; cx < CW; cx++) {
+      const nx = (cx / CW - 0.5) * 2;
+      const ny = (cy / CH - 0.5) * 2;
+      vig[cy * CW + cx] = Math.max(0, 1 - (nx * nx + ny * ny) * 0.58);
+    }
+  }
+
+  const N = sources.length;
+
+  function render(t) {
+    // Compute source positions in scaled space for this frame
+    const pts = sources.map(s => ({
+      x: CXs + (s.r / SCALE) * Math.cos(s.speed * t + s.phase),
+      y: CYs + (s.r / SCALE) * Math.sin(s.speed * t + s.phase),
+    }));
+
+    for (let cy = 0; cy < CH; cy++) {
+      for (let cx = 0; cx < CW; cx++) {
+
+        // Sum of cosine waves arriving at (cx, cy)
+        let amp = 0;
+        for (let i = 0; i < N; i++) {
+          const ddx  = cx - pts[i].x;
+          const ddy  = cy - pts[i].y;
+          const dist = Math.sqrt(ddx * ddx + ddy * ddy) * SCALE; // full-res px
+          amp += Math.cos(k * dist - omega * t);
+        }
+
+        // Normalise to [0, 1] then apply vignette
+        const v = ((amp / N + 1) * 0.5) * vig[cy * CW + cx];
+
+        // Colour: dark navy → soft aqua-white
+        const r = (4  + 148 * v * v) | 0;
+        const g = (8  + 200 * v)     | 0;
+        const b = (16 + 218 * v)     | 0;
+
+        // Fill 2×2 block in the output buffer
+        const ox = cx * SCALE;
+        const oy = cy * SCALE;
+        for (let dy = 0; dy < SCALE; dy++) {
+          for (let dx = 0; dx < SCALE; dx++) {
+            const idx  = ((oy + dy) * SIZE + (ox + dx)) << 2;
+            buf[idx]   = r;
+            buf[idx+1] = g;
+            buf[idx+2] = b;
+            buf[idx+3] = 255;
+          }
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+    requestAnimationFrame(render);
+  }
+
+  // Run first frame then fade in
+  requestAnimationFrame(t => {
+    render(t);
+    setTimeout(() => {
+      document.getElementById('wrap').style.opacity = '1';
+    }, 80);
+  });
+})();
+</script>
+</body>
+</html>
