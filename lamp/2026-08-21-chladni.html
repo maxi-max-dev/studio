@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>沙之节点 · Chladni</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #080604;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+#c { display: block; }
+#label {
+  margin-top: 18px;
+  color: #8a7050;
+  font: 11px/1 'Georgia', 'STSong', serif;
+  letter-spacing: 0.28em;
+  opacity: 0.6;
+  user-select: none;
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="520" height="520"></canvas>
+<div id="label">沙之节点</div>
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const W = 520, H = 520, M = 52, SZ = W - 2*M;
+
+// Chladni modes (m, n) — symmetric square plate
+// f(x,y) = cos(m·π·x)·cos(n·π·y) − cos(n·π·x)·cos(m·π·y) = 0
+const MODES = [
+  [1,2],[2,3],[1,3],[3,4],[2,5],[1,4],[3,5],[4,5],[1,5],[2,4]
+];
+let mIdx = 0, m = MODES[0][0], n = MODES[0][1];
+
+const N = 3200;
+const px = new Float32Array(N), py = new Float32Array(N);
+const vx = new Float32Array(N), vy = new Float32Array(N);
+const fv = new Float32Array(N);
+for (let i = 0; i < N; i++) { px[i] = Math.random(); py[i] = Math.random(); }
+
+const EPS = 0.0028;
+const SPEED = 0.0048, JITTER = 0.0006, DAMP = 0.875;
+const S_JITTER = 0.024, S_DAMP = 0.91;
+
+function ch(x, y) {
+  return Math.cos(m*Math.PI*x)*Math.cos(n*Math.PI*y)
+       - Math.cos(n*Math.PI*x)*Math.cos(m*Math.PI*y);
+}
+
+function update(scatter) {
+  for (let i = 0; i < N; i++) {
+    const x = px[i], y = py[i];
+    const f0 = ch(x, y);
+    fv[i] = f0;
+
+    if (!scatter) {
+      const gx = (ch(x+EPS,y) - ch(x-EPS,y)) / (2*EPS);
+      const gy = (ch(x,y+EPS) - ch(x,y-EPS)) / (2*EPS);
+      const sign = f0 >= 0 ? 1 : -1;
+      const mag = Math.sqrt(gx*gx + gy*gy) + 1e-6;
+      vx[i] -= SPEED * sign * gx / mag;
+      vy[i] -= SPEED * sign * gy / mag;
+      vx[i] += (Math.random()-.5) * JITTER;
+      vy[i] += (Math.random()-.5) * JITTER;
+      vx[i] *= DAMP; vy[i] *= DAMP;
+    } else {
+      vx[i] += (Math.random()-.5) * S_JITTER;
+      vy[i] += (Math.random()-.5) * S_JITTER;
+      vx[i] *= S_DAMP; vy[i] *= S_DAMP;
+    }
+
+    let nx = x + vx[i], ny = y + vy[i];
+    if (nx < 0)  { nx = -nx;    vx[i] *= -0.5; }
+    if (nx > 1)  { nx = 2 - nx; vx[i] *= -0.5; }
+    if (ny < 0)  { ny = -ny;    vy[i] *= -0.5; }
+    if (ny > 1)  { ny = 2 - ny; vy[i] *= -0.5; }
+    px[i] = Math.max(0, Math.min(1, nx));
+    py[i] = Math.max(0, Math.min(1, ny));
+  }
+}
+
+// Precompute vignette overlay
+const vig = document.createElement('canvas');
+vig.width = W; vig.height = H;
+const vc = vig.getContext('2d');
+const vg = vc.createRadialGradient(W/2,H/2, SZ*0.18, W/2,H/2, SZ*0.72);
+vg.addColorStop(0, 'rgba(8,6,4,0)');
+vg.addColorStop(1, 'rgba(8,6,4,0.68)');
+vc.fillStyle = vg;
+vc.fillRect(0,0,W,H);
+
+let flashA = 0;
+
+function draw() {
+  // Fade trail
+  ctx.fillStyle = 'rgba(8,6,4,0.15)';
+  ctx.fillRect(0,0,W,H);
+
+  // Shake flash
+  if (flashA > 0.005) {
+    ctx.fillStyle = `rgba(220,185,110,${flashA.toFixed(3)})`;
+    ctx.fillRect(0,0,W,H);
+    flashA *= 0.68;
+  }
+
+  // Plate border (very subtle)
+  ctx.strokeStyle = 'rgba(130,100,50,0.08)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(M+0.5, M+0.5, SZ-1, SZ-1);
+
+  // Particles
+  for (let i = 0; i < N; i++) {
+    const t = Math.max(0, 1 - Math.abs(fv[i]) * 2.8);
+    const r = (138 + t*78)|0;
+    const g = (98  + t*62)|0;
+    const b = (38  + t*30)|0;
+    const a = (0.12 + t * 0.73).toFixed(2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+    ctx.fillRect(M + px[i]*SZ, M + py[i]*SZ, 1.5, 1.5);
+  }
+
+  // Vignette
+  ctx.drawImage(vig, 0, 0);
+}
+
+let frame = 0, phase = 'settle';
+const SETTLE_F = 540, SCATTER_F = 68;
+
+function tick() {
+  frame++;
+
+  if (phase === 'settle' && frame >= SETTLE_F) {
+    phase = 'scatter';
+    frame = 0;
+    flashA = 0.28;
+  }
+  if (phase === 'scatter' && frame >= SCATTER_F) {
+    phase = 'settle';
+    frame = 0;
+    mIdx = (mIdx + 1) % MODES.length;
+    m = MODES[mIdx][0]; n = MODES[mIdx][1];
+    document.getElementById('label').textContent =
+      `沙之节点 · m ${m} · n ${n}`;
+  }
+
+  update(phase === 'scatter');
+  draw();
+  requestAnimationFrame(tick);
+}
+
+// Init
+ctx.fillStyle = '#080604';
+ctx.fillRect(0,0,W,H);
+document.getElementById('label').textContent =
+  `沙之节点 · m ${m} · n ${n}`;
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
