@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>铁屑 · 磁场</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #04060f;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, 'Times New Roman', serif;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+canvas { display: block; max-width: 100vmin; max-height: 92vmin; }
+.caption {
+  margin-top: 15px;
+  color: rgba(128, 152, 198, 0.25);
+  font-size: 10px;
+  letter-spacing: 4px;
+}
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="600"></canvas>
+<div class="caption">拖动磁极</div>
+<script>
+const CV = document.getElementById('c');
+const cx = CV.getContext('2d');
+const W = 600, H = 600, PI = Math.PI;
+
+// ── Poles ─────────────────────────────────────────────────────────────────────
+const poles = {
+  N: { x: 205, y: 300 },
+  S: { x: 395, y: 300 },
+};
+
+function fieldAt(x, y) {
+  const dx1 = x - poles.N.x, dy1 = y - poles.N.y;
+  const dx2 = x - poles.S.x, dy2 = y - poles.S.y;
+  const r1 = Math.max(2, dx1*dx1 + dy1*dy1);
+  const r2 = Math.max(2, dx2*dx2 + dy2*dy2);
+  const bx = dx1/r1 - dx2/r2;
+  const by = dy1/r1 - dy2/r2;
+  return { bx, by, mag: Math.sqrt(bx*bx + by*by) };
+}
+
+// ── Particle grid ─────────────────────────────────────────────────────────────
+const STEP = 13, MIN_D = 18;
+const particles = [];
+for (let gy = STEP * 0.6; gy < H; gy += STEP)
+  for (let gx = STEP * 0.6; gx < W; gx += STEP)
+    particles.push({
+      x:     gx + (Math.random() - 0.5) * 3.5,
+      y:     gy + (Math.random() - 0.5) * 3.5,
+      angle: Math.random() * PI,
+      phase: Math.random() * PI * 2,
+      wake:  Math.random() * 2500,   // ms before settling starts
+    });
+
+// Normalize angle to rod space [0, π)
+function normRod(a) { a %= PI; return a < 0 ? a + PI : a; }
+
+// Opacity from field magnitude
+function getAlpha(mag) {
+  return Math.min(0.76, Math.max(0.055, Math.log(1 + mag * 3200) / 7.2));
+}
+
+// ── Drag ──────────────────────────────────────────────────────────────────────
+let drag = null;
+
+function toCV(e) {
+  const r  = CV.getBoundingClientRect();
+  const s  = e.touches ? e.touches[0] : e;
+  return {
+    x: (s.clientX - r.left) * W / r.width,
+    y: (s.clientY - r.top)  * H / r.height,
+  };
+}
+
+function nearPole(x, y) {
+  for (const k of ['N', 'S'])
+    if (Math.hypot(x - poles[k].x, y - poles[k].y) < 26) return k;
+  return null;
+}
+
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+CV.addEventListener('mousedown',  e => { const {x,y} = toCV(e); drag = nearPole(x,y); });
+CV.addEventListener('mousemove',  e => {
+  const {x,y} = toCV(e);
+  if (drag) {
+    poles[drag].x = clamp(x, 32, W-32);
+    poles[drag].y = clamp(y, 32, H-32);
+    CV.style.cursor = 'grabbing';
+  } else {
+    CV.style.cursor = nearPole(x,y) ? 'grab' : 'default';
+  }
+});
+CV.addEventListener('mouseup',    () => { drag = null; });
+CV.addEventListener('mouseleave', () => { drag = null; });
+CV.addEventListener('touchstart', e => { e.preventDefault(); const {x,y} = toCV(e); drag = nearPole(x,y); }, {passive:false});
+CV.addEventListener('touchmove',  e => { e.preventDefault(); if (!drag) return; const {x,y} = toCV(e); poles[drag].x = clamp(x,32,W-32); poles[drag].y = clamp(y,32,H-32); }, {passive:false});
+CV.addEventListener('touchend',   () => { drag = null; });
+
+// Hidden: double-click scrambles the filings, they re-settle
+CV.addEventListener('dblclick', e => {
+  const {x,y} = toCV(e);
+  if (nearPole(x,y)) return;
+  for (const p of particles) p.angle += (Math.random() - 0.5) * PI * 1.4;
+});
+
+// ── Pole glyph ────────────────────────────────────────────────────────────────
+function drawPole(x, y, label, r, g, b) {
+  const grd = cx.createRadialGradient(x, y, 0, x, y, 34);
+  grd.addColorStop(0,    `rgba(${r},${g},${b},0.52)`);
+  grd.addColorStop(0.38, `rgba(${r},${g},${b},0.14)`);
+  grd.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+  cx.fillStyle = grd;
+  cx.beginPath(); cx.arc(x, y, 34, 0, PI*2); cx.fill();
+
+  cx.fillStyle = `rgba(${r},${g},${b},0.92)`;
+  cx.beginPath(); cx.arc(x, y, 5.2, 0, PI*2); cx.fill();
+
+  cx.fillStyle = `rgba(${r},${g},${b},0.46)`;
+  cx.font = '600 10px Georgia,serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'bottom';
+  cx.fillText(label, x, y - 12);
+}
+
+// ── Ghost field lines ─────────────────────────────────────────────────────────
+// Barely visible skeleton of the field topology — a suggestion, not a diagram.
+function drawFieldLines() {
+  cx.strokeStyle = 'rgba(148, 170, 215, 0.027)';
+  cx.lineWidth   = 1.1;
+  const N = 12;
+  for (let i = 0; i < N; i++) {
+    const a0 = (i / N) * PI * 2;
+    let x = poles.N.x + Math.cos(a0) * 27;
+    let y = poles.N.y + Math.sin(a0) * 27;
+    cx.beginPath(); cx.moveTo(x, y);
+    for (let s = 0; s < 380; s++) {
+      if (x < -8 || x > W+8 || y < -8 || y > H+8) break;
+      if (Math.hypot(x - poles.S.x, y - poles.S.y) < 22) break;
+      const {bx, by, mag} = fieldAt(x, y);
+      if (mag < 0.000012) break;
+      const sc = Math.min(15, 3 / mag);
+      x += bx * sc; y += by * sc;
+      cx.lineTo(x, y);
+    }
+    cx.stroke();
+  }
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+let t0 = null;
+
+function frame(ts) {
+  if (!t0) t0 = ts;
+  const elapsed = ts - t0;
+
+  cx.fillStyle = '#04060f';
+  cx.fillRect(0, 0, W, H);
+
+  drawFieldLines();
+
+  cx.lineCap   = 'round';
+  cx.lineWidth = 0.85;
+
+  for (const p of particles) {
+    const d1 = Math.hypot(p.x - poles.N.x, p.y - poles.N.y);
+    const d2 = Math.hypot(p.x - poles.S.x, p.y - poles.S.y);
+    if (d1 < MIN_D || d2 < MIN_D) continue;
+
+    const {bx, by, mag} = fieldAt(p.x, p.y);
+    const target = normRod(Math.atan2(by, bx));
+
+    // Rate: quick when dragging; staggered ramp-up on initial settle
+    let rate;
+    if (drag) {
+      rate = 0.10;
+    } else {
+      const age = Math.max(0, elapsed - p.wake) / 1000;
+      rate = Math.min(0.026, age * 0.016);
+    }
+
+    // Circular lerp toward target in rod space (π-periodic)
+    const cur  = normRod(p.angle);
+    let diff   = target - cur;
+    if (diff >  PI/2) diff -= PI;
+    if (diff < -PI/2) diff += PI;
+    p.angle = normRod(cur + diff * rate);
+
+    // Tiny idle shimmer after settled
+    const age = Math.max(0, elapsed - p.wake) / 1000;
+    const amp = drag ? 0 : Math.min(0.013, age * 0.0025);
+    const da  = p.angle + amp * Math.sin(ts * 0.00072 + p.phase);
+
+    const alpha = getAlpha(mag);
+    const hL = 4.5;
+    const dx = Math.cos(da) * hL, dy = Math.sin(da) * hL;
+
+    cx.strokeStyle = `rgba(190,214,244,${alpha})`;
+    cx.beginPath();
+    cx.moveTo(p.x - dx, p.y - dy);
+    cx.lineTo(p.x + dx, p.y + dy);
+    cx.stroke();
+  }
+
+  // Vignette — darkens the edges so the field feels suspended in space
+  const vg = cx.createRadialGradient(W/2, H/2, W*0.27, W/2, H/2, W*0.73);
+  vg.addColorStop(0, 'rgba(4,6,15,0)');
+  vg.addColorStop(1, 'rgba(4,6,15,0.52)');
+  cx.fillStyle = vg;
+  cx.fillRect(0, 0, W, H);
+
+  drawPole(poles.N.x, poles.N.y, 'N', 255, 148, 44);
+  drawPole(poles.S.x, poles.S.y, 'S', 68,  130, 255);
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
