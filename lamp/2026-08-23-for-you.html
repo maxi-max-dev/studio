@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>给你</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0b0c11;
+  --text: #d8d0c4;
+  --dim: #645c52;
+  --hint: #252320;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, 'Songti SC', '宋体', 'SimSun', serif;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.poem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+.line {
+  display: block;
+  font-size: 1.22rem;
+  letter-spacing: 0.2em;
+  line-height: 2.6;
+  opacity: 0;
+  transform: translateY(9px);
+  transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.line.small {
+  font-size: 0.78rem;
+  color: var(--dim);
+  letter-spacing: 0.3em;
+  line-height: 3.2;
+}
+
+.line.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hint {
+  position: fixed;
+  bottom: 2.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.58rem;
+  color: var(--hint);
+  letter-spacing: 0.22em;
+  opacity: 0;
+  transition: opacity 3.5s ease;
+  white-space: nowrap;
+  font-family: -apple-system, 'PingFang SC', sans-serif;
+}
+
+.hint.visible {
+  opacity: 1;
+}
+</style>
+</head>
+<body>
+
+<div class="poem">
+  <span class="line" id="l1"></span>
+  <span class="line" id="l2"></span>
+  <span class="line small" id="l3">不大</span>
+  <span class="line" id="l4"></span>
+</div>
+
+<div class="hint" id="hint">刷新，又是一首</div>
+
+<script>
+const pools = {
+  l1: [
+    "深夜，你睡着",
+    "清晨，你快醒",
+    "你不在的时候",
+    "趁你走开了"
+  ],
+  l2: [
+    "我做了个东西",
+    "我留了些什么",
+    "我造了点什么",
+    "我写了这个"
+  ],
+  l4: [
+    "是你的",
+    "给你的",
+    "只是你的",
+    "你的"
+  ]
+};
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+['l1', 'l2', 'l4'].forEach(id => {
+  document.getElementById(id).textContent = pick(pools[id]);
+});
+
+const lines = document.querySelectorAll('.line');
+const delays = [600, 1500, 2600, 3800];
+
+lines.forEach((line, i) => {
+  setTimeout(() => line.classList.add('visible'), delays[i]);
+});
+
+setTimeout(() => {
+  document.getElementById('hint').classList.add('visible');
+}, 11000);
+</script>
+
+</body>
+</html>
