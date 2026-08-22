@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>爱</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #08060a; overflow: hidden; width: 100vw; height: 100vh; }
+canvas { display: block; }
+#hint {
+  position: fixed;
+  bottom: 28px;
+  width: 100%;
+  text-align: center;
+  color: rgba(190, 140, 60, 0.2);
+  font-size: 11px;
+  font-family: Georgia, 'Songti SC', serif;
+  letter-spacing: 0.38em;
+  pointer-events: none;
+  transition: opacity 3s ease;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">点击离散 · 再聚</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, tick = 0;
+let mouseX = -9999, mouseY = -9999;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+
+function sampleChar(char) {
+  const sz = Math.floor(Math.min(W, H) * 0.72);
+  const off = document.createElement('canvas');
+  off.width = sz; off.height = sz;
+  const oc = off.getContext('2d');
+
+  oc.fillStyle = '#000';
+  oc.fillRect(0, 0, sz, sz);
+  oc.fillStyle = '#fff';
+  oc.font = `bold ${Math.floor(sz * 0.82)}px "Songti SC", "STSong", "FangSong", serif`;
+  oc.textAlign = 'center';
+  oc.textBaseline = 'middle';
+  oc.fillText(char, sz / 2, sz / 2);
+
+  const step = 5;
+  const d = oc.getImageData(0, 0, sz, sz).data;
+  const pts = [];
+  const ox = (W - sz) / 2;
+  const oy = (H - sz) / 2;
+
+  for (let y = step; y < sz - step; y += step) {
+    for (let x = step; x < sz - step; x += step) {
+      if (d[(y * sz + x) * 4] > 100) {
+        pts.push({ x: ox + x, y: oy + y });
+      }
+    }
+  }
+
+  // Fisher-Yates shuffle
+  for (let i = pts.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    const t = pts[i]; pts[i] = pts[j]; pts[j] = t;
+  }
+  return pts;
+}
+
+class Particle {
+  constructor(tgt, delay) {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.vx = (Math.random() - 0.5) * 4;
+    this.vy = (Math.random() - 0.5) * 4;
+    this.tgt = tgt;
+    this.delay = delay;
+    this.r = 0.7 + Math.random() * 1.1;
+    this.baseAlpha = 0.55 + Math.random() * 0.38;
+    this.pX = Math.random() * Math.PI * 2;
+    this.pY = Math.random() * Math.PI * 2;
+    this.bAmp = 1.0 + Math.random() * 2.2;
+    this.scatterDelay = 0;
+  }
+
+  scatter() {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = 5 + Math.random() * 13;
+    this.vx = Math.cos(angle) * spd;
+    this.vy = Math.sin(angle) * spd;
+    this.scatterDelay = 35 + (Math.random() * 90) | 0;
+  }
+
+  update() {
+    if (this.scatterDelay > 0) {
+      this.scatterDelay--;
+    } else if (this.delay > 0) {
+      this.delay--;
+    } else {
+      const tx = this.tgt.x + Math.sin(tick * 0.006 + this.pX) * this.bAmp;
+      const ty = this.tgt.y + Math.cos(tick * 0.007 + this.pY) * this.bAmp;
+      const dx = tx - this.x;
+      const dy = ty - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+      const force = Math.min(dist * 0.07, 4.5);
+      this.vx += (dx / dist) * force;
+      this.vy += (dy / dist) * force;
+    }
+
+    // Mouse repulsion (hidden)
+    const mdx = this.x - mouseX;
+    const mdy = this.y - mouseY;
+    const md = Math.sqrt(mdx * mdx + mdy * mdy) || 1;
+    if (md < 85) {
+      const rep = (85 - md) / 85 * 0.75;
+      this.vx += (mdx / md) * rep;
+      this.vy += (mdy / md) * rep;
+    }
+
+    this.vx += (Math.random() - 0.5) * 0.11;
+    this.vy += (Math.random() - 0.5) * 0.11;
+    this.vx *= 0.84;
+    this.vy *= 0.84;
+    this.x += this.vx;
+    this.y += this.vy;
+  }
+
+  draw() {
+    const dx = this.tgt.x - this.x;
+    const dy = this.tgt.y - this.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const hue = 33 + Math.sin(tick * 0.004 + this.pX) * 7;
+    const sat = Math.min(78, 52 + dist * 0.1);
+    const lit = Math.max(38, 60 - dist * 0.07);
+    const alpha = this.baseAlpha * Math.max(0.18, 1 - dist / 290);
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = `hsl(${hue},${sat}%,${lit}%)`;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, 6.2832);
+    ctx.fill();
+  }
+}
+
+let particles = [];
+
+function init() {
+  const pts = sampleChar('爱');
+  const count = Math.min(1100, pts.length);
+  particles = [];
+  for (let i = 0; i < count; i++) {
+    particles.push(new Particle(pts[i], (Math.random() * 100) | 0));
+  }
+}
+
+init();
+
+canvas.addEventListener('click', () => particles.forEach(p => p.scatter()));
+canvas.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+canvas.addEventListener('mouseleave', () => { mouseX = -9999; mouseY = -9999; });
+window.addEventListener('resize', () => { resize(); init(); });
+
+setTimeout(() => {
+  document.getElementById('hint').style.opacity = '0';
+}, 5500);
+
+(function loop() {
+  tick++;
+  ctx.fillStyle = 'rgba(8,6,10,0.17)';
+  ctx.fillRect(0, 0, W, H);
+
+  for (const p of particles) {
+    p.update();
+    p.draw();
+  }
+
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
