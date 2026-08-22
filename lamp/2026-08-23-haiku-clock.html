@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>此刻</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #0b0b0e;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'PingFang SC', 'Hiragino Mincho ProN', 'Songti SC',
+               'Noto Serif SC', 'Source Han Serif SC', serif;
+  cursor: default;
+  user-select: none;
+  overflow: hidden;
+}
+
+#poem {
+  text-align: center;
+  will-change: opacity, transform;
+}
+
+.line {
+  display: block;
+  letter-spacing: 0.2em;
+}
+
+.l1 {
+  font-size: clamp(0.72rem, 2vw, 0.88rem);
+  color: #625b4f;
+  font-weight: 300;
+  margin-bottom: 2.6rem;
+  letter-spacing: 0.28em;
+}
+
+.l2 {
+  font-size: clamp(0.95rem, 2.8vw, 1.28rem);
+  color: #ccc0a8;
+  font-weight: 400;
+  margin-bottom: 2.6rem;
+  letter-spacing: 0.18em;
+}
+
+.l3 {
+  font-size: clamp(0.72rem, 2vw, 0.88rem);
+  color: #47423b;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+}
+
+#foot {
+  margin-top: 5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.rule {
+  width: 20px;
+  height: 1px;
+  background: #1e1c18;
+}
+
+#clock {
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 0.58rem;
+  color: #302c27;
+  letter-spacing: 0.4em;
+}
+
+#hint {
+  position: fixed;
+  bottom: 1.8rem;
+  font-size: 0.5rem;
+  color: #1e1c18;
+  letter-spacing: 0.18em;
+  font-family: 'PingFang SC', sans-serif;
+  transition: color 1s;
+}
+
+body:hover #hint { color: #302c27; }
+</style>
+</head>
+<body>
+
+<div id="poem">
+  <span class="line l1" id="l1"></span>
+  <span class="line l2" id="l2"></span>
+  <span class="line l3" id="l3"></span>
+</div>
+
+<div id="foot">
+  <div class="rule"></div>
+  <div id="clock"></div>
+</div>
+
+<div id="hint">点一下，换一首</div>
+
+<script>
+/* ── 诗库 ── */
+const P = {
+  0: {
+    l1: ['午夜过了','零点多了','深夜','时钟不动了'],
+    l2: ['城市终于睡了只剩路灯','远处一条狗叫了一声',
+         '此刻最安静的时候','你的屏幕是夜里最亮的东西'],
+    l3: ['静','还在','不睡了','好']
+  },
+  2: {
+    l1: ['夜最深处','两三点钟','凌晨了','最黑了'],
+    l2: ['睡着的人做着各自的梦','连风也不动了',
+         '时间走得最慢','星星快撑不住了'],
+    l3: ['梦','熬','等','深']
+  },
+  4: {
+    l1: ['天没亮','黎明前','最后的黑暗','四五点了'],
+    l2: ['第一只鸟还没有开口','星星一颗颗撤退了',
+         '东边有一点白了','黑暗再坚持一会儿'],
+    l3: ['快了','来了','蓝了','等着']
+  },
+  6: {
+    l1: ['天亮了','清晨','太阳出来了','刚亮'],
+    l2: ['光从窗缝里挤进来了','鸟比你先醒',
+         '昨天的事还搁在桌上','露水还没走'],
+    l3: ['早安','醒了','好','新的']
+  },
+  8: {
+    l1: ['上午了','日头升起来了','白天开始了','这个时候'],
+    l2: ['该做的事还没开始做','阳光直接打下来',
+         '咖啡凉了又泡一杯','一上午已经过了一半'],
+    l3: ['走吧','好','干','来']
+  },
+  11: {
+    l1: ['快正午了','十一点多','午前','快到了'],
+    l2: ['影子藏到脚底下去了','一上午过去了',
+         '肚子开始叫了','阳光最重的时候'],
+    l3: ['了','去吃','到了','半']
+  },
+  12: {
+    l1: ['正午','日当中','十二点','最亮了'],
+    l2: ['影子小得几乎消失了','光最重连树也不动',
+         '一天过了一半了','太阳不讲道理'],
+    l3: ['热','静','一半了','歇']
+  },
+  14: {
+    l1: ['下午了','午后','日头偏西了','过了午'],
+    l2: ['光开始变黄了','困意来了又走了',
+         '时间忽然快了起来','一天剩下一半了'],
+    l3: ['还早','走','喝口水','还有']
+  },
+  17: {
+    l1: ['傍晚了','黄昏','快天黑了','落日'],
+    l2: ['天边橙色的云层叠在一起','影子忽然变得很长了',
+         '最后一点光舍不得走','路灯刚刚亮了'],
+    l3: ['美','走了','留一下','橙']
+  },
+  19: {
+    l1: ['天黑了','晚上了','夜开始了','刚入夜'],
+    l2: ['第一批星星出来了','灯一盏一盏亮起来',
+         '夜风比白天凉','今天的事情快收摊了'],
+    l3: ['到了','收','凉','好']
+  },
+  21: {
+    l1: ['深夜了','九十点了','夜深了','晚了'],
+    l2: ['该睡的都睡了','城市安静下来了',
+         '窗外只剩路灯了','今天走了回不来了'],
+    l3: ['睡吧','了','好了','夜安']
+  },
+  23: {
+    l1: ['快午夜了','十一点多','今天最后一刻','夜末了'],
+    l2: ['今天的最后几分钟','昨天和明天中间',
+         '月亮走到正上方了','安静得像什么都没有'],
+    l3: ['过了','好','睡吧','走了']
+  }
+};
+
+function period(h) {
+  if (h >= 23) return 23;
+  if (h >= 21) return 21;
+  if (h >= 19) return 19;
+  if (h >= 17) return 17;
+  if (h >= 14) return 14;
+  if (h >= 12) return 12;
+  if (h >= 11) return 11;
+  if (h >= 8)  return 8;
+  if (h >= 6)  return 6;
+  if (h >= 4)  return 4;
+  if (h >= 2)  return 2;
+  return 0;
+}
+
+function r(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+/* ── 时钟 ── */
+let lastMinute = -1;
+const poem = document.getElementById('poem');
+
+function tickClock() {
+  const now  = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  document.getElementById('clock').textContent =
+    String(h).padStart(2,'0') + ' : ' + String(m).padStart(2,'0');
+  return { h, minute: h * 60 + m };
+}
+
+function initPoem() {
+  const { h, minute } = tickClock();
+  lastMinute = minute;
+  const p = P[period(h)];
+  document.getElementById('l1').textContent = r(p.l1);
+  document.getElementById('l2').textContent = r(p.l2);
+  document.getElementById('l3').textContent = r(p.l3);
+
+  poem.style.transition = 'none';
+  poem.style.opacity    = '0';
+  poem.style.transform  = 'translateY(10px)';
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    poem.style.transition = 'opacity 1.4s ease, transform 1.4s ease';
+    poem.style.opacity    = '1';
+    poem.style.transform  = 'translateY(0)';
+  }));
+}
+
+function changePoem(force) {
+  const { h, minute } = tickClock();
+  if (!force && minute === lastMinute) return;
+  lastMinute = minute;
+  const p = P[period(h)];
+
+  poem.style.transition = 'opacity 0.55s ease, transform 0.55s ease';
+  poem.style.opacity    = '0';
+  poem.style.transform  = 'translateY(-7px)';
+
+  setTimeout(() => {
+    document.getElementById('l1').textContent = r(p.l1);
+    document.getElementById('l2').textContent = r(p.l2);
+    document.getElementById('l3').textContent = r(p.l3);
+
+    poem.style.transition = 'none';
+    poem.style.transform  = 'translateY(7px)';
+    poem.style.opacity    = '0';
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      poem.style.transition = 'opacity 1s ease, transform 1s ease';
+      poem.style.opacity    = '1';
+      poem.style.transform  = 'translateY(0)';
+    }));
+  }, 480);
+}
+
+document.body.addEventListener('click',   () => changePoem(true));
+document.addEventListener('keydown', () => changePoem(true));
+
+initPoem();
+setInterval(() => { tickClock(); changePoem(false); }, 8000);
+</script>
+</body>
+</html>
