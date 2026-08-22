@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>对话</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#060608;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+  overflow:hidden;
+  cursor:pointer;
+  user-select:none
+}
+canvas{display:block}
+#p{
+  position:fixed;
+  bottom:30px;
+  font-family:'Helvetica Neue',Helvetica,sans-serif;
+  font-size:10px;
+  letter-spacing:.2em;
+  color:rgba(255,255,255,.16);
+  pointer-events:none;
+  transition:opacity 2.5s
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="p">点击开始</div>
+<script>
+const W=480,H=600,CX=W/2;
+const FMIN=150,FMAX=460;
+const TT=H*.09,TB=H*.87;
+const HA=CX-72,HB=CX+72;
+
+const canvas=document.getElementById('c');
+canvas.width=W; canvas.height=H;
+const ctx=canvas.getContext('2d');
+
+let audioCtx,oscA,oscB,gainA,gainB,panA,panB;
+let started=false,nextTimer=null;
+let dispA=280,dispB=380,goalA=280,goalB=380;
+let t=0;
+
+const clamp=(v,lo,hi)=>v<lo?lo:v>hi?hi:v;
+const fToY=f=>TB-((f-FMIN)/(FMAX-FMIN))*(TB-TT);
+
+function startAudio(){
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  oscA=audioCtx.createOscillator(); oscB=audioCtx.createOscillator();
+  gainA=audioCtx.createGain(); gainB=audioCtx.createGain();
+  panA=audioCtx.createStereoPanner(); panB=audioCtx.createStereoPanner();
+  oscA.type=oscB.type='sine';
+  oscA.frequency.value=dispA; oscB.frequency.value=dispB;
+  gainA.gain.value=gainB.gain.value=0.22;
+  panA.pan.value=-.28; panB.pan.value=.28;
+  oscA.connect(gainA).connect(panA).connect(audioCtx.destination);
+  oscB.connect(gainB).connect(panB).connect(audioCtx.destination);
+  oscA.start(); oscB.start();
+  scheduleMove();
+}
+
+function scheduleMove(){
+  const converge=Math.random()<.3;
+  const dur=12+Math.random()*14;
+  if(converge){
+    const pivot=FMIN+80+Math.random()*(FMAX-FMIN-160);
+    const spread=2+Math.random()*22;
+    goalA=clamp(pivot-spread/2,FMIN,FMAX);
+    goalB=clamp(pivot+spread/2,FMIN,FMAX);
+  } else {
+    goalA=FMIN+Math.random()*(FMAX-FMIN);
+    goalB=FMIN+Math.random()*(FMAX-FMIN);
+  }
+  const now=audioCtx.currentTime;
+  oscA.frequency.cancelScheduledValues(now);
+  oscB.frequency.cancelScheduledValues(now);
+  oscA.frequency.setValueAtTime(dispA,now);
+  oscB.frequency.setValueAtTime(dispB,now);
+  oscA.frequency.linearRampToValueAtTime(goalA,now+dur);
+  oscB.frequency.linearRampToValueAtTime(goalB,now+dur);
+  nextTimer=setTimeout(scheduleMove,dur*1000);
+}
+
+function rga(r,g,b,a){return`rgba(${r},${g},${b},${+a.toFixed(3)})`}
+
+function draw(){
+  requestAnimationFrame(draw);
+  t+=1/60;
+  dispA+=(goalA-dispA)*.002;
+  dispB+=(goalB-dispB)*.002;
+
+  ctx.fillStyle='#060608';
+  ctx.fillRect(0,0,W,H);
+
+  const yA=fToY(dispA),yB=fToY(dispB);
+  const dist=Math.abs(dispA-dispB);
+  const cl=Math.max(0,1-dist/140);
+  const sep=Math.min(1,dist/140);
+  const xA=CX-72*sep, xB=CX+72*sep;
+
+  // Ghost tracks at home positions
+  [[HA,rga(230,205,165,.045)],[HB,rga(165,205,230,.045)]].forEach(([x,col])=>{
+    ctx.beginPath();ctx.moveTo(x,TT);ctx.lineTo(x,TB);
+    ctx.strokeStyle=col;ctx.lineWidth=.5;ctx.stroke();
+  });
+
+  // Connection — pulses at beat frequency when close
+  if(cl>.01&&dist>2){
+    let pulse=.7;
+    if(started&&dist<28) pulse=.55+.45*Math.sin(t*dist*Math.PI*2);
+    const la=cl*pulse*.62;
+    const lg=ctx.createLinearGradient(xA,yA,xB,yB);
+    lg.addColorStop(0,rga(230,205,165,la));
+    lg.addColorStop(1,rga(165,205,230,la));
+    ctx.beginPath();ctx.moveTo(xA,yA);ctx.lineTo(xB,yB);
+    ctx.strokeStyle=lg;ctx.lineWidth=.5+cl*2.5;ctx.stroke();
+  }
+
+  // Orb A — warm amber, left
+  {
+    const br=.78+.22*Math.sin(t*.63*Math.PI*2);
+    const r=5+cl*3;
+    const g=ctx.createRadialGradient(xA,yA,0,xA,yA,r*5.5);
+    g.addColorStop(0,rga(245,215,155,.32*br));
+    g.addColorStop(.45,rga(220,185,120,.1*br));
+    g.addColorStop(1,rga(200,160,100,0));
+    ctx.beginPath();ctx.arc(xA,yA,r*5.5,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();ctx.arc(xA,yA,r,0,Math.PI*2);
+    ctx.fillStyle=rga(255,235,185,.92*br);ctx.fill();
+  }
+
+  // Orb B — cool silver-blue, right
+  {
+    const br=.78+.22*Math.sin(t*.47*Math.PI*2+1.9);
+    const r=5+cl*3;
+    const g=ctx.createRadialGradient(xB,yB,0,xB,yB,r*5.5);
+    g.addColorStop(0,rga(165,210,245,.32*br));
+    g.addColorStop(.45,rga(130,180,220,.1*br));
+    g.addColorStop(1,rga(100,155,210,0));
+    ctx.beginPath();ctx.arc(xB,yB,r*5.5,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+    ctx.beginPath();ctx.arc(xB,yB,r,0,Math.PI*2);
+    ctx.fillStyle=rga(195,230,255,.92*br);ctx.fill();
+  }
+
+  // Beat Hz — barely visible when very close
+  if(started&&dist<20){
+    ctx.fillStyle=rga(255,255,255,.04+cl*.07);
+    ctx.font='8px monospace';ctx.textAlign='center';
+    ctx.fillText(dist.toFixed(1)+' Hz',CX,TB+22);
+  }
+}
+
+canvas.addEventListener('click',()=>{
+  if(!started){
+    startAudio();started=true;
+    const p=document.getElementById('p');
+    p.style.opacity='0';
+    setTimeout(()=>p&&p.remove(),3000);
+  } else {
+    clearTimeout(nextTimer);scheduleMove();
+  }
+});
+
+draw();
+</script>
+</body>
+</html>
