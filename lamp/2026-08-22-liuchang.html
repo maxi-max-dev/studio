@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>流场 · 灯 · 2026-08-22</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; background:#04080c; overflow:hidden; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(function(){
+
+  // Perlin noise (Ken Perlin improved, 2D)
+  const _p = (() => {
+    const arr = Array.from({length:256}, (_,i)=>i);
+    for (let i=255;i>0;i--) {
+      const j = (Math.random()*(i+1))|0;
+      [arr[i],arr[j]] = [arr[j],arr[i]];
+    }
+    return new Uint8Array([...arr,...arr]);
+  })();
+
+  function fade(t) { return t*t*t*(t*(t*6-15)+10); }
+  function lerp(a,b,t) { return a+t*(b-a); }
+  function grad(h,x,y) {
+    switch(h&3){ case 0:return x+y; case 1:return-x+y; case 2:return x-y; default:return-x-y; }
+  }
+  function pnoise(x,y) {
+    const xi=Math.floor(x)&255, yi=Math.floor(y)&255;
+    const xf=x-Math.floor(x), yf=y-Math.floor(y);
+    const u=fade(xf), v=fade(yf);
+    const aa=_p[_p[xi  ]+yi], ab=_p[_p[xi  ]+yi+1];
+    const ba=_p[_p[xi+1]+yi], bb=_p[_p[xi+1]+yi+1];
+    return lerp(
+      lerp(grad(aa,xf,yf),   grad(ba,xf-1,yf),   u),
+      lerp(grad(ab,xf,yf-1), grad(bb,xf-1,yf-1), u),
+      v
+    );
+  }
+
+  // Canvas setup
+  const canvas = document.getElementById('c');
+  const W = canvas.width  = window.innerWidth;
+  const H = canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#04080c';
+  ctx.fillRect(0,0,W,H);
+
+  // Particle state (typed arrays for speed)
+  const N = 2800;
+  const px   = new Float32Array(N);
+  const py   = new Float32Array(N);
+  const life = new Float32Array(N);
+  const maxL = new Float32Array(N);
+  const LIFE = 320;
+
+  for (let i=0;i<N;i++) {
+    px[i]   = Math.random()*W;
+    py[i]   = Math.random()*H;
+    life[i] = Math.random()*LIFE;           // stagger so canvas fills gradually
+    maxL[i] = LIFE*(0.5+Math.random()*1.0);
+  }
+
+  const SC = 0.0033;   // spatial scale of noise field
+  const SP = 1.55;     // particle speed (px/frame)
+  let   t  = 0;        // time offset, slowly advances
+  let   paused = false; // spacebar holds field still
+
+  function flowAngle(x,y) {
+    // Two octaves: macro sweep + fine curl
+    const n1 = pnoise(x*SC      + t*0.35, y*SC);
+    const n2 = pnoise(x*SC*1.8  + 90,     y*SC*1.8 + t*0.12 + 60);
+    return (n1 + n2*0.45) * Math.PI * 3.2;
+  }
+
+  // Color palette: pale mint → teal → dim deep teal → invisible
+  // [R, G, B, opacity]
+  const STOPS = [
+    [212, 240, 228, 0.72],  // 0%   young — pale mint-white
+    [ 74, 180, 155, 0.50],  // 30%  mid   — teal
+    [ 26,  95, 115, 0.18],  // 70%  aging — dim ocean
+    [  8,  30,  38, 0.03],  // 100% dying — almost gone
+  ];
+  const BREAKS = [0, 0.30, 0.70, 1.0];
+
+  function particleColor(l, ml) {
+    const a = Math.min(l/ml, 1);
+    let s0, s1, q;
+    if      (a < BREAKS[1]) { s0=STOPS[0]; s1=STOPS[1]; q=(a-BREAKS[0])/(BREAKS[1]-BREAKS[0]); }
+    else if (a < BREAKS[2]) { s0=STOPS[1]; s1=STOPS[2]; q=(a-BREAKS[1])/(BREAKS[2]-BREAKS[1]); }
+    else                    { s0=STOPS[2]; s1=STOPS[3]; q=(a-BREAKS[2])/(BREAKS[3]-BREAKS[2]); }
+    const r = (s0[0]+(s1[0]-s0[0])*q+0.5)|0;
+    const g = (s0[1]+(s1[1]-s0[1])*q+0.5)|0;
+    const b = (s0[2]+(s1[2]-s0[2])*q+0.5)|0;
+    const op = s0[3]+(s1[3]-s0[3])*q;
+    return `rgba(${r},${g},${b},${op.toFixed(3)})`;
+  }
+
+  function frame() {
+    // Very slow background fade — old trails linger for ~60 seconds
+    ctx.fillStyle = 'rgba(4,8,12,0.016)';
+    ctx.fillRect(0,0,W,H);
+
+    if (!paused) t += 0.00055;
+
+    ctx.lineWidth = 0.85;
+
+    for (let i=0;i<N;i++) {
+      const ox=px[i], oy=py[i];
+      const a = flowAngle(ox, oy);
+      px[i] += Math.cos(a)*SP;
+      py[i] += Math.sin(a)*SP;
+      life[i]++;
+
+      // Respawn: out of bounds or end of life
+      if (px[i]<-2||px[i]>W+2||py[i]<-2||py[i]>H+2||life[i]>maxL[i]) {
+        px[i]   = Math.random()*W;
+        py[i]   = Math.random()*H;
+        life[i] = 0;
+        maxL[i] = LIFE*(0.5+Math.random()*1.0);
+        continue;
+      }
+
+      ctx.strokeStyle = particleColor(life[i], maxL[i]);
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(px[i], py[i]);
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  frame();
+
+  // Click — scatter nearby particles (they respawn elsewhere)
+  canvas.addEventListener('click', e => {
+    const cx=e.clientX, cy=e.clientY;
+    for (let i=0;i<N;i++) {
+      if (Math.hypot(px[i]-cx, py[i]-cy) < 160) {
+        px[i]   = cx + (Math.random()-0.5)*W*0.7;
+        py[i]   = cy + (Math.random()-0.5)*H*0.7;
+        life[i] = 0;
+      }
+    }
+  });
+
+  // Double-click — clear canvas and reset all particles
+  canvas.addEventListener('dblclick', e => {
+    e.preventDefault();
+    ctx.fillStyle = '#04080c';
+    ctx.fillRect(0,0,W,H);
+    for (let i=0;i<N;i++) {
+      px[i]   = Math.random()*W;
+      py[i]   = Math.random()*H;
+      life[i] = 0;
+    }
+  });
+
+  // Space — hold to freeze the field in time (see the static structure)
+  document.addEventListener('keydown', e => {
+    if (e.code==='Space'){ paused=true; e.preventDefault(); }
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code==='Space') paused=false;
+  });
+
+})();
+</script>
+</body>
+</html>
