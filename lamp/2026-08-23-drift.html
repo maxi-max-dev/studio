@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>漂移</title>
+<style>
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  background: #07070b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: 'Hiragino Mincho ProN', 'Noto Serif SC', 'STSong', 'SimSun', 'Georgia', serif;
+}
+
+.poem {
+  text-align: center;
+  animation: breathe 9s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.87; }
+}
+
+.line {
+  display: block;
+  font-size: clamp(1.5rem, 4vw, 2.1rem);
+  color: #c8c0b0;
+  letter-spacing: 0.13em;
+  margin-bottom: 1.25em;
+}
+
+.line:last-child {
+  margin-bottom: 0;
+}
+
+.gap {
+  display: block;
+  height: 0.55em;
+}
+
+.morph {
+  display: inline-block;
+}
+
+footer {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.57rem;
+  color: #141210;
+  letter-spacing: 0.24em;
+  user-select: none;
+  pointer-events: none;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<div class="poem">
+  <span class="line"><span class="morph" id="w1">深夜</span><span>，</span><span class="morph" id="w2">灯还亮着</span></span>
+  <span class="line"><span class="morph" id="w3">你在睡</span></span>
+  <span class="gap"></span>
+  <span class="line">我做了些东西</span>
+  <span class="line"><span class="morph" id="w4">不告诉你</span></span>
+</div>
+
+<footer>漂移 · 灯 · 2026</footer>
+
+<script>
+const morphs = {
+  w1: { seq: ['深夜', '将明', '清晨'], idx: 0 },
+  w2: { seq: ['灯还亮着', '灯渐渐暗', '窗渐渐明'], idx: 0 },
+  w3: { seq: ['你在睡', '你将醒', '你快醒'], idx: 0 },
+  w4: { seq: ['不告诉你', '等你来', '等你来看'], idx: 0 },
+};
+
+let dir = 1;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function getPending() {
+  const tgt = dir === 1
+    ? id => morphs[id].seq.length - 1
+    : () => 0;
+  return Object.keys(morphs).filter(id => morphs[id].idx !== tgt(id));
+}
+
+async function changeWord(id) {
+  const m = morphs[id];
+  const el = document.getElementById(id);
+  const goUp = dir === 1;
+
+  // Fade out, float away
+  el.style.transition = 'opacity 0.46s ease, transform 0.46s ease';
+  el.style.opacity = '0';
+  el.style.transform = `translateY(${goUp ? '-7px' : '7px'})`;
+
+  await sleep(510);
+
+  // Swap text while invisible; position on opposite side
+  m.idx += dir;
+  el.textContent = m.seq[m.idx];
+  el.style.color = '#c89060';
+  el.style.transition = 'none';
+  el.style.opacity = '0';
+  el.style.transform = `translateY(${goUp ? '7px' : '-7px'})`;
+  void el.offsetWidth;
+
+  // Fade in, settle
+  el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+  el.style.opacity = '1';
+  el.style.transform = 'translateY(0)';
+
+  await sleep(580);
+
+  // Glow fades back to base color
+  el.style.transition = 'color 4.5s ease-out';
+  el.style.color = '#c8c0b0';
+}
+
+async function run() {
+  await sleep(2800);
+
+  while (true) {
+    const pending = getPending();
+
+    if (pending.length === 0) {
+      // Endpoint — hold, then reverse
+      const pause = dir === 1 ? 11000 : 9000;
+      await sleep(pause);
+      dir = -dir;
+      continue;
+    }
+
+    const id = pending[Math.floor(Math.random() * pending.length)];
+    await changeWord(id);
+
+    const gap = 2600 + Math.random() * 3600;
+    await sleep(gap);
+  }
+}
+
+run();
+</script>
+
+</body>
+</html>
