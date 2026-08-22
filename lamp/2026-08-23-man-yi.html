@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>慢移</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  width:100vw; height:100vh;
+  background:#000;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  overflow:hidden;
+}
+canvas {
+  position:fixed; top:0; left:0;
+  width:100%; height:100%;
+  pointer-events:none;
+}
+#hint {
+  font-family:'Courier New',monospace;
+  font-size:11px;
+  color:#fff;
+  letter-spacing:0.28em;
+  opacity:0.18;
+  animation:breathe 3.2s ease-in-out infinite;
+  transition:opacity 0.8s;
+  z-index:10;
+  position:relative;
+}
+@keyframes breathe {
+  0%,100% { opacity:0.18; }
+  50%      { opacity:0.07; }
+}
+#freq {
+  position:fixed; bottom:16px; right:18px;
+  font-family:'Courier New',monospace;
+  font-size:8px;
+  color:rgba(255,255,255,0.09);
+  pointer-events:none;
+  user-select:none;
+  letter-spacing:0.08em;
+}
+#note {
+  position:fixed; bottom:38px; right:18px;
+  font-family:'Courier New',monospace;
+  font-size:7px;
+  color:rgba(255,255,255,0.06);
+  pointer-events:none;
+  user-select:none;
+  letter-spacing:0.06em;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">点击</div>
+<div id="freq"></div>
+<div id="note"></div>
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const freqEl = document.getElementById('freq');
+const noteEl = document.getElementById('note');
+const hint   = document.getElementById('hint');
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Drone: A2 (110 Hz) → slowly drifting down ~14 Hz over 30 minutes
+const BASE_START  = 110;
+const BASE_END    = 96;
+const DRIFT_SECS  = 1800;
+
+// Harmonic ratios relative to base (just intonation)
+const RATIOS = [5/4, 4/3, 3/2, 5/3, 7/4, 2];
+const RATIO_NAMES = ['大三度','纯四度','纯五度','大六度','小七度','八度'];
+
+let ac, startAcTime;
+let started   = false;
+let lineY     = 0;
+let dots      = [];
+let lastSpawn = 0;
+let nextDelay = 3800;
+
+function getBase(t) {
+  return BASE_START + (BASE_END - BASE_START) * Math.min(t / DRIFT_SECS, 1);
+}
+
+function spawnNote(t) {
+  const base  = getBase(t);
+  const idx   = Math.floor(Math.random() * RATIOS.length);
+  const ratio = RATIOS[idx];
+  const freq  = base * ratio;
+  const dur   = 1.1 + Math.random() * 1.5;
+  const pan   = (Math.random() - 0.5) * 0.55;
+  const vol   = 0.038 + Math.random() * 0.028;
+
+  const osc  = ac.createOscillator();
+  const gn   = ac.createGain();
+  const pn   = ac.createStereoPanner();
+
+  osc.type = 'sine';
+  osc.frequency.value = freq;
+  gn.gain.setValueAtTime(0, ac.currentTime);
+  gn.gain.linearRampToValueAtTime(vol, ac.currentTime + 0.28);
+  gn.gain.linearRampToValueAtTime(0,   ac.currentTime + dur);
+  pn.pan.value = pan;
+
+  osc.connect(gn); gn.connect(pn); pn.connect(ac.destination);
+  osc.start(); osc.stop(ac.currentTime + dur + 0.1);
+
+  // Visual dot: height proportional to ratio
+  const normH = (ratio - 1.25) / 0.75;
+  const dotY  = lineY - normH * canvas.height * 0.31;
+  const dotX  = canvas.width * (0.5 + pan * 0.14);
+
+  dots.push({
+    x: dotX, y: dotY,
+    alpha: 0, peak: 0.5 + Math.random() * 0.22,
+    born: Date.now(), dur: dur * 1000,
+    r: 2.0 + Math.random() * 0.8
+  });
+}
+
+function draw() {
+  if (!started) return;
+
+  const t   = ac.currentTime - startAcTime;
+  const pct = Math.min(t / DRIFT_SECS, 1);
+  const base = getBase(t);
+  const now  = Date.now();
+
+  // Update readout (very faint, for the curious)
+  freqEl.textContent = base.toFixed(2) + ' Hz';
+  if (pct > 0.02) {
+    const drift = (BASE_START - base).toFixed(2);
+    noteEl.textContent = '−' + drift + ' Hz';
+  }
+
+  // Background: imperceptibly shifts toward deep blue over 30 min
+  const b = Math.round(pct * 16);
+  document.body.style.backgroundColor = `rgb(0,0,${b})`;
+
+  // Spawn notes
+  if (now - lastSpawn > nextDelay) {
+    spawnNote(t);
+    if (Math.random() < 0.22) {
+      const delay = 1100 + Math.random() * 800;
+      setTimeout(() => { if (started) spawnNote(ac.currentTime - startAcTime); }, delay);
+    }
+    lastSpawn = now;
+    nextDelay = 4200 + Math.random() * 7500;
+  }
+
+  // Line position: barely perceptible slow descent (6% of height over 30 min)
+  const targetY = canvas.height * 0.5 + pct * canvas.height * 0.06;
+  lineY += (targetY - lineY) * 0.007;
+
+  // Clear
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Breathing line
+  const breath = 0.10 + 0.09 * Math.sin((t / 8) * Math.PI * 2);
+  ctx.strokeStyle = `rgba(255,255,255,${breath})`;
+  ctx.lineWidth   = 0.55;
+  ctx.beginPath();
+  ctx.moveTo(canvas.width * 0.09, lineY);
+  ctx.lineTo(canvas.width * 0.91, lineY);
+  ctx.stroke();
+
+  // Tiny marker: where the line started (nearly invisible)
+  if (pct > 0.03) {
+    const originY = canvas.height * 0.5;
+    ctx.strokeStyle = `rgba(255,255,255,${pct * 0.05})`;
+    ctx.lineWidth   = 0.3;
+    ctx.setLineDash([2, 8]);
+    ctx.beginPath();
+    ctx.moveTo(canvas.width * 0.09, originY);
+    ctx.lineTo(canvas.width * 0.91, originY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Dots
+  dots = dots.filter(d => {
+    const age  = now - d.born;
+    const life = age / d.dur;
+    if (life >= 1) return false;
+    d.alpha = life < 0.22
+      ? (life / 0.22) * d.peak
+      : (1 - (life - 0.22) / 0.78) * d.peak;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${d.alpha})`;
+    ctx.fill();
+    return true;
+  });
+
+  requestAnimationFrame(draw);
+}
+
+document.body.addEventListener('click', async () => {
+  if (started) return;
+
+  hint.style.animation = 'none';
+  hint.style.opacity   = '0';
+  setTimeout(() => { hint.style.display = 'none'; }, 900);
+
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  startAcTime = ac.currentTime;
+
+  // Drone: starts at A2, drifts very slowly down to ~G#2 over 30 minutes
+  const droneOsc  = ac.createOscillator();
+  const droneGain = ac.createGain();
+  droneOsc.type = 'sine';
+  droneOsc.frequency.setValueAtTime(BASE_START, ac.currentTime);
+  droneOsc.frequency.linearRampToValueAtTime(BASE_END, ac.currentTime + DRIFT_SECS);
+  droneGain.gain.setValueAtTime(0,    ac.currentTime);
+  droneGain.gain.linearRampToValueAtTime(0.13, ac.currentTime + 3.5);
+  droneOsc.connect(droneGain);
+  droneGain.connect(ac.destination);
+  droneOsc.start();
+
+  lineY     = canvas.height * 0.5;
+  started   = true;
+  lastSpawn = Date.now() - nextDelay;
+
+  draw();
+});
+</script>
+</body>
+</html>
