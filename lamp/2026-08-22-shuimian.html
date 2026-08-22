@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>水面</title>
+<style>
+* { margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%;
+  background: #02050c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+canvas { cursor: crosshair; display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="400"></canvas>
+<script>
+const W = 300, H = 200;
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// Triple buffer for wave equation (prev, curr, next)
+const bufA = new Float32Array(W * H);
+const bufB = new Float32Array(W * H);
+const bufC = new Float32Array(W * H);
+let prev = bufA, curr = bufB, next = bufC;
+
+const img = ctx.createImageData(600, 400);
+const pxl = img.data;
+
+// Disturb water with cosine bell profile
+function disturb(gx, gy, strength) {
+  for (let dy = -3; dy <= 3; dy++) {
+    for (let dx = -3; dx <= 3; dx++) {
+      const x = gx + dx, y = gy + dy;
+      if (x > 0 && x < W-1 && y > 0 && y < H-1) {
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d <= 3) curr[y*W+x] += strength * Math.cos((d/3) * Math.PI * 0.5);
+      }
+    }
+  }
+}
+
+// One wave equation step (c²=0.25, Neumann boundaries)
+function step() {
+  const damp = 0.999;
+  for (let y = 1; y < H-1; y++) {
+    for (let x = 1; x < W-1; x++) {
+      const i = y*W+x;
+      const lap = curr[i-1] + curr[i+1] + curr[i-W] + curr[i+W] - 4*curr[i];
+      next[i] = (2*curr[i] - prev[i] + 0.25*lap) * damp;
+    }
+  }
+  // Reflecting edges: copy neighbor outward
+  for (let x = 1; x < W-1; x++) {
+    next[x] = next[W+x];
+    next[(H-1)*W+x] = next[(H-2)*W+x];
+  }
+  for (let y = 0; y < H; y++) {
+    next[y*W] = next[y*W+1];
+    next[y*W+W-1] = next[y*W+W-2];
+  }
+  const tmp = prev; prev = curr; curr = next; next = tmp;
+}
+
+// Render: height → color via tanh, two-segment palette
+function render() {
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const h = curr[y*W+x];
+      const t = 0.5 + 0.5 * Math.tanh(h / 350);
+      let r, g, b;
+      if (t < 0.45) {
+        const s = t / 0.45;
+        r = Math.floor(5  + s * 20);
+        g = Math.floor(9  + s * 87);
+        b = Math.floor(26 + s * 118);
+      } else {
+        const s = (t - 0.45) / 0.55;
+        r = Math.floor(25  + s * 175);
+        g = Math.floor(96  + s * 144);
+        b = Math.floor(144 + s * 111);
+      }
+      // Each grid cell → 2×2 canvas pixels
+      for (let sy = 0; sy < 2; sy++) {
+        for (let sx = 0; sx < 2; sx++) {
+          const pp = ((y*2+sy)*600 + (x*2+sx)) * 4;
+          pxl[pp]   = r;
+          pxl[pp+1] = g;
+          pxl[pp+2] = b;
+          pxl[pp+3] = 255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function toGrid(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return [
+    Math.round((clientX - rect.left) / canvas.clientWidth  * W),
+    Math.round((clientY - rect.top)  / canvas.clientHeight * H)
+  ];
+}
+
+// Mouse
+let pressing = false;
+canvas.addEventListener('mousedown', e => {
+  pressing = true;
+  const [gx, gy] = toGrid(e.clientX, e.clientY);
+  disturb(gx, gy, 1400);
+  lastTouch = performance.now();
+});
+document.addEventListener('mouseup', () => { pressing = false; });
+canvas.addEventListener('mousemove', e => {
+  if (!pressing) return;
+  const [gx, gy] = toGrid(e.clientX, e.clientY);
+  disturb(gx, gy, 500);
+  lastTouch = performance.now();
+});
+
+// Hidden: double-click triggers a rain shower
+canvas.addEventListener('dblclick', () => {
+  for (let i = 0; i < 30; i++) {
+    setTimeout(() => {
+      const gx = 10 + Math.floor(Math.random() * (W-20));
+      const gy = 10 + Math.floor(Math.random() * (H-20));
+      disturb(gx, gy, 500 + Math.random() * 700);
+    }, i * 55 + Math.random() * 35);
+  }
+  lastTouch = performance.now();
+});
+
+// Touch
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const [gx, gy] = toGrid(t.clientX, t.clientY);
+  disturb(gx, gy, 1400);
+  lastTouch = performance.now();
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  const [gx, gy] = toGrid(t.clientX, t.clientY);
+  disturb(gx, gy, 500);
+  lastTouch = performance.now();
+}, { passive: false });
+
+// Auto-drops when idle
+let lastTouch = performance.now();
+let nextGap = 3500;
+function autoDrop(now) {
+  if (now - lastTouch > nextGap) {
+    const gx = 15 + Math.floor(Math.random() * (W-30));
+    const gy = 15 + Math.floor(Math.random() * (H-30));
+    disturb(gx, gy, 900 + Math.random() * 700);
+    lastTouch = now;
+    nextGap = 4000 + Math.random() * 5000;
+  }
+}
+
+// Seed with three staggered drops
+disturb(90, 60, 1200);
+setTimeout(() => disturb(215, 138, 950), 800);
+setTimeout(() => disturb(148, 102, 1100), 1700);
+
+function loop(ts) {
+  autoDrop(ts);
+  step(); step(); step();
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
