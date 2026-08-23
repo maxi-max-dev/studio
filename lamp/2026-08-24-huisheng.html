@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>回声</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #080808;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+    cursor: default;
+  }
+  canvas { display: block; }
+  #prompt {
+    position: absolute;
+    bottom: 44px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.13);
+    font-family: 'Georgia', serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    pointer-events: none;
+    transition: opacity 1.2s;
+  }
+  #info {
+    position: absolute;
+    bottom: 14px;
+    right: 18px;
+    color: rgba(255,255,255,0.07);
+    font-size: 7.5px;
+    font-family: monospace;
+    text-align: right;
+    pointer-events: none;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="prompt">点击，听</div>
+<div id="info"></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx2d = canvas.getContext('2d');
+const promptEl = document.getElementById('prompt');
+const infoEl = document.getElementById('info');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Audio ──────────────────────────────────────────────
+let audioCtx = null, oscA = null, oscB = null, gainA = null, gainB = null;
+let started = false;
+
+const ECHO_DELAY_MS = 3200;   // B is 3.2 seconds behind A
+const HISTORY_MS    = 100;    // record freq every 100ms
+const HISTORY_CAP   = Math.ceil(ECHO_DELAY_MS / HISTORY_MS) + 20;
+
+const MIN_HZ = 150, MAX_HZ = 450;
+let freqA = 300, freqB = 300;
+let targetA = 300, targetB = 300;
+let freqHistory = [];           // [{time, freq}]
+let lastHistRecord = 0;
+let bActive = false;
+
+function pickNewTarget() {
+  targetA = MIN_HZ + Math.random() * (MAX_HZ - MIN_HZ);
+  nextMoveAt = performance.now() + 7000 + Math.random() * 10000;
+}
+let nextMoveAt = Infinity;
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // — A: warm, slightly left —
+  oscA = audioCtx.createOscillator();
+  oscA.type = 'sine';
+  oscA.frequency.setValueAtTime(freqA, audioCtx.currentTime);
+
+  const panA = audioCtx.createStereoPanner();
+  panA.pan.setValueAtTime(-0.32, audioCtx.currentTime);
+
+  gainA = audioCtx.createGain();
+  gainA.gain.setValueAtTime(0, audioCtx.currentTime);
+  gainA.gain.linearRampToValueAtTime(0.52, audioCtx.currentTime + 1.8);
+
+  oscA.connect(gainA); gainA.connect(panA); panA.connect(audioCtx.destination);
+
+  // — B: cooler, slightly right, filtered (distant) —
+  oscB = audioCtx.createOscillator();
+  oscB.type = 'sine';
+  oscB.frequency.setValueAtTime(freqA, audioCtx.currentTime);
+
+  const filterB = audioCtx.createBiquadFilter();
+  filterB.type = 'lowpass';
+  filterB.frequency.setValueAtTime(700, audioCtx.currentTime);
+  filterB.Q.setValueAtTime(0.4, audioCtx.currentTime);
+
+  const panB = audioCtx.createStereoPanner();
+  panB.pan.setValueAtTime(0.32, audioCtx.currentTime);
+
+  gainB = audioCtx.createGain();
+  gainB.gain.setValueAtTime(0, audioCtx.currentTime);
+
+  oscB.connect(filterB); filterB.connect(gainB);
+  gainB.connect(panB); panB.connect(audioCtx.destination);
+
+  oscA.start();
+  oscB.start();
+
+  // B fades in after its first echo cycle
+  setTimeout(() => {
+    bActive = true;
+    gainB.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainB.gain.linearRampToValueAtTime(0.26, audioCtx.currentTime + 2.0);
+  }, ECHO_DELAY_MS + 800);
+
+  pickNewTarget();
+}
+
+// ── Update ─────────────────────────────────────────────
+function update(now) {
+  // Glide A toward its target
+  const alpha = 0.0018;
+  freqA += (targetA - freqA) * alpha;
+
+  if (now > nextMoveAt) pickNewTarget();
+
+  // Record history
+  if (now - lastHistRecord > HISTORY_MS) {
+    freqHistory.push({ time: now, freq: freqA });
+    if (freqHistory.length > HISTORY_CAP) freqHistory.shift();
+    lastHistRecord = now;
+  }
+
+  // Find B's echo target (freq from ECHO_DELAY_MS ago)
+  const echoAt = now - ECHO_DELAY_MS;
+  let echoFreq = null;
+  for (let i = freqHistory.length - 1; i >= 0; i--) {
+    if (freqHistory[i].time <= echoAt) { echoFreq = freqHistory[i].freq; break; }
+  }
+  if (echoFreq !== null) targetB = echoFreq;
+
+  // B glides toward its (delayed) target, slightly slower
+  freqB += (targetB - freqB) * alpha * 0.88;
+
+  // Push to audio
+  if (audioCtx) {
+    const t = audioCtx.currentTime;
+    oscA.frequency.setTargetAtTime(freqA, t, 0.04);
+    oscB.frequency.setTargetAtTime(freqB, t, 0.04);
+  }
+
+  // Info: show delta only when close
+  const diff = Math.abs(freqA - freqB);
+  infoEl.textContent = (bActive && diff < 22)
+    ? `Δ ${diff.toFixed(1)} Hz`
+    : '';
+}
+
+// ── Draw ───────────────────────────────────────────────
+function draw(now) {
+  ctx2d.clearRect(0, 0, W, H);
+  if (!started) return;
+
+  const cx = W / 2, cy = H / 2;
+  const spread = Math.min(W * 0.30, 200);
+
+  // Frequency → vertical position
+  const midHz = (MIN_HZ + MAX_HZ) / 2;
+  const range  = (MAX_HZ - MIN_HZ);
+  const yA = cy - (freqA - midHz) / range * H * 0.52;
+  const yB = cy - (freqB - midHz) / range * H * 0.52;
+  const xA = cx - spread;
+  const xB = cx + spread;
+
+  const diff = Math.abs(freqA - freqB);
+
+  // Connecting line (appears when close)
+  if (bActive && diff < 45) {
+    let lineAlpha = (1 - diff / 45) * 0.28;
+    // Pulse with beat frequency
+    if (diff > 0.8 && diff < 18) {
+      const beatHz = diff;
+      lineAlpha *= 0.55 + 0.45 * Math.sin(now * 0.001 * beatHz * Math.PI * 2);
+    }
+    ctx2d.beginPath();
+    ctx2d.moveTo(xA, yA);
+    ctx2d.lineTo(xB, yB);
+    ctx2d.strokeStyle = `rgba(255,255,255,${lineAlpha.toFixed(3)})`;
+    ctx2d.lineWidth = 0.6;
+    ctx2d.stroke();
+  }
+
+  // — B (echo): cooler, dimmer, drawn first —
+  if (bActive) {
+    const r = 24;
+    const gB = ctx2d.createRadialGradient(xB, yB, 0, xB, yB, r);
+    gB.addColorStop(0, 'rgba(140,175,230,0.16)');
+    gB.addColorStop(1, 'rgba(140,175,230,0)');
+    ctx2d.beginPath(); ctx2d.arc(xB, yB, r, 0, Math.PI*2);
+    ctx2d.fillStyle = gB; ctx2d.fill();
+
+    ctx2d.beginPath(); ctx2d.arc(xB, yB, 2.8, 0, Math.PI*2);
+    ctx2d.fillStyle = 'rgba(150,185,235,0.50)'; ctx2d.fill();
+
+    ctx2d.font = '7px monospace';
+    ctx2d.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx2d.textAlign = 'left';
+    ctx2d.fillText(`${Math.round(freqB)} Hz`, xB + 10, yB + 2);
+  }
+
+  // — A (primary): warm, present —
+  const rA = 30;
+  const gA = ctx2d.createRadialGradient(xA, yA, 0, xA, yA, rA);
+  gA.addColorStop(0, 'rgba(255,210,130,0.22)');
+  gA.addColorStop(1, 'rgba(255,210,130,0)');
+  ctx2d.beginPath(); ctx2d.arc(xA, yA, rA, 0, Math.PI*2);
+  ctx2d.fillStyle = gA; ctx2d.fill();
+
+  ctx2d.beginPath(); ctx2d.arc(xA, yA, 3.8, 0, Math.PI*2);
+  ctx2d.fillStyle = 'rgba(255,220,155,0.88)'; ctx2d.fill();
+
+  ctx2d.font = '7px monospace';
+  ctx2d.fillStyle = 'rgba(255,255,255,0.05)';
+  ctx2d.textAlign = 'right';
+  ctx2d.fillText(`${Math.round(freqA)} Hz`, xA - 10, yA + 2);
+}
+
+// ── Loop ───────────────────────────────────────────────
+function loop(now) {
+  if (started) update(now);
+  draw(now);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.addEventListener('click', () => {
+  if (started) return;
+  started = true;
+  promptEl.style.opacity = '0';
+  initAudio();
+}, { once: true });
+</script>
+</body>
+</html>
